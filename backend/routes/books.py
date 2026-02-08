@@ -75,12 +75,11 @@ def find_books_by_categories(categories: List[str] = Body(...)):
 
 @router.get("/book/{title}/info")
 def get_book_info(title: str):
-    print(title)
-
     conn = connect_db()
     if conn:
         cur = conn.cursor()
-        cur.execute("SELECT content, description , author ,  thumbnail , category FROM book WHERE title = %s;", (title,))
+        # Ensure your SQL is correct
+        cur.execute("SELECT content, description, author, thumbnail, category FROM book WHERE title = %s;", (title,))
         result = cur.fetchone()
         cur.close()
         conn.close()
@@ -88,23 +87,27 @@ def get_book_info(title: str):
         if not result:
             raise HTTPException(status_code=404, detail="Book not found")
 
-        content, description , author ,  thumbnail , category = result
+        content, description, author, thumbnail, category = result
+
+        # FIX: If category is a list, join it. If it's already a string, keep it.
+        if isinstance(category, list):
+            categories_str = ", ".join(category)
+        else:
+            # This handles cases where it might have been saved as a weird string
+            categories_str = str(category).replace("{", "").replace("}", "").replace('"', "")
 
         num_keys = len(content)
-        categories = ", ".join(category)
-        total_steps = sum(len(content[key].get("steps", [])) for key in list(content.keys()))
+        total_steps = sum(len(content[key].get("steps", [])) for key in content.keys())
 
         return {
             "title": title,
             "thumbnail": thumbnail,
-            "author" :author,
+            "author": author,
             "description": description,
             "sub_categories_count": num_keys,
             "total_insights": total_steps,
-            "categories": categories
+            "categories": categories_str  # Clean string: "Psychology, Self-Help"
         }
-    else:
-        raise HTTPException(status_code=500, detail="Database connection failed")
 
 
 @router.get("/book/{title}/content_keys", response_model=List[Dict[str, str]])

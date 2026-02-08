@@ -54,11 +54,11 @@ const Overview = () => {
                 {/* <img src={book?.thumbnail} className=" absolute blur-md md:hidden -p-2 rounded-xl mx-auto shadow-md h-64 w-full object-cover  md:h-56 md:w-auto" alt={book?.title} /> */}
 
                 {/* <span></span> */}
-                <div className="flex flex-col gap-4 md:justify-between w-full">
-                    <div className="flex flex-col  md:items-start gap-2" >
+                <div className="flex flex-col md:justify-between gap-4 md w-full">
+                    <div className="flex flex-col md:items-start gap-4" >
                         <div className="flex justify-between w-full">
                             <h1 className="text-gray-600 font-bold text-3xl md:text-4xl ">{book?.title}</h1>
-                            <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 m-4 md:m-0 bottom-0" >
+                            <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 md:m-0 bottom-0" >
                                 <button
                                     type="button"
                                     className="text-gray-200 md:text-gray-700  md:bg-gray-200 bg-gray-700  w-full justify-center  flex gap-2 items-center  focus:outline-none rounded-full p-3  md:w-min  font-semibold "
@@ -84,18 +84,18 @@ const Overview = () => {
                             </div>
                         </div>
                         <span className=" text-gray-600 text-sm md:text-lg flex items-center justify-between"> &bull; {book?.author} &nbsp; &bull;  {book?.sub_categories_count} Categories &nbsp; &bull;  {book?.total_insights} Insights  </span>
+                        <div className="flex gap-4 md:gap-5  flex-wrap  md:justify-normal max-w-[600px]" >
+                            {book?.categories.split(/[,&]/).map((category: any, index: Number) => <h4 className=" bg-gray-200 p-1 px-3 rounded-lg w-min text-nowrap text-xs md:text-sm flex gap-1  text-gray-800 items-center "
+                                key={String(index)} >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-3">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5-3.9 19.5m-2.1-19.5-3.9 19.5" />
+                                </svg>
+
+                                {category}
+                            </h4>)}
+                        </div>
                     </div>
 
-                    <div className="flex gap-4 md:gap-5  flex-wrap  md:justify-normal max-w-[600px]" >
-                        {book?.categories.split(/[,&]/).map((category: any, index: Number) => <h4 className=" bg-gray-200 p-1 px-3 rounded-lg w-min text-nowrap text-xs md:text-sm flex gap-1  text-gray-800 items-center "
-                            key={String(index)} >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-3">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5-3.9 19.5m-2.1-19.5-3.9 19.5" />
-                            </svg>
-
-                            {category}
-                        </h4>)}
-                    </div>
                     {/* <div className="flex justify-content gap-3">
 
                         <span className="flex items-center bg-gray-200 px-2 py-1 text-gray-800 gap-1  w-min text-nowrap  rounded-full text-sm" >

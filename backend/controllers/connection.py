@@ -6,7 +6,6 @@ password = "AyushNigam"
 host = "localhost"
 port = "5432"
 
-
 def connect_db():
     """Connects to the PostgreSQL database."""
     try:

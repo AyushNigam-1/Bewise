@@ -11,8 +11,9 @@ def extract_actionable_steps(folder_path, model, text_chunk, max_retries=5, base
         try:
             prompt = step_extraction_prompt(text_chunk)
             response = model.invoke([HumanMessage(content=prompt)])
+            # print("response" , response)
             new_data = markdown_to_json(response.content)
-
+            print("new_data",new_data)
             if not isinstance(new_data, dict) or "steps" not in new_data or not isinstance(new_data["steps"], list):
                 raise ValueError("Invalid response format: Expected a dictionary with a 'steps' list.")
 

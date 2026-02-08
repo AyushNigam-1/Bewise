@@ -17,8 +17,8 @@ const Navbar = () => {
   }, []);
 
   return (
-    <nav className="border-b border-gray-300 pb-2 z-50 top-0 start-0">
-      <div className="flex flex-wrap items-center justify-between container mx-auto">
+    <nav className="border-b border-gray-300 pb-3 z-50 container mx-auto">
+      <div className="flex flex-wrap items-center justify-between ">
         <span className="self-center text-2xl text-gray-700 font-semibold whitespace-nowrap">
           <img src="/logo.png" alt="" className="md:w-32 w-20" />
         </span>

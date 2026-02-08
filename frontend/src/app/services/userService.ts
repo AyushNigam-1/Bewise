@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API = "http://192.168.235.43:8000" // Update based on your FastAPI server
+const API = "http://localhost:8000" // Update based on your FastAPI server
 
 export interface Insight {
     id: number;

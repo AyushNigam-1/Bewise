@@ -32,9 +32,9 @@ const Page = () => {
         const fetchBooks = async () => {
             try {
                 const books = await getAllBooks();
-                const categories = await getAllCategories()
-                const bookmarks = await getFavouriteBooks(user.user_id)
-                setBookmarkedBooks(bookmarks)
+                // const categories = await getAllCategories()
+                // const bookmarks = await getFavouriteBooks(user.user_id)
+                // setBookmarkedBooks(bookmarks)
                 setBooks(books);
                 setFilteredBooks(books);
                 setCategories(categories)
@@ -77,15 +77,16 @@ const Page = () => {
             )
             // console.log(data)
             setBookmarkedBooks(data)
-            
+
         } catch (error) {
             console.error("Error fetching steps:", error)
         }
     }
+    console.log(filteredBooks)
     return (
         <div className="flex flex-col w-full " >
             <div className={`flex justify-between items-center h-14 md:h-18 sticky top-0 bg-gray-100 z-30 `} >
-                <h4 className="justify-between flex lg:text-4xl font-bold text-gray-700 text-2xl text-center md:text-left  gap-2" >Explore</h4>
+                <h4 className="justify-between flex lg:text-3xl font-bold text-gray-700 text-2xl text-center md:text-left gap-2" >Explore</h4>
                 <div className="flex gap-2 items-center">
                     <SearchBar responsive={true} data={books} propertyToSearch='title' setFilteredData={setFilteredBooks} />
                     <button onClick={() => setIsOpen(true)} className=" p-3 font-semibold  bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full  flex gap-2 items-center md:relative fixed right-0 m-4 md:m-0 bottom-0 ">
@@ -96,7 +97,7 @@ const Page = () => {
 
                 </div>
             </div>
-            < div className="columns-1 gap-3 lg:columns-4 space-y-4" >
+            <div className="columns-1 gap-3 lg:columns-5 space-y-4" >
                 {filteredBooks.map((book: any) => (
                     <Card key={`${book.id}-${bookmarkedBooks.includes(book.id)}`} book={book} bookmarkBook={bookmarkBook} isBookmarked={bookmarkedBooks.includes(book.id)} />
                 ))}
