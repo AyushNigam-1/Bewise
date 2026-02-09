@@ -64,7 +64,18 @@ export default function StepPage() {
 
         fetchStepDetails();
     }, [stepId]);
-
+    const formatMarkdown = (text) => {
+        if (!text) return "";
+        try {
+            // If the string is double-encoded (surrounded by quotes), JSON.parse will clean it
+            return JSON.parse(`"${text}"`);
+        } catch (e) {
+            // Fallback: Manually replace common escaped characters if JSON.parse fails
+            return text
+                .replace(/\\n/g, '\n')
+                .replace(/\\"/g, '"');
+        }
+    };
     if (error) return <p>Error: {error}</p>;
     if (!stepDetails) return <p>Loading...</p>;
 
@@ -111,7 +122,7 @@ export default function StepPage() {
                     p: ({ children }) => <p className="text-lg leading-relaxed">{children}</p>,
                 }}
             >
-                {JSON.parse(stepDetails?.detailed_breakdown)}
+                {formatMarkdown(stepDetails?.detailed_breakdown)}
             </ReactMarkdown >
             {/* <label class="inline-flex items-center space-x-2 cursor-pointer">
                 <input type="checkbox" class="peer hidden" onClick={() => handleAddInsight()} />

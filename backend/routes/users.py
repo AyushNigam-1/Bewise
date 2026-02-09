@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Response, status , Body , Query
+from fastapi import APIRouter, HTTPException, Response, status , Body 
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, List, Union
-from passlib.hash import bcrypt
-from jose import JWTError, jwt
+import bcrypt
+from jose import jwt
 import json
 from datetime import datetime, timedelta
 from controllers.connection import connect_db
@@ -60,7 +60,10 @@ def register_user(user: UserRegister):
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
 
-    hashed_pw = bcrypt.hash(user.password)
+    salt = bcrypt.gensalt()
+    hashed_pw_bytes = bcrypt.hashpw(user.password.encode('utf-8'), salt)
+    hashed_pw = hashed_pw_bytes.decode('utf-8')
+
     try:
         cur = conn.cursor()
         cur.execute(
@@ -92,7 +95,8 @@ def login_user(user: UserLogin, response: Response):
         raise HTTPException(status_code=500, detail="Database connection failed")
 
     db_user = get_user_by_email(conn, user.email)
-    if not db_user or not bcrypt.verify(user.password, db_user[3]):
+# checkpw requires bytes. Encode both the input password and the stored hash.
+    if not db_user or not bcrypt.checkpw(user.password.encode('utf-8'), db_user[3].encode('utf-8')):
         conn.close()
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
