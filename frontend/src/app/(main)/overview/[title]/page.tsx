@@ -6,6 +6,7 @@ import Link from "next/link";
 import ShareModal from "../../components/ShareModal";
 import Loader from "../../components/Loader";
 import { toggleFavouriteBook } from "@/app/services/userService";
+import { ArrowUpRight, Book, Bookmark, Share, User } from "lucide-react";
 
 const Overview = () => {
     const [book, setBook] = useState<any>(null);
@@ -55,44 +56,37 @@ const Overview = () => {
 
                 {/* <span></span> */}
                 <div className="flex flex-col md:justify-between gap-4 md w-full">
-                    <div className="flex flex-col md:items-start gap-4" >
-                        <div className="flex justify-between w-full">
-                            <h1 className="text-gray-600 font-bold text-3xl md:text-4xl ">{book?.title}</h1>
-                            <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 md:m-0 bottom-0" >
-                                <button
-                                    type="button"
-                                    className="text-gray-200 md:text-gray-700  md:bg-gray-200 bg-gray-700  w-full justify-center  flex gap-2 items-center  focus:outline-none rounded-full p-3  md:w-min  font-semibold "
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6 md:size-5">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
+                    <div className="flex justify-between w-full items-start">
+
+                        <div className="flex flex-col md:items-start gap-4" >
+                            <h1 className="text-gray-600 font-bold text-3xl md:text-4xl md:leading-none">{book?.title}</h1>
+                            <span className=" text-gray-600 text-sm md:text-lg flex items-center justify-between"> &bull; {book?.author} &nbsp; &bull;  {book?.sub_categories_count} Categories &nbsp; &bull;  {book?.total_insights} Insights  </span>
+                            <div className="flex gap-4 md:gap-5  flex-wrap  md:justify-normal max-w-[600px]" >
+                                {book?.categories.split(/[,&]/).map((category: any, index: Number) => <h4 className=" bg-gray-200 p-1 px-3 rounded-lg w-min text-nowrap text-xs md:text-sm flex gap-1  text-gray-800 items-center "
+                                    key={String(index)} >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-3">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5-3.9 19.5m-2.1-19.5-3.9 19.5" />
                                     </svg>
 
-                                    {/* Bookmark */}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsOpen(true)}
-                                    className="text-gray-200 md:text-gray-700  md:bg-gray-200 bg-gray-700   w-full justify-center  flex gap-2 items-center  focus:outline-none rounded-full p-3  md:w-min  font-semibold cursor-pointer "
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6 md:size-5">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
-                                    </svg>
-
-                                    {/* Bookmark */}
-                                </button>
-                                <ShareModal isOpen={isOpen} setIsOpen={setIsOpen} shareUrl={`https://www.bookworm.com/overview/${book?.title}`} />
+                                    {category}
+                                </h4>)}
                             </div>
                         </div>
-                        <span className=" text-gray-600 text-sm md:text-lg flex items-center justify-between"> &bull; {book?.author} &nbsp; &bull;  {book?.sub_categories_count} Categories &nbsp; &bull;  {book?.total_insights} Insights  </span>
-                        <div className="flex gap-4 md:gap-5  flex-wrap  md:justify-normal max-w-[600px]" >
-                            {book?.categories.split(/[,&]/).map((category: any, index: Number) => <h4 className=" bg-gray-200 p-1 px-3 rounded-lg w-min text-nowrap text-xs md:text-sm flex gap-1  text-gray-800 items-center "
-                                key={String(index)} >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-3">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5-3.9 19.5m-2.1-19.5-3.9 19.5" />
-                                </svg>
-
-                                {category}
-                            </h4>)}
+                        <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 md:m-0 bottom-0" >
+                            <button
+                                type="button"
+                                className="inline-flex items-center gap-2 bg-gray-700 p-2 md:p-3 text-sm/6 font-semibold text-white rounded-full"
+                            >
+                                <Bookmark size={20} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsOpen(true)}
+                                className="inline-flex items-center gap-2 bg-gray-700 p-2 md:p-3 text-sm/6 font-semibold text-white rounded-full "
+                            >
+                                <Share size={20} />
+                            </button>
+                            <ShareModal isOpen={isOpen} setIsOpen={setIsOpen} shareUrl={`https://www.bookworm.com/overview/${book?.title}`} />
                         </div>
                     </div>
 
@@ -128,17 +122,13 @@ const Overview = () => {
                         <Link
                             href={`/insights/${book?.title} `}
                             type="button"
-                            // className="text-white    focus:outline-none  py-3 md:py-2 px-4 rounded-lg md:w-min w-[96vw] font-semibold flex md:relative bottom-4 md:bottom-0  gap-2 items-center justify-center fixed "
                             className="text-gray-200  bg-gray-700  justify-center  flex gap-2 items-center  focus:outline-none rounded-lg py-2 px-4 md:text-lg  font-semibold">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 19.5 15-15m0 0H8.25m11.25 0v11.25" />
-                            </svg>
-
+                            <ArrowUpRight />
                             Get Insights
                         </Link>
                         <button
                             type="button"
-                            className="text-gray-200  bg-gray-700   justify-center  flex gap-2 items-center  focus:outline-none rounded-lg py-2 px-4  md:text-lg  font-semibold "
+                            className="text-gray-200  bg-gray-700   justify-center  flex gap-2 items-center  focus:outline-none rounded-lg py-2 px-4  md:text-lg  font-semibold"
                         >
                             {/* <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
@@ -155,46 +145,14 @@ const Overview = () => {
             </div>
             <hr className="border-gray-300" />
             <p className="text-md text-gray-500 flex gap-2 items-center" >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
-                </svg>
+                <Book size={20} />
                 About Book
             </p>
             <p className=" text-xl text-gray-500 font-medium">
-                {/* <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-
-                    components={{
-                        h1: ({ children }) => <h1 className="text-6xl font-bold mt-6 mb-4">{children}</h1>,
-                        h2: ({ children }) => <h2 className="text-3xl font-semibold mt-6 mb-3">{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-xl font-bold text-gray-700 mt-5 mb-2">{children}</h3>,
-                        ul: ({ children }) => <ul className="list-disc ml-6 text-lg">{children}</ul>,
-                        li: ({ children }) => <li className="text-gray-600">{children}</li>,
-                        p: ({ children }) => <p className="text-lg leading-relaxed">{children}</p>,
-                    }}
-                > */}
-                {book?.description}
-                {/* ### **Summary of *Meditations* by Marcus Aurelius**
-
-                *Meditations* is a collection of personal reflections written by Roman Emperor **Marcus Aurelius** as a guide for self-improvement and inner peace. It is deeply rooted in **Stoic philosophy**, emphasizing discipline, virtue, and acceptance of life’s challenges.
-
-                The book is divided into **12 sections**, each containing personal thoughts rather than structured arguments. Marcus repeatedly reminds himself to focus on **what he can control**, accept external events as part of nature, and act with **wisdom, justice, courage, and self-discipline**.
-
-                #### **Key themes of the book include:**
-                - **Control vs. Acceptance** – We should not waste energy on things outside our control but focus on our actions and mindset.
-                - **Death & Impermanence** – Life is short, and everything is temporary, so we should live virtuously without attachment to status or materialism.
-                - **Dealing with Others** – People may act irrationally, but we should remain calm and respond with reason rather than anger.
-                - **Inner Peace & Simplicity** – Happiness comes from within, not from external success or wealth.
-
-                Throughout *Meditations*, Marcus Aurelius reminds himself to **stay rational, avoid unnecessary suffering, and act according to nature’s order**. The book serves as a timeless **manual for self-discipline, resilience, and mental clarity**, making it one of the most influential works of Stoic philosophy. */}
-
-
-                {/* </ReactMarkdown> */}
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Cumque sunt quidem nostrum inventore neque, molestiae eligendi officiis earum! Ipsa laudantium iste accusamus? Similique molestiae dolore aut alias! Dolorum molestiae voluptatibus dolorem quo deserunt et. Lorem ipsum dolor sit amet consectetur adipisicing elit. Vel repellendus aspernatur reprehenderit iusto, voluptatibus tempora eum aperiam, hic laboriosam ab, enim eveniet! Aliquam libero illo nisi unde laboriosam placeat ducimus voluptate incidunt dignissimos ipsum error dolorum in necessitatibus praesentium eveniet, doloremque eos atque quasi cumque.
             </p>
             <p className="text-md text-gray-600 flex gap-2 items-center" >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                </svg>
+                <User size={20} />
                 About Author
             </p>
             <p className="text-xl text-gray-500 font-medium">Lorem ipsum dolor sit amet consectetur, adipisicing elit. Cumque sunt quidem nostrum inventore neque, molestiae eligendi officiis earum! Ipsa laudantium iste accusamus? Similique molestiae dolore aut alias! Dolorum molestiae voluptatibus dolorem quo deserunt et. Lorem ipsum dolor sit amet consectetur adipisicing elit. Vel repellendus aspernatur reprehenderit iusto, voluptatibus tempora eum aperiam, hic laboriosam ab, enim eveniet! Aliquam libero illo nisi unde laboriosam placeat ducimus voluptate incidunt dignissimos ipsum error dolorum in necessitatibus praesentium eveniet, doloremque eos atque quasi cumque.</p>

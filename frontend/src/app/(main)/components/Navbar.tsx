@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Cookies from "js-cookie";
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/react";
+import { User } from "lucide-react";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,16 +20,15 @@ const Navbar = () => {
   return (
     <nav className="border-b border-gray-300 pb-3 z-50 container mx-auto">
       <div className="flex flex-wrap items-center justify-between ">
-        <span className="self-center text-2xl text-gray-700 font-semibold whitespace-nowrap">
+        {/* <span className="self-center text-2xl text-gray-700 font-semibold whitespace-nowrap">
           <img src="/logo.png" alt="" className="md:w-32 w-20" />
-        </span>
-
+          
+        </span> */}
+        <h4 className="justify-between flex lg:text-3xl font-bold text-gray-700 text-3xl text-center md:text-left gap-2 italic" >Bevise</h4>
         {isLoggedIn ? (
           <Menu as="div" className="relative inline-block text-left">
             <MenuButton className="inline-flex items-center gap-2 bg-gray-700 p-2 md:p-3 text-sm/6 font-semibold text-white rounded-full">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5 md:size-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-              </svg>
+              <User size={20} />
             </MenuButton>
 
             <Transition

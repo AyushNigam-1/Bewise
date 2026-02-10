@@ -28,7 +28,7 @@ const Card: React.FC<CardProps> = ({ book, bookmarkBook, isBookmarked }) => {
     const [isOpen, setIsOpen] = useState(false)
 
     return (
-        <Link className=" rounded-2xl cursor-pointer overflow-clip bg-gray-200  gap-2 p-2 break-inside-avoid flex flex-col" href={`/overview/${book.title}`} >
+        <Link className=" rounded-2xl cursor-pointer overflow-clip gap-2 break-inside-avoid flex flex-col" href={`/overview/${book.title}`} >
             <div className="flex flex-col gap-4 w-full">
                 <div className="group relative w-full flex items-end overflow-clip rounded-xl  ">
                     <img

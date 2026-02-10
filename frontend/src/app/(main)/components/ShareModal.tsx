@@ -43,38 +43,32 @@ export default function ShareModal({ isOpen, setIsOpen, shareUrl }: { isOpen: bo
     const socialMediaLinks = [
 
         {
-            type: "Chat",
             name: "Whatsapp",
             icon: <WhatsappIcon size={42} round={true} className='' />,
             url: `https://web.whatsapp.com/send?text=${encodeURIComponent('Check this out! ' + shareUrl)}`
         },
         {
-            type: "Chat",
             name: "Telegram",
             icon: <TelegramIcon size={42} round={true} className='' />,
             url: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent('Check this out!')}`
         },
         {
-            type: "Chat",
             name: "Messenger",
             icon: <FacebookMessengerIcon size={42} round={true} className='' />,
             url: `https://www.messenger.com/t/?link=${encodeURIComponent(shareUrl)}`
         },
         {
-            type: "Post",
             name: "Twitter",
             icon: <TwitterIcon size={42} round={true} className='' />,
             url: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent('Check this out!')}`
         },
         {
-            type: "Post",
             name: "LinkedIn",
             icon: <LinkedinIcon size={42} round={true} className='' />,
             url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`
         },
 
         {
-            type: "Post",
             name: "Reddit",
             icon: <RedditIcon size={42} round={true} className='' />,
             url: `https://www.reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent('Check this out!')}`
@@ -149,7 +143,6 @@ export default function ShareModal({ isOpen, setIsOpen, shareUrl }: { isOpen: bo
                                                 <p>
                                                     {link.name}
                                                 </p>
-                                                ({link.type})
                                             </Link>))
                                     }
                                 </div>

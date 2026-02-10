@@ -11,6 +11,7 @@ import ShareModal from '../../components/ShareModal';
 import CategoryDialog from '../../components/CategoryDialog';
 import { Slide, toast, ToastContainer } from 'react-toastify';
 import ProgressBar from '../../components/ProgressBar';
+import { Filter, SlidersHorizontal } from 'lucide-react';
 interface StepData {
     step: string;
     category: string;
@@ -178,24 +179,19 @@ export default function Page() {
             {mode !== "Swipe" && <div className="sticky top-0 w-full bg-gray-100 z-10 h-14 md:h-20">
                 <div className={`flex justify-between items-center h-full`} >
                     <div className='flex flex-col gap-1'>
-                        <div className='justify-between flex lg:text-4xl font-bold text-gray-700 text-2xl text-center md:text-left  gap-2' >
+                        <div className='justify-between flex lg:text-3xl font-bold text-gray-700 text-2xl text-center md:text-left  gap-2' >
                             <p>
                                 Insights
                             </p>
                         </div>
-
                     </div>
-
                     <div className=''>
                         <div className='flex gap-3' >
                             <ProgressBar completed={completedInsights.length} total={steps.length} />
                             <SearchBar responsive={true} data={steps} propertyToSearch='step' setFilteredData={setFilteredBooks} />
                             <div className='flex flex-col gap-3 md:relative fixed right-0 m-4 md:m-0 bottom-0' >
-
                                 <button onClick={() => setIsOpen(true)} className=" p-3 font-semibold  bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full  flex gap-2 items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
-                                    </svg>
+                                    <SlidersHorizontal size={20} />
                                 </button>
                                 <button onClick={() => setMode("Swipe")} className="md:hidden p-3 bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">

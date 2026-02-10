@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react'
-import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Transition } from '@headlessui/react'
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
 import { Fragment } from 'react'
 import SearchBar from './SearchBar'
 
@@ -19,7 +19,7 @@ const CategoryDialog: React.FC<categoryProps> = ({ isOpen, setIsOpen, filteredCa
     return (
         <Transition appear show={isOpen} as={Fragment}>
             <Dialog onClose={() => { setIsOpen(false); setFilteredCategories(categories) }} className="relative z-50" >
-                <Transition.Child
+                <TransitionChild
                     as={Fragment}
                     enter="ease-out duration-100"
                     enterFrom="opacity-0"
@@ -29,10 +29,10 @@ const CategoryDialog: React.FC<categoryProps> = ({ isOpen, setIsOpen, filteredCa
                     leaveTo="opacity-0"
                 >
                     <DialogBackdrop className="fixed inset-0 bg-black/30 backdrop-blur-xs" />
-                </Transition.Child>
+                </TransitionChild>
 
                 < div className="fixed inset-0 w-screen  p-4 flex justify-center gap-4 items-center" >
-                    <Transition.Child
+                    <TransitionChild
                         as={Fragment}
                         enter="ease-out duration-300"
                         enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
@@ -44,7 +44,7 @@ const CategoryDialog: React.FC<categoryProps> = ({ isOpen, setIsOpen, filteredCa
                         <DialogPanel className="max-w-lg shadow rounded-xl bg-gray-100 p-3 flex flex-col gap-3 " >
                             <div className='justify-between flex items-center' >
                                 <DialogTitle className="font-bold text-lg md:text-2xl text-gray-800" > Select Categories </DialogTitle>
-                                < button
+                                <button
                                     onClick={() => { setIsOpen(false); setFilteredCategories(categories) }}
                                     type="button"
                                     className="text-gray-600 cursor-pointer bg-gray-200  focus:outline-none rounded-full   p-2 w-min  font-semibold "
@@ -53,15 +53,12 @@ const CategoryDialog: React.FC<categoryProps> = ({ isOpen, setIsOpen, filteredCa
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                                     </svg>
                                 </button>
-
                             </div>
-                            < SearchBar responsive={false} data={categories} propertyToSearch='name' setFilteredData={setFilteredCategories} />
+                            <SearchBar responsive={false} data={categories} propertyToSearch='name' setFilteredData={setFilteredCategories} />
                             <div className="overflow-y-scroll h-[50vh] gap-3 flex flex-col rounded-lg   scrollbar-thumb-gray-300 scrollbar-thin scrollbar-track-gray-100 scrollbar-thumb-rounded-full scrollbar-track-rounded-full" >
                                 {filteredCategories?.map((category) => (
                                     <div className="relative overflow-visible inline-block" key={category.name} >
-
                                         <button
-
                                             onClick={
                                                 () => {
                                                     toggleCategory(category)
@@ -71,8 +68,6 @@ const CategoryDialog: React.FC<categoryProps> = ({ isOpen, setIsOpen, filteredCa
                                             className={`relative flex flex-col gap-2 rounded-xl select-none hover:bg-gray-200 cursor-pointer text-gray-400 p-2 bg-gray-200 w-full 
                         ${selectedCategory?.map(c => c).includes(category) ? ' border-2 border-gray-400' : ''}`}
                                         >
-
-
                                             <div className='flex flex-col gap-1' >
                                                 <div className='flex gap-2  justify-between' >
                                                     <div className='flex gap-2 text-base md:text-xl' >
@@ -101,7 +96,7 @@ const CategoryDialog: React.FC<categoryProps> = ({ isOpen, setIsOpen, filteredCa
                                 ))}
                             </div>
                         </DialogPanel>
-                    </Transition.Child>
+                    </TransitionChild>
                 </div>
             </Dialog>
         </Transition>

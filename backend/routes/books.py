@@ -7,8 +7,70 @@ import json
 from src.processor import BookistProcessor
 from src.utils.file_operations import load_json_file
 from typing import List
+from pydantic import BaseModel
+from langchain_groq import ChatGroq
+from langchain_core.messages import HumanMessage
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
+import traceback
+
+class ChatRequest(BaseModel):
+    message: str
+    session_id: str
+
 
 router = APIRouter()
+store: dict[str, ChatMessageHistory] = {}
+
+# Prompt template (single prompt pipeline)
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are Bookist AI. Be clear, helpful, and concise."),
+    ("human", "{input}")
+])
+
+def get_session_history(session_id: str) -> ChatMessageHistory:
+    """Return (and lazily create) a ChatMessageHistory for a session id."""
+    if session_id not in store:
+        store[session_id] = ChatMessageHistory()
+    return store[session_id]
+
+# initialize Groq LLM
+llm = ChatGroq(
+    model_name="llama-3.3-70b-versatile",
+    api_key=os.getenv("GROQ_API_KEY"),
+)
+
+# compose prompt -> llm runnable once
+chain = prompt | llm
+
+# wrap with message-history runnable (this expects the chain that converts dict -> messages -> llm)
+chat = RunnableWithMessageHistory(
+    chain,
+    get_session_history,
+    input_messages_key="input",
+)
+
+@router.post("/chat/ai")
+def ai_reply(payload: ChatRequest):
+    try:
+        result = chat.invoke(
+            {"input": payload.message},
+            config={"configurable": {"session_id": payload.session_id}},
+        )
+
+        return {
+            "user": payload.message,
+            "ai": result.content,
+        }
+
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
 
 @router.get("/books", response_model=List[Dict[str, Any]])
 def get_all_books():

@@ -17,10 +17,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Your App Name",
+  title: "Bevise",
   description: "Your app description",
   manifest: "/manifest.json",
-  themeColor: [{ media: "(prefers-color-scheme: dark)", color: "#fff" }],
+  // themeColor: [{ media: "(prefers-color-scheme: dark)", color: "#fff" }],
   icons: [
     { rel: "apple-touch-icon", url: "/icon-192x192.png" },
     { rel: "icon", url: "/icon-192x192.png" },

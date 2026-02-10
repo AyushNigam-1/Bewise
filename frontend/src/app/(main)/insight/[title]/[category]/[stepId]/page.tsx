@@ -9,6 +9,7 @@ import remarkGfm from 'remark-gfm'
 import ShareModal from "@/app/(main)/components/ShareModal";
 import { useRouter } from 'next/navigation'
 import { Slide, toast, ToastContainer } from 'react-toastify';
+import { Bookmark, BookmarkCheck, Share } from "lucide-react";
 
 export default function StepPage() {
     const { title, stepId } = useParams();
@@ -84,29 +85,21 @@ export default function StepPage() {
             <div className="flex justify-between items-center">
 
                 <h1 className="text-4xl font-bold text-gray-700 ">{stepDetails.title}</h1>
-                <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 m-4 md:m-0 bottom-0" >
+                <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 md:m-0 bottom-0" >
                     <button
                         type="button"
-                        className="text-gray-200 md:text-gray-700  md:bg-gray-200 bg-gray-700  w-full justify-center  flex gap-2 items-center  focus:outline-none rounded-full p-3  md:w-min  font-semibold "
+                        className="inline-flex items-center gap-2 bg-gray-700 p-2 md:p-3 text-sm/6 font-semibold text-white rounded-full"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6 md:size-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
-                        </svg>
-
-                        {/* Bookmark */}
+                        <Bookmark size={20} />
                     </button>
                     <button
                         type="button"
                         onClick={() => setIsOpen(true)}
-                        className="text-gray-200 md:text-gray-700  md:bg-gray-200 bg-gray-700   w-full justify-center  flex gap-2 items-center  focus:outline-none rounded-full p-3  md:w-min  font-semibold cursor-pointer "
+                        className="inline-flex items-center gap-2 bg-gray-700 p-2 md:p-3 text-sm/6 font-semibold text-white rounded-full "
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6 md:size-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
-                        </svg>
-
-                        {/* Bookmark */}
+                        <Share size={20} />
                     </button>
-                    <ShareModal isOpen={isOpen} setIsOpen={setIsOpen} shareUrl={`https://www.bookworm.com/overview/${title}`} />
+                    <ShareModal isOpen={isOpen} setIsOpen={setIsOpen} shareUrl={`https://www.bookworm.com/overview/${stepDetails?.title}`} />
                 </div>
             </div>
             <p className=" text-lg text-gray-600">{stepDetails.description}</p>
