@@ -14,6 +14,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 import traceback
+from src.utils.vector import embed_and_upsert_insight 
 
 class ChatRequest(BaseModel):
     message: str
@@ -51,22 +52,22 @@ chat = RunnableWithMessageHistory(
     input_messages_key="input",
 )
 
-@router.post("/chat/ai")
-def ai_reply(payload: ChatRequest):
-    try:
-        result = chat.invoke(
-            {"input": payload.message},
-            config={"configurable": {"session_id": payload.session_id}},
-        )
+# @router.post("/chat/ai")
+# def ai_reply(payload: ChatRequest):
+#     try:
+#         result = chat.invoke(
+#             {"input": payload.message},
+#             config={"configurable": {"session_id": payload.session_id}},
+#         )
 
-        return {
-            "user": payload.message,
-            "ai": result.content,
-        }
+#         return {
+#             "user": payload.message,
+#             "ai": result.content,
+#         }
 
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+#     except Exception as e:
+#         traceback.print_exc()
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
 
@@ -369,6 +370,14 @@ def create_book(book_data: Dict):
                         )
                         step_id = cur.fetchone()[0]
                         content_with_step_ids[category_name]["steps"].append(step_id)
+                        embed_and_upsert_insight(
+                            insight_id=step_id,
+                            book_name=book_title,
+                            category=category_name,
+                            title=step["step"],
+                            description=step["description"],
+                            breakdown=step["detailed_breakdown"],
+                        )
 
                 cur.execute(
                 "INSERT INTO book (title, author, description, thumbnail, category, content) VALUES (%s, %s, %s, %s, %s, %s);",

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:8000" // Update based on your FastAPI server
+const API_BASE_URL = "http://10.63.43.43:8000" // Update based on your FastAPI server
 
 export const getAllBooks = async () => {
     try {

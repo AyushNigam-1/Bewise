@@ -72,17 +72,17 @@ const Overview = () => {
                                 </h4>)}
                             </div>
                         </div>
-                        <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 md:m-0 bottom-0" >
+                        <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-2 md:m-0 bottom-2" >
                             <button
                                 type="button"
-                                className="inline-flex items-center gap-2 bg-gray-700 p-2 md:p-3 text-sm/6 font-semibold text-white rounded-full"
+                                className="inline-flex items-center gap-2 bg-gray-700 p-3 text-sm/6 font-semibold text-white rounded-full"
                             >
                                 <Bookmark size={20} />
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setIsOpen(true)}
-                                className="inline-flex items-center gap-2 bg-gray-700 p-2 md:p-3 text-sm/6 font-semibold text-white rounded-full "
+                                className="inline-flex items-center gap-2 bg-gray-700 p-3 text-sm/6 font-semibold text-white rounded-full "
                             >
                                 <Share size={20} />
                             </button>

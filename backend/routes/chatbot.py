@@ -1,119 +1,165 @@
-from typing import Optional
+import os
+import traceback
+from typing import Optional, Dict
+
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
+
+from src.utils.vector import search_insights
 
 router = APIRouter()
 
-# request model (backwards compatible: message + session_id)
+# -------------------------
+# Memory Store
+# -------------------------
+
+store: Dict[str, ChatMessageHistory] = {}
+
+def get_session_history(session_id: str) -> ChatMessageHistory:
+    if session_id not in store:
+        store[session_id] = ChatMessageHistory()
+    return store[session_id]
+
+# -------------------------
+# Prompt
+# -------------------------
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are Bookist AI. Be clear, helpful, and concise."),
+    ("human", "{input}")
+])
+
+# -------------------------
+# Groq LLM
+# -------------------------
+
+llm = ChatGroq(
+    model_name="llama-3.3-70b-versatile",
+    api_key=os.getenv("GROQ_API_KEY"),
+)
+
+# -------------------------
+# Chain + Memory
+# -------------------------
+
+chain = prompt | llm
+
+chat = RunnableWithMessageHistory(
+    chain,
+    get_session_history,
+    input_messages_key="input",
+)
+
+# -------------------------
+# Request Model
+# -------------------------
+
 class ChatRequest(BaseModel):
     message: str
     session_id: str
-    # optional override from frontend later (not required)
     action: Optional[str] = None
-    # optional explicit category selected by a UI
     selected_category: Optional[str] = None
 
-# cheap keyword-based intent detector (no extra LLM call)
-def is_recommendation_query(text: str) -> bool:
-    q = text.lower()
-    keywords = [
-        "recommend", "suggest", "book", "looking for", "find me", "any book on",
-        "which book", "best book", "suggest me", "help me find", "book about",
-    ]
-    for kw in keywords:
-        if kw in q:
-            return True
-    return False
+# -------------------------
+# Chat Endpoint (RAG)
+# -------------------------
 
 @router.post("/chat/ai")
 def ai_reply(payload: ChatRequest):
     try:
-        # 1) If frontend explicitly sets action, respect it
-        if payload.action:
-            action = payload.action.lower()
-        else:
-            # 2) Decide action automatically via keyword heuristic
-            action = "recommend" if is_recommendation_query(payload.message) else "chat"
+        user_query = payload.message
 
-        # 3) Recommendation flow
-        if action == "recommend":
-            # Load categories
-            categories = load_categories_file()
+        # 1. Pinecone semantic search
+        pinecone_hits = search_insights(user_query, top_k=5)
 
-            # If frontend provided explicit selected_category, use it (if valid)
-            if payload.selected_category:
-                matched = [payload.selected_category] if payload.selected_category in categories else [payload.selected_category]
-            else:
-                # auto-match categories from user query
-                matched = match_categories_for_query(payload.message, categories, top_k=3)
-
-            # DB fetch
-            conn = connect_db()
-            if not conn:
-                raise HTTPException(status_code=500, detail="Database connection failed")
-            books = fetch_books_by_categories(conn, matched, limit=6)
-            conn.close()
-
-            # Build compact snippet for LLM
-            book_lines = []
-            for b in books:
-                cat = b.get("category") or ""
-                if isinstance(cat, (list, tuple)):
-                    cat = ", ".join(cat)
-                book_lines.append(f"- {b.get('title')} by {b.get('author')} (categories: {cat}) — {str(b.get('description',''))[:160]}")
-
-            books_snippet = "\n".join(book_lines) if book_lines else "No direct book matches found."
-
-            human_input = f"""
-User query: {payload.message}
-Matched categories: {matched}
-Top candidate books:
-{books_snippet}
-
-Task: From the above candidate books and categories, recommend 2-3 best fits for the user's query. For each recommendation include a short reason (1-2 lines) and one actionable next step. Keep answer concise and friendly.
-"""
-
-            # Call the small suggestion chain (prompt -> llm)
-            # suggest_chain is the prompt|llm runnable we created earlier
-            suggestion_result = suggest_chain.invoke({"input": human_input})
-            ai_text = getattr(suggestion_result, "content", str(suggestion_result))
-
-            # Optionally: append this interaction to session history
-            try:
-                # best-effort: add user + ai message to session history so future chat keeps context
-                hist = get_session_history(payload.session_id)
-                # API for ChatMessageHistory may vary by version; try common helpers:
-                if hasattr(hist, "add_user_message"):
-                    hist.add_user_message(payload.message)
-                if hasattr(hist, "add_ai_message"):
-                    hist.add_ai_message(ai_text)
-            except Exception:
-                # don't fail the whole request if history append fails; just continue
-                pass
-
-            return {
-                "mode": "recommend",
-                "user": payload.message,
-                "ai": ai_text,
-                "matched_categories": matched,
-                "books": books,
-            }
-
-        # 4) Default chat flow (preserves memory via RunnableWithMessageHistory)
-        else:
+        # Fallback to normal chat
+        if not pinecone_hits:
             result = chat.invoke(
-                {"input": payload.message},
+                {"input": user_query},
                 config={"configurable": {"session_id": payload.session_id}},
             )
 
-            ai_text = getattr(result, "content", str(result))
-
             return {
                 "mode": "chat",
-                "user": payload.message,
-                "ai": ai_text,
+                "ai": result.content,
             }
 
+        # 2. Build context from Pinecone metadata
+        context_blocks = []
+        for hit in pinecone_hits:
+            context_blocks.append(
+                f"""
+            Id:{hit.get("insight_id")}
+            Book: {hit.get("book")}
+            Category: {hit.get("category")}
+            Insight: {hit.get("title")}
+            Explanation: {hit.get("description")}
+            """
+            )
+
+        context_text = "\n---\n".join(context_blocks)
+
+        # 3. Grounded prompt
+        grounded_prompt  = f"""
+            You are Bookist AI.
+
+            You MUST answer ONLY using the insights below.
+
+            If the answer is not present reply EXACTLY:
+            I don't find this in the uploaded books.
+
+            CRITICAL:
+            - Book and Category must be NORMAL text.
+            - ONLY encode Book/Category inside Link.
+            - Every insight MUST include Id.
+            - NEVER omit Id.
+            - NEVER invent Id.
+
+            OUTPUT STRICT MARKDOWN:
+
+            ## Insights
+
+            For each insight:
+
+            - **Id:** <number>
+            - **Title:** <title>
+            - **Book:** <normal text>
+            - **Category:** <normal text>
+            - **Link:** http://localhost:3000/insight/<URL_ENCODED_BOOK>/<URL_ENCODED_CATEGORY>/<Id>
+            - **Explanation:** <short explanation>
+
+            Rules:
+            - Use bullet points.
+            - Keep structure.
+            - No paragraphs.
+            - No extra commentary.
+
+            User question:
+            {user_query}
+
+            INSIGHTS:
+            {context_text}
+
+            Follow format EXACTLY.
+            """
+
+        # 4. Groq with memory
+        result = chat.invoke(
+            {"input": grounded_prompt},
+            config={"configurable": {"session_id": payload.session_id}},
+        )
+
+        return {
+            "mode": "rag",
+            "ai": result.content,
+            "sources": pinecone_hits
+        }
+
     except Exception as e:
-        import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

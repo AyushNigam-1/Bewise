@@ -21,7 +21,7 @@ embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
 def extract_text_from_pdf(pdf_path, chunk_size=3):
     doc = fitz.open(pdf_path)
-    pages = [page.get_text() for page in doc][:10]
+    pages = [page.get_text() for page in doc][:40]
 
     return [
         "\n".join(pages[i:i + chunk_size])

@@ -85,17 +85,17 @@ export default function StepPage() {
             <div className="flex justify-between items-center">
 
                 <h1 className="text-4xl font-bold text-gray-700 ">{stepDetails.title}</h1>
-                <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 md:m-0 bottom-0" >
+                <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-2 md:m-0 bottom-2" >
                     <button
                         type="button"
-                        className="inline-flex items-center gap-2 bg-gray-700 p-2 md:p-3 text-sm/6 font-semibold text-white rounded-full"
+                        className="inline-flex items-center gap-2 bg-gray-700 p-3 text-sm/6 font-semibold text-white rounded-full"
                     >
                         <Bookmark size={20} />
                     </button>
                     <button
                         type="button"
                         onClick={() => setIsOpen(true)}
-                        className="inline-flex items-center gap-2 bg-gray-700 p-2 md:p-3 text-sm/6 font-semibold text-white rounded-full "
+                        className="inline-flex items-center gap-2 bg-gray-700 p-3 text-sm/6 font-semibold text-white rounded-full "
                     >
                         <Share size={20} />
                     </button>
@@ -126,7 +126,7 @@ export default function StepPage() {
                 </div>
                 <span class="text-gray-700">Mark as completed</span>
             </label> */}
-            <div class="inline-flex items-center gap-3">
+            {/* <div class="inline-flex items-center gap-3">
                 <label class="flex items-center cursor-pointer relative">
                     <input checked={isCompleted} onChange={handleAddInsight} type="checkbox" class="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded-full bg-slate-100 shadow hover:shadow-md border border-gray-400 checked:bg-gray-800 checked:border-slate-800" id="check-custom-style" />
                     <span class="absolute text-white opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
@@ -137,7 +137,7 @@ export default function StepPage() {
                 </label>
                 <span class="text-gray-700 text-lg">Mark as completed</span>
 
-            </div>
+            </div> */}
             {/* <div className="mt-4">
                 <h2 className=" text-gray-600 ">Example</h2>
                 <p className="mt-1  text-xl text-gray-800">{stepDetails.example}</p>
