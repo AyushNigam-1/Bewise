@@ -50,11 +50,10 @@ const CreateAccount = () => {
             <h1 className="text-4xl text-gray-700 font-extrabold text-center">Create Account</h1>
             <p className="text-sm text-gray-500 text-center">Join our community with all-time access for free</p>
 
-            <button className="w-full flex justify-center items-center gap-1 bg-white text-sm text-gray-600 rounded-md hover:bg-gray-50 border border-gray-200 transition-colors duration-300 p-2">
-                <img src="https://img.icons8.com/material-rounded/66/4D4D4D/google-logo.png" alt="Google" className="w-5" />
+            <button className="w-full flex justify-center items-center gap-1 bg-white text-gray-600 rounded-md hover:bg-gray-50 border border-gray-200 transition-colors duration-300 p-3 font-semibold">
+                <img src="https://img.icons8.com/material-rounded/120/4D4D4D/google-logo.png" alt="Google" className="w-5" />
                 Sign Up with Google
             </button>
-
             <div className="text-sm text-gray-500 text-center"><p>or with email</p></div>
 
             <form onSubmit={handleSubmit} className='flex flex-col gap-4'>

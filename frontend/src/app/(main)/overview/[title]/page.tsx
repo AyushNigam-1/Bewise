@@ -72,7 +72,7 @@ const Overview = () => {
                                 </h4>)}
                             </div>
                         </div>
-                        <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-2 md:m-0 bottom-2" >
+                        <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 bottom-0 m-2 md:m-0" >
                             <button
                                 type="button"
                                 className="inline-flex items-center gap-2 bg-gray-700 p-3 text-sm/6 font-semibold text-white rounded-full"

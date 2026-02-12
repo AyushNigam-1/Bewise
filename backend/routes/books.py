@@ -374,6 +374,7 @@ def create_book(book_data: Dict):
                             insight_id=step_id,
                             book_name=book_title,
                             category=category_name,
+                            category_icon=category_data.get("icon"),
                             title=step["step"],
                             description=step["description"],
                             breakdown=step["detailed_breakdown"],

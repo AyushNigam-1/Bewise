@@ -189,7 +189,7 @@ export default function Page() {
                         <div className='flex gap-3' >
                             <ProgressBar completed={completedInsights.length} total={steps.length} />
                             <SearchBar responsive={true} data={steps} propertyToSearch='step' setFilteredData={setFilteredBooks} />
-                            <div className='flex flex-col gap-3 md:relative fixed right-2 md:m-0 bottom-2' >
+                            <div className='flex flex-col gap-3 md:relative fixed right-0 bottom-0 m-2 md:m-0' >
                                 <button onClick={() => setIsOpen(true)} className=" p-3 font-semibold  bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full  flex gap-2 items-center">
                                     <SlidersHorizontal size={20} />
                                 </button>
@@ -259,9 +259,7 @@ export default function Page() {
                                                     </p>
                                                 </span>
                                             }
-
                                             <div className='flex gap-4 items-center'>
-
                                                 <button onClick={() => handleAdd(step.step_id, step.category, step.icon)}
                                                     type="button"
                                                     className={`text-gray-600 bg-gray-100  focus:outline-none rounded-full p-2 w-min  font-semibold ${bookmarks.includes(step.step_id) ? 'outline-gray-800 outline-1 text-gray-500' : ''} `}

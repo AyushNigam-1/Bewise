@@ -92,7 +92,7 @@ const Page = () => {
                 <h4 className="justify-between flex lg:text-3xl font-bold text-gray-700 text-3xl text-center md:text-left gap-2" >Explore</h4>
                 <div className="flex gap-2 items-center">
                     <SearchBar responsive={true} data={books} propertyToSearch='title' setFilteredData={setFilteredBooks} />
-                    <div className="flex flex-col md:flex-row gap-2 md:relative fixed right-2 md:m-0 bottom-2">
+                    <div className="flex flex-col md:flex-row gap-2 md:relative fixed right-0 bottom-0 m-2 md:m-0">
                         <button onClick={() => setIsOpen(true)} className=" p-3 font-semibold  bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full  flex gap-2 items-center">
                             <SlidersHorizontal size={20} />
                         </button>

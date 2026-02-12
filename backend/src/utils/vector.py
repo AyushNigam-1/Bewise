@@ -17,6 +17,7 @@ def embed_and_upsert_insight(
     insight_id: int,
     book_name: str,
     category: str,
+    category_icon: str,  
     title: str,
     description: str,
 ):
@@ -32,6 +33,7 @@ def embed_and_upsert_insight(
                 "insight_id": insight_id,
                 "book": book_name,
                 "category": category,
+                "category_icon": category_icon, 
                 "title": title,
                 "description": description,
             }
@@ -56,6 +58,7 @@ def search_insights(query: str, top_k: int = 5):
             "score": m["score"],
             "book": m["metadata"].get("book"),
             "category": m["metadata"].get("category"),
+            "category_icon":  m["metadata"].get("category_icon"), 
             "title": m["metadata"].get("title"),
             "description": m["metadata"].get("description"),
         })

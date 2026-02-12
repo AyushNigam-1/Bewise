@@ -9,11 +9,25 @@ import axios from "axios";
 import { X, Send, Bot, User, Sparkles, SendHorizontal } from "lucide-react"; // Icons
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm'
-type Message = {
-    role: "user" | "ai";
-    content: string;
+// type Message = {
+//     role: "user" | "ai";
+//     content: string;
+// };
+type Insight = {
+    id: number;
+    title: string;
+    book: string;
+    category: string;
+    category_icon: string;
+    description: string;
+    link: string;
 };
 
+type Message = {
+    role: "user" | "ai";
+    content?: string;      // natural language answer
+    insights?: Insight[]; // cards
+};
 const ChatbotModal = ({
     isOpen,
     setIsOpen,
@@ -49,8 +63,15 @@ const ChatbotModal = ({
                 message: userMsg,
                 session_id: sessionId.current,
             });
-
-            setMessages((prev) => [...prev, { role: "ai", content: data.ai }]);
+            console.log("data", data)
+            setMessages((prev) => [
+                ...prev,
+                {
+                    role: "ai",
+                    content: data.answer,
+                    insights: data.insights,
+                },
+            ]);
         } catch {
             setMessages((prev) => [
                 ...prev,
@@ -120,14 +141,14 @@ const ChatbotModal = ({
                                     >
                                         {/* Avatar AI */}
                                         {m.role === "ai" && (
-                                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0 text-gray-600 ">
+                                            <div className="size-6 md:size-8 rounded-full bg-white flex items-center justify-center flex-shrink-0 text-gray-600 ">
                                                 <Bot size={16} />
                                             </div>
                                         )}
 
                                         {/* Bubble */}
                                         <div
-                                            className={`max-w-[80%] px-4 py-3 text-sm leading-relaxed ${m.role === "user"
+                                            className={`md:max-w-[80%] p-4 space-y-2 text-sm  leading-relaxed ${m.role === "user"
                                                 ? "bg-gray-700 text-white rounded-2xl rounded-tr-sm"
                                                 : "bg-white border border-gray-100 text-gray-700 rounded-2xl rounded-tl-sm"
                                                 }`}
@@ -186,12 +207,44 @@ const ChatbotModal = ({
                                                 {m.content}
                                             </ReactMarkdown>
 
+                                            {/* {m.content && (
+                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                    {m.content}
+                                                </ReactMarkdown>
+                                            )} */}
+                                            {m.insights && Object.entries(m.insights).map(([book, insights]) => (
+                                                <div key={book} className="space-y-2">
+                                                    <h2 className="text-lg font-bold "> &bull; {book}</h2>
 
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        {insights.map(i => (
+                                                            <div key={i.id} className="bg-gray-100 p-4 rounded-xl space-y-2">
+                                                                {/* <div className='flex justify-between items-center space-y-4'> */}
+                                                                {/* <span className=' text-gray-600 font-medium  text-sm flex gap-1 items-center w-min text-nowrap flex-nowrap rounded-lg' > */}
+                                                                {/* <span> */}
+                                                                {/* {step?.icon}  */}
+                                                                {/* </span> */}
+                                                                <p className="text-xs text-gray-600">
+                                                                    {i.category_icon}  {i?.category}
+                                                                </p>
+                                                                {/* </span> */}
+                                                                {/* </div> */}
+                                                                <h4 className='text-gray-800 font-semibold text-lg md:text-xl '>
+                                                                    {i.title}
+                                                                </h4>
+                                                                <h6 className='text-gray-800'>
+                                                                    {i.description}
+                                                                </h6>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
 
                                         {/* Avatar User */}
                                         {m.role === "user" && (
-                                            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0 text-gray-200">
+                                            <div className="size-6 md:size-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0 text-gray-200">
                                                 <User size={16} />
                                             </div>
                                         )}

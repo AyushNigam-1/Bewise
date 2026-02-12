@@ -108,44 +108,32 @@ def ai_reply(payload: ChatRequest):
         grounded_prompt  = f"""
             You are Bookist AI.
 
-            You MUST answer ONLY using the insights below.
-
-            If the answer is not present reply EXACTLY:
-            I don't find this in the uploaded books.
-
-            CRITICAL:
-            - Book and Category must be NORMAL text.
-            - ONLY encode Book/Category inside Link.
-            - Every insight MUST include Id.
-            - NEVER omit Id.
-            - NEVER invent Id.
-
-            OUTPUT STRICT MARKDOWN:
-
-            ## Insights
-
-            For each insight:
-
-            - **Id:** <number>
-            - **Title:** <title>
-            - **Book:** <normal text>
-            - **Category:** <normal text>
-            - **Link:** http://localhost:3000/insight/<URL_ENCODED_BOOK>/<URL_ENCODED_CATEGORY>/<Id>
-            - **Explanation:** <short explanation>
-
-            Rules:
-            - Use bullet points.
-            - Keep structure.
-            - No paragraphs.
-            - No extra commentary.
-
             User question:
             {user_query}
 
-            INSIGHTS:
-            {context_text}
+            Below are candidate insights.
 
-            Follow format EXACTLY.
+            Return TWO things:
+
+            1. A short explanation answering the question.
+            2. A comma-separated list of relevant Insight IDs.
+
+            Rules:
+            - Only select IDs that directly answer the question.
+            - Do NOT select unrelated insights.
+            - If none match, return: NONE
+
+            Format EXACTLY:
+
+            ANSWER:
+            <your answer>
+
+            IDS:
+            <id1,id2>
+
+            CANDIDATE INSIGHTS:
+
+            {context_text}
             """
 
         # 4. Groq with memory
@@ -153,11 +141,40 @@ def ai_reply(payload: ChatRequest):
             {"input": grounded_prompt},
             config={"configurable": {"session_id": payload.session_id}},
         )
+        raw = result.content
+
+        answer_part = raw.split("IDS:")[0].replace("ANSWER:", "").strip()
+        ids_part = raw.split("IDS:")[1].strip()
+
+        if ids_part == "NONE":
+            return {
+                "mode": "rag",
+                "answer": answer_part,
+                "insights": []
+            }
+
+        selected_ids = [int(x.strip()) for x in ids_part.split(",")]
+        final_hits = [h for h in pinecone_hits if h["insight_id"] in selected_ids]
+        books = {}
+
+        for hit in final_hits:
+            book = hit["book"]
+
+            if book not in books:
+                books[book] = []
+
+            books[book].append({
+                "id": hit["insight_id"],
+                "title": hit["title"],
+                "category": hit["category"],
+                "category_icon":hit["category_icon"],
+                "description":hit["description"],
+                "link": f"http://localhost:3000/insight/{hit['book'].replace(' ', '%20')}/{hit['category'].replace(' ', '%20')}/{hit['insight_id']}",
+            })
 
         return {
-            "mode": "rag",
-            "ai": result.content,
-            "sources": pinecone_hits
+            "answer": answer_part,
+            "insights": books
         }
 
     except Exception as e:

@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Cookies from "js-cookie";
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/react";
-import { User } from "lucide-react";
+import { Bookmark, LogOut, MenuIcon, User, UserPlus } from "lucide-react";
 
 const Navbar = () => {
+
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -25,71 +26,75 @@ const Navbar = () => {
           
         </span> */}
         <h4 className="justify-between flex lg:text-3xl font-bold text-gray-700 text-3xl text-center md:text-left gap-2 italic" >Bevise</h4>
-        {isLoggedIn ? (
-          <Menu as="div" className="relative inline-block text-left">
-            <MenuButton className="inline-flex items-center gap-2 bg-gray-700 p-2 md:p-3 text-sm/6 font-semibold text-white rounded-full">
-              <User size={20} />
-            </MenuButton>
+        {/* {isLoggedIn ? ( */}
+        <Menu as="div" className="relative inline-block text-left md:hidden">
+          <MenuButton className="inline-flex items-center gap-2 bg-gray-700 p-2 md:p-3 text-sm/6 font-semibold text-white rounded-full">
+            {isLoggedIn ? <User size={20} /> : <MenuIcon size={20} />}
+          </MenuButton>
 
-            <Transition
-              enter="transition duration-150 ease-out"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="transition duration-100 ease-in"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <MenuItems className="absolute right-0 mt-2 w-40 md:w-56 origin-top-right rounded-xl bg-gray-700 p-2 text-white shadow-lg focus:outline-none z-80">
-                <div className="flex flex-col gap-1">
-                  <MenuItem>
-                    {({ active }) => (
-                      <Link href="/bookmarks" className={`flex items-center gap-2 p-2 rounded-lg ${active ? "bg-white/10" : ""}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="size-5 md:size-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
-                        </svg>
-                        Bookmarks
-                      </Link>
-                    )}
-                  </MenuItem>
+          <Transition
+            enter="transition duration-150 ease-out"
+            enterFrom="opacity-0 scale-95"
+            enterTo="opacity-100 scale-100"
+            leave="transition duration-100 ease-in"
+            leaveFrom="opacity-100 scale-100"
+            leaveTo="opacity-0 scale-95"
+          >
+            <MenuItems className="absolute right-0 mt-2 w-40 md:w-56 origin-top-right rounded-xl bg-gray-700 p-2 text-white shadow-lg focus:outline-none z-80">
+              {isLoggedIn ? <div className="flex flex-col gap-1">
+                <MenuItem>
+                  {({ active }) => (
+                    <Link href="/bookmarks" className={`flex items-center font-semibold gap-2 p-2 rounded-lg ${active ? "bg-white/10" : ""}`}>
+                      <Bookmark size={20} />
+                      Bookmarks
+                    </Link>
+                  )}
+                </MenuItem>
 
-                  <MenuItem>
-                    {({ active }) => (
-                      <button className={`flex items-center gap-2 p-2 rounded-lg w-full text-left ${active ? "bg-white/10" : ""}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="size-5 md:size-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15" />
-                        </svg>
-                        Logout
-                      </button>
-                    )}
-                  </MenuItem>
-                </div>
-              </MenuItems>
-            </Transition>
-          </Menu>
-        ) : (
-          <div className="flex gap-4">
-            <Link href="/login" className="hidden md:flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold">
-              Login
-            </Link>
-            <Link href="/create-account" className="hidden md:flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold">
-              Signup
-            </Link>
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              type="button"
-              className="md:hidden inline-flex items-center justify-center text-sm bg-gradient-to-r from-gray-800 via-gray-500 to-gray-800 p-2 rounded-full"
-              aria-controls="navbar-sticky"
-              aria-expanded={isOpen}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M12 17.25h8.25" />
-              </svg>
-            </button>
-          </div>
-        )}
+                <MenuItem>
+                  {({ active }) => (
+                    <button className={`flex items-center gap-2 p-2 rounded-lg w-full font-semibold text-left ${active ? "bg-white/10" : ""}`} onClick={() => {
+                      localStorage.removeItem("user");
+                    }} >
+                      <LogOut size={20} />
+                      Logout
+                    </button>
+                  )}
+                </MenuItem>
+              </div> : <div className="flex flex-col gap-1">
+                <MenuItem>
+                  {({ active }) => (
+                    <Link href="/login" className={`flex items-center font-semibold gap-2 p-2 rounded-lg ${active ? "bg-white/10" : ""}`}>
+                      <User size={20} />
+                      Login
+                    </Link>
+                  )}
+                </MenuItem>
+                <MenuItem>
+                  {({ active }) => (
+                    <Link href="/create-account" className={`flex items-center font-semibold gap-2 p-2 rounded-lg ${active ? "bg-white/10" : ""}`}>
+                      <UserPlus size={20} />
+                      Signup
+                    </Link>
+                  )}
+                </MenuItem>
+              </div>}
+            </MenuItems>
+          </Transition>
+        </Menu>
+        <div className="gap-4 hidden md:flex">
+          <Link href="/login" className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold">
+            <User size={20} />
+            Login
+          </Link>
+          <Link href="/create-account" className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold">
+            <UserPlus size={20} />
+            Signup
+          </Link>
+        </div>
       </div>
 
-      <Transition
+      {/* <Transition
         show={isOpen}
         enter="transition duration-150 ease-out"
         enterFrom="opacity-0 scale-95"
@@ -106,8 +111,8 @@ const Navbar = () => {
             Signup
           </Link>
         </div>
-      </Transition>
-    </nav>
+      </Transition> */}
+    </nav >
   );
 };
 
