@@ -4,6 +4,7 @@ import React from 'react'
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
 import { Fragment } from 'react'
 import SearchBar from './SearchBar'
+import { X } from 'lucide-react'
 
 interface categoryProps {
     isOpen: boolean,
@@ -49,9 +50,7 @@ const CategoryDialog: React.FC<categoryProps> = ({ isOpen, setIsOpen, filteredCa
                                     type="button"
                                     className="text-gray-600 cursor-pointer bg-gray-200  focus:outline-none rounded-full   p-2 w-min  font-semibold "
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4" >
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                                    </svg>
+                                    <X size={16} />
                                 </button>
                             </div>
                             <SearchBar responsive={false} data={categories} propertyToSearch='name' setFilteredData={setFilteredCategories} />
@@ -66,12 +65,12 @@ const CategoryDialog: React.FC<categoryProps> = ({ isOpen, setIsOpen, filteredCa
                                                 }
                                             }
                                             className={`relative flex flex-col gap-2 rounded-xl select-none hover:bg-gray-200 cursor-pointer text-gray-400 p-2 bg-gray-200 w-full 
-                        ${selectedCategory?.map(c => c).includes(category) ? ' border-2 border-gray-400' : ''}`}
+                                            ${selectedCategory?.map(c => c).includes(category) ? ' border-2 border-gray-400' : ''}`}
                                         >
                                             <div className='flex flex-col gap-1' >
                                                 <div className='flex gap-2  justify-between' >
-                                                    <div className='flex gap-2 text-base md:text-xl' >
-                                                        <span>{category.icon} </span>
+                                                    <div className='flex gap-2 text-base md:text-lg items-center' >
+                                                        {category.icon}
                                                         < h4 className='font-semibold text-gray-600  flex gap-2' >
                                                             {category.name}
                                                         </h4>
@@ -87,7 +86,7 @@ const CategoryDialog: React.FC<categoryProps> = ({ isOpen, setIsOpen, filteredCa
                                                         )
                                                     }
                                                 </div>
-                                                < h6 className="text-sm md:text-base text-left rounded-lg text-gray-500" >
+                                                < h6 className="text-sm md:text-sm text-left rounded-lg text-gray-600" >
                                                     {category.description}
                                                 </h6>
                                             </div>

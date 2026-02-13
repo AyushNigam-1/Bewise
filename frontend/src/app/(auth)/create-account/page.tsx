@@ -29,11 +29,9 @@ const CreateAccount = () => {
                 email: formData.email,
                 password: formData.password
             });
-            localStorage.setItem("user", JSON.stringify(data))
             router.push('/');
         } catch (err: any) {
             console.error("Registration failed:", err?.response?.data?.message || err.message);
-            // You can show a toast or error here
         } finally {
             setLoading(false);
         }
@@ -55,7 +53,6 @@ const CreateAccount = () => {
                 Sign Up with Google
             </button>
             <div className="text-sm text-gray-500 text-center"><p>or with email</p></div>
-
             <form onSubmit={handleSubmit} className='flex flex-col gap-4'>
                 <input
                     type="text"

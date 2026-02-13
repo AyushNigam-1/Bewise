@@ -44,21 +44,21 @@ export default function Page() {
     const [completedInsights, setCompletedInsights] = useState<string[]>([])
     // const user = JSON.parse(localStorage.getItem("user") || "{}")
 
-    useEffect(() => {
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-        }
-        const getbookmarksIds = async () => {
-            if (!params?.title) return
-            const bookmarksIds = await getFavouriteIds(user.user_id)
-            const completedInsights = await getCompletedInsights(user.user_id, params.title);
-            console.log(completedInsights)
-            setCompletedInsights(completedInsights)
-            setBookmarkes(bookmarksIds)
-        }
-        getbookmarksIds()
-    }, [])
+    // useEffect(() => {
+    //     const storedUser = localStorage.getItem("user");
+    //     if (storedUser) {
+    //         setUser(JSON.parse(storedUser));
+    //     }
+    //     const getbookmarksIds = async () => {
+    //         if (!params?.title) return
+    //         const bookmarksIds = await getFavouriteIds(user.user_id)
+    //         const completedInsights = await getCompletedInsights(user.user_id, params.title);
+    //         console.log(completedInsights)
+    //         setCompletedInsights(completedInsights)
+    //         setBookmarkes(bookmarksIds)
+    //     }
+    //     getbookmarksIds()
+    // }, [])
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -106,8 +106,8 @@ export default function Page() {
     const handleAdd = async (id: number, category: string, icon: string) => {
         try {
             let desc = categories.find((cate) => cate.name === category)?.description
-            console.log(id, category, desc, user.user_id)
-            await addFavouriteInsight(user.user_id, { id, category, description: desc ? desc : "", icon })
+            // console.log(id, category, desc, user.user_id)
+            // await addFavouriteInsight(user.user_id, { id, category, description: desc ? desc : "", icon })
 
             if (!bookmarks.includes(id)) {
                 setBookmarkes((bookmarks) => ([...bookmarks, id]))
@@ -143,40 +143,9 @@ export default function Page() {
         }
     }
 
-    // function getRandomColorPair() {
-    //     const randomIndex = Math.floor(Math.random() * colorPairs.length);
-    //     return colorPairs[randomIndex];
-    // }
-    // const colorPairs = [
-    //     "bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200",
-    //     "bg-gradient-to-br from-sky-100 via-blue-200 to-indigo-100",
-    //     "bg-gradient-to-tr from-rose-100 via-pink-200 to-fuchsia-100",
-    //     "bg-gradient-to-r from-teal-100 via-green-200 to-lime-100",
-    //     "bg-gradient-to-r from-gray-100 via-gray-200 to-gray-300",
-    //     "bg-gradient-to-r from-purple-600 via-pink-500 to-red-500",
-    //     "bg-gradient-to-br from-blue-500 via-green-400 to-yellow-300",
-    //     "bg-gradient-to-r from-rose-500 via-red-400 to-orange-300",
-    //     "bg-gradient-to-tl from-amber-400 via-orange-500 to-red-600",
-    //     "bg-gradient-to-tr from-cyan-400 via-blue-500 to-purple-600",
-    //     "bg-gradient-to-br from-gray-900 via-slate-800 to-zinc-700",
-    //     "bg-gradient-to-r from-blue-900 via-blue-600 to-indigo-700",
-    //     "bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900",
-    //     "bg-gradient-to-tr from-teal-600 via-cyan-500 to-blue-500",
-    //     "bg-gradient-to-bl from-indigo-600 via-violet-500 to-purple-400",
-    //     "bg-gradient-to-br from-yellow-200 via-pink-300 to-rose-400",
-    //     "bg-gradient-to-tr from-rose-200 via-violet-200 to-indigo-200",
-    //     "bg-gradient-to-r from-amber-300 via-orange-200 to-yellow-300",
-    //     "bg-gradient-to-r from-zinc-100 via-gray-100 to-neutral-100",
-    //     "bg-gradient-to-r from-rose-500 via-fuchsia-500 to-indigo-500",
-    //     "bg-gradient-to-t from-black/60 via-black/30 to-transparent",
-    //     "bg-gradient-to-t from-black/70 via-black/40 to-transparent",
-    //     "bg-gradient-to-t from-white/70 via-white/40 to-transparent",
-    //     "bg-gradient-to-t from-gray-900/60 via-gray-700/30 to-transparent"
-
-    // ];
     return (
         <div className="flex flex-col relative">
-            {mode !== "Swipe" && <div className="sticky top-0 w-full bg-gray-100 z-10 h-14 md:h-20">
+            {mode !== "Swipe" && <div className="sticky top-0 w-full bg-gray-100 z-10 h-14 md:h-18">
                 <div className={`flex justify-between items-center h-full`} >
                     <div className='flex flex-col gap-1'>
                         <div className='justify-between flex lg:text-3xl font-bold text-gray-700 text-2xl text-center md:text-left  gap-2' >
@@ -214,7 +183,7 @@ export default function Page() {
                                             pathname: `/insight/${params.title}/${step?.category}/${step.step_id}`,
                                             query: {
                                                 isCompleted: completedInsights.includes(String(step.step_id)),
-                                                user_id: user.user_id
+                                                // user_id: user.user_id
                                             }
                                         }} className='flex flex-col gap-2' >
                                             <div className='flex justify-between items-center'>

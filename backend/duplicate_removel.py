@@ -28,6 +28,3 @@ def process_file(folder_name , file_name ):
     cleaned_data = filter_original_data(data, unique_steps)
     save_json_file(folder_name , file_name , cleaned_data)
 
-# Example usage
-file_path = "steps.json"  # Replace with your actual file
-process_file("the-rudest-book-ever-shwetabh-gangwar_removed","actionable_steps.json")

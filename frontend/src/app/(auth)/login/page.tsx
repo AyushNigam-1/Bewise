@@ -24,8 +24,6 @@ const Login = () => {
         setLoading(true)
         try {
             const data = await loginUser(formData)
-            // console.log("Login successful:", data)
-            localStorage.setItem("user", JSON.stringify(data))
             router.push("/")
         } catch (err: any) {
             console.error("Login error:", err?.response?.data?.message || err.message)

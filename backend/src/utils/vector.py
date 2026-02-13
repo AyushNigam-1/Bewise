@@ -1,29 +1,34 @@
 import os
 from pinecone import Pinecone
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 
-# Load env
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 INDEX_NAME = os.getenv("PINECONE_INDEX")
 
-# Pinecone client
 pc = Pinecone(api_key=PINECONE_API_KEY)
 index = pc.Index(INDEX_NAME)
 
-# Open source embedding model
-model = SentenceTransformer("all-MiniLM-L6-v2")
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
+
+reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 
 def embed_and_upsert_insight(
     insight_id: int,
     book_name: str,
     category: str,
-    category_icon: str,  
+    category_icon: str,
     title: str,
     description: str,
 ):
-    text = f"{title}. {description}"
 
-    embedding = model.encode(text).tolist()
+    text = f"""
+        Book: {book_name}
+        Category: {category}
+        Insight: {title}
+        Explanation: {description}
+        """
+
+    embedding = embedder.encode(text).tolist()
 
     index.upsert([
         {
@@ -33,34 +38,67 @@ def embed_and_upsert_insight(
                 "insight_id": insight_id,
                 "book": book_name,
                 "category": category,
-                "category_icon": category_icon, 
+                "category_icon": category_icon,
                 "title": title,
                 "description": description,
+                "text": text,
             }
         }
     ])
 
-def search_insights(query: str, top_k: int = 5):
-    # embed user query
-    q_embedding = model.encode(query).tolist()
+def search_insights(query: str, book: str | None = None, top_k: int = 5):
 
-    res = index.query(
+    # 1. Embed query
+    q_embedding = embedder.encode(query).tolist()
+
+    # 2. Build optional metadata filter
+    pinecone_filter = {}
+
+    if book:
+        pinecone_filter["book"] = {"$eq": book}
+
+    # 3. Pinecone search (get more candidates for reranking)
+    pinecone_res = index.query(
         vector=q_embedding,
-        top_k=top_k,
-        include_metadata=True
+        top_k=20,
+        include_metadata=True,
+        filter=pinecone_filter if pinecone_filter else None
     )
 
-    matches = []
+    matches = pinecone_res["matches"]
 
-    for m in res["matches"]:
-        matches.append({
+    if not matches:
+        return []
+
+    # 4. Prepare rerank pairs
+    rerank_pairs = [
+        (query, f'{m["metadata"].get("title","")} {m["metadata"].get("description","")}')
+        for m in matches
+    ]
+
+    # 5. Rerank
+    scores = reranker.predict(rerank_pairs)
+
+    reranked = []
+
+    for m, score in zip(matches, scores):
+        reranked.append({
             "insight_id": int(m["id"]),
-            "score": m["score"],
+            "rerank_score": float(score),
             "book": m["metadata"].get("book"),
             "category": m["metadata"].get("category"),
-            "category_icon":  m["metadata"].get("category_icon"), 
+            "category_icon": m["metadata"].get("category_icon"),
             "title": m["metadata"].get("title"),
             "description": m["metadata"].get("description"),
         })
-    print("matches",matches)
-    return matches
+
+    # 6. Sort by rerank score
+    reranked.sort(key=lambda x: x["rerank_score"], reverse=True)
+
+    # 7. Return final top_k
+    final = reranked[:top_k]
+
+    print("RERANKED RESULTS:", final)
+
+    return final
+

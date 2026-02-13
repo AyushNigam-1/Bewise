@@ -5,10 +5,10 @@ import Link from "next/link";
 import Cookies from "js-cookie";
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/react";
 import { Bookmark, LogOut, MenuIcon, User, UserPlus } from "lucide-react";
+import { getMe } from "@/app/services/userService";
+import axios from "axios";
 
 const Navbar = () => {
-
-  const [isOpen, setIsOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -17,6 +17,30 @@ const Navbar = () => {
       setIsLoggedIn(true);
     }
   }, []);
+
+  useEffect(() => {
+    getMe()
+      .then(() => {
+        setIsLoggedIn(true);
+      })
+      .catch(() => {
+        setIsLoggedIn(false);
+      });
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await axios.post(
+        "http://localhost:8000/logout",
+        {},
+        { withCredentials: true }
+      );
+
+      setIsLoggedIn(false);
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
+  };
 
   return (
     <nav className="border-b border-gray-300 pb-3 z-50 container mx-auto">
@@ -27,7 +51,7 @@ const Navbar = () => {
         </span> */}
         <h4 className="justify-between flex lg:text-3xl font-bold text-gray-700 text-3xl text-center md:text-left gap-2 italic" >Bevise</h4>
         {/* {isLoggedIn ? ( */}
-        <Menu as="div" className="relative inline-block text-left md:hidden">
+        <Menu as="div" className="relative inline-block text-left">
           <MenuButton className="inline-flex items-center gap-2 bg-gray-700 p-2 md:p-3 text-sm/6 font-semibold text-white rounded-full">
             {isLoggedIn ? <User size={20} /> : <MenuIcon size={20} />}
           </MenuButton>
@@ -50,12 +74,9 @@ const Navbar = () => {
                     </Link>
                   )}
                 </MenuItem>
-
                 <MenuItem>
                   {({ active }) => (
-                    <button className={`flex items-center gap-2 p-2 rounded-lg w-full font-semibold text-left ${active ? "bg-white/10" : ""}`} onClick={() => {
-                      localStorage.removeItem("user");
-                    }} >
+                    <button className={`flex items-center gap-2 p-2 rounded-lg w-full font-semibold text-left ${active ? "bg-white/10" : ""}`} onClick={handleLogout} >
                       <LogOut size={20} />
                       Logout
                     </button>
@@ -82,16 +103,19 @@ const Navbar = () => {
             </MenuItems>
           </Transition>
         </Menu>
-        <div className="gap-4 hidden md:flex">
-          <Link href="/login" className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold">
-            <User size={20} />
-            Login
-          </Link>
-          <Link href="/create-account" className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold">
-            <UserPlus size={20} />
-            Signup
-          </Link>
-        </div>
+        {/* {!isLoggedIn && (
+          <div className="gap-4 hidden md:flex">
+            <Link href="/login" className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold">
+              <User size={20} />
+              Login
+            </Link>
+
+            <Link href="/create-account" className="flex items-center gap-2 bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold">
+              <UserPlus size={20} />
+              Signup
+            </Link>
+          </div>
+        )} */}
       </div>
 
       {/* <Transition

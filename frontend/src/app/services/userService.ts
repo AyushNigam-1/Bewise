@@ -1,6 +1,21 @@
 import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
 
-const API = "http://10.63.43.43:8000" // Update based on your FastAPI server
+// const API = "http://10.63.43.43:8000" // Update based on your FastAPI server
+const API = "http://localhost:8000"
+
+export function getDeviceId() {
+    if (typeof window === "undefined") return "";
+
+    let id = localStorage.getItem("device_id");
+
+    if (!id) {
+        id = uuidv4();
+        localStorage.setItem("device_id", id);
+    }
+
+    return id;
+}
 
 export interface Insight {
     id: number;
@@ -10,12 +25,8 @@ export interface Insight {
     // add other fields here based on your DB structure
 }
 
-export const registerUser = async (user: {
-    name: string;
-    email: string;
-    password: string;
-}) => {
-    const res = await axios.post(`${API}/register`, user, {
+export const getMe = async () => {
+    const res = await axios.get(`${API}/me`, {
         withCredentials: true
     });
     return res.data;
@@ -25,11 +36,32 @@ export const loginUser = async (user: {
     email: string;
     password: string;
 }) => {
-    const res = await axios.post(`${API}/login`, user, {
-        withCredentials: true
-    });
+    const res = await axios.post(
+        `${API}/login`,
+        {
+            ...user,
+            device_id: getDeviceId(),
+        },
+        { withCredentials: true }
+    );
+
     return res.data;
 };
+
+export const registerUser = async (user: {
+    name: string;
+    email: string;
+    password: string;
+}) => {
+    const res = await axios.post(
+        `${API}/register`,
+        user,
+        { withCredentials: true }
+    );
+
+    return res.data;
+};
+
 
 export const getProfile = async (email: string) => {
     const res = await axios.get(`${API}/profile/${email}`);

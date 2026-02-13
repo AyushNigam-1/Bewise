@@ -6,7 +6,7 @@ import Link from "next/link";
 import ShareModal from "../../components/ShareModal";
 import Loader from "../../components/Loader";
 import { toggleFavouriteBook } from "@/app/services/userService";
-import { ArrowUpRight, Book, Bookmark, Share, User } from "lucide-react";
+import { ArrowUpRight, Book, Bookmark, Share, Share2, User } from "lucide-react";
 
 const Overview = () => {
     const [book, setBook] = useState<any>(null);
@@ -84,7 +84,7 @@ const Overview = () => {
                                 onClick={() => setIsOpen(true)}
                                 className="inline-flex items-center gap-2 bg-gray-700 p-3 text-sm/6 font-semibold text-white rounded-full "
                             >
-                                <Share size={20} />
+                                <Share2 size={20} />
                             </button>
                             <ShareModal isOpen={isOpen} setIsOpen={setIsOpen} shareUrl={`https://www.bookworm.com/overview/${book?.title}`} />
                         </div>

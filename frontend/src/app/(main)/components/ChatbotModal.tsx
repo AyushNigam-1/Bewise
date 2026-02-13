@@ -9,6 +9,7 @@ import axios from "axios";
 import { X, Send, Bot, User, Sparkles, SendHorizontal } from "lucide-react"; // Icons
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm'
+import Link from "next/link";
 // type Message = {
 //     role: "user" | "ai";
 //     content: string;
@@ -148,7 +149,7 @@ const ChatbotModal = ({
 
                                         {/* Bubble */}
                                         <div
-                                            className={`md:max-w-[80%] p-4 space-y-2 text-sm  leading-relaxed ${m.role === "user"
+                                            className={`md:max-w-[70%] p-4 space-y-2 text-sm  leading-relaxed ${m.role === "user"
                                                 ? "bg-gray-700 text-white rounded-2xl rounded-tr-sm"
                                                 : "bg-white border border-gray-100 text-gray-700 rounded-2xl rounded-tl-sm"
                                                 }`}
@@ -215,27 +216,19 @@ const ChatbotModal = ({
                                             {m.insights && Object.entries(m.insights).map(([book, insights]) => (
                                                 <div key={book} className="space-y-2">
                                                     <h2 className="text-lg font-bold "> &bull; {book}</h2>
-
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                         {insights.map(i => (
-                                                            <div key={i.id} className="bg-gray-100 p-4 rounded-xl space-y-2">
-                                                                {/* <div className='flex justify-between items-center space-y-4'> */}
-                                                                {/* <span className=' text-gray-600 font-medium  text-sm flex gap-1 items-center w-min text-nowrap flex-nowrap rounded-lg' > */}
-                                                                {/* <span> */}
-                                                                {/* {step?.icon}  */}
-                                                                {/* </span> */}
-                                                                <p className="text-xs text-gray-600">
+                                                            <Link key={i.id} href={i.link} target="_blank" rel="noopener noreferrer" className="bg-gray-100 p-4 rounded-xl space-y-2">
+                                                                <p className="text-xs font-semibold text-gray-600">
                                                                     {i.category_icon}  {i?.category}
                                                                 </p>
-                                                                {/* </span> */}
-                                                                {/* </div> */}
                                                                 <h4 className='text-gray-800 font-semibold text-lg md:text-xl '>
                                                                     {i.title}
                                                                 </h4>
                                                                 <h6 className='text-gray-800'>
                                                                     {i.description}
                                                                 </h6>
-                                                            </div>
+                                                            </Link>
                                                         ))}
                                                     </div>
                                                 </div>
