@@ -12,6 +12,7 @@ import CategoryDialog from '../../components/CategoryDialog';
 import { Slide, toast, ToastContainer } from 'react-toastify';
 import ProgressBar from '../../components/ProgressBar';
 import { Filter, SlidersHorizontal, SwatchBook } from 'lucide-react';
+import ChatbotModal from '../../components/ChatbotModal';
 interface StepData {
     step: string;
     category: string;
@@ -158,10 +159,9 @@ export default function Page() {
                         <div className='flex gap-3' >
                             <ProgressBar completed={completedInsights.length} total={steps.length} />
                             <SearchBar responsive={true} data={steps} propertyToSearch='step' setFilteredData={setFilteredBooks} />
-                            <div className='flex flex-col gap-3 md:relative fixed right-0 bottom-0 m-2 md:m-0' >
-                                <button onClick={() => setIsOpen(true)} className=" p-3 font-semibold  bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full  flex gap-2 items-center">
-                                    <SlidersHorizontal size={20} />
-                                </button>
+                            <div className='flex flex-col md:flex-row items-center gap-3 md:relative fixed right-0 bottom-0 m-2 md:m-0' >
+                                <CategoryDialog categories={categories} filteredCategories={filteredCategories} setFilteredCategories={setFilteredCategories} selectedCategory={selectedCategory} toggleCategory={toggleCategory} />
+                                <ChatbotModal book={params.title} />
                                 <button onClick={() => setMode("Swipe")} className="md:hidden p-3 bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full">
                                     <SwatchBook size={20} />
                                 </button>
@@ -247,10 +247,8 @@ export default function Page() {
                                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
                                                     </svg>
-
                                                 </button>
                                             </div>
-
                                         </div>
                                     </div>
                                 </div>
@@ -260,7 +258,8 @@ export default function Page() {
                         <Loader />
                     )}
                     <ShareModal isOpen={shareModal} setIsOpen={setShareModal} shareUrl={shareUrl} />
-                    <CategoryDialog isOpen={isOpen} setIsOpen={setIsOpen} categories={categories} filteredCategories={filteredCategories} setFilteredCategories={setFilteredCategories} selectedCategory={selectedCategory} toggleCategory={toggleCategory} />
+
+
                 </>
             }
             <ToastContainer />

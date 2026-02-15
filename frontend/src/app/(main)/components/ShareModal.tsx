@@ -97,7 +97,6 @@ export default function ShareModal({ isOpen, setIsOpen, shareUrl }: { isOpen: bo
                         >
                             <DialogPanel className="w-full max-w-sm transform overflow-hidden rounded-2xl bg-gray-100 p-4 text-left align-middle shadow-xl transition-all flex flex-col gap-4">
                                 <div className='flex justify-between items-center'>
-
                                     <DialogTitle as="h3" className="font-bold text-lg md:text-xl text-gray-600">
                                         Share Link
                                     </DialogTitle>

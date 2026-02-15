@@ -299,6 +299,9 @@ def get_content_values(title: str, category: List[str] = Body(...)):
         return results
 
     except Exception as e:
+        print("--- DATABASE ERROR ---")
+        traceback.print_exc() 
+        print("----------------------")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -377,9 +380,8 @@ def create_book(book_data: Dict):
                             category_icon=category_data.get("icon"),
                             title=step["step"],
                             description=step["description"],
-                            breakdown=step["detailed_breakdown"],
                         )
-
+                print(content_with_step_ids)
                 cur.execute(
                 "INSERT INTO book (title, author, description, thumbnail, category, content) VALUES (%s, %s, %s, %s, %s, %s);",
                 (

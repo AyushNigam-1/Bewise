@@ -93,12 +93,13 @@ const Page = () => {
                 <div className="flex gap-2 items-center">
                     <SearchBar responsive={true} data={books} propertyToSearch='title' setFilteredData={setFilteredBooks} />
                     <div className="flex flex-col md:flex-row gap-2 md:relative fixed right-0 bottom-0 m-2 md:m-0">
-                        <button onClick={() => setIsOpen(true)} className=" p-3 font-semibold  bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full  flex gap-2 items-center">
-                            <SlidersHorizontal size={20} />
-                        </button>
-                        <button onClick={() => setOpenChatbot(true)} className=" p-3 font-semibold  bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full flex gap-2 items-center">
-                            <Bot size={20} />
-                        </button>
+                        <CategoryDialog
+                            categories={categories}
+                            filteredCategories={filteredCategories}
+                            setFilteredCategories={setFilteredCategories}
+                            selectedCategory={selectedCategory}
+                            toggleCategory={toggleCategory} />
+                        <ChatbotModal />
                     </div>
                 </div>
             </div>
@@ -108,15 +109,7 @@ const Page = () => {
                 ))}
             </div>
 
-            <CategoryDialog
-                isOpen={isOpen}
-                setIsOpen={setIsOpen}
-                categories={categories}
-                filteredCategories={filteredCategories}
-                setFilteredCategories={setFilteredCategories}
-                selectedCategory={selectedCategory}
-                toggleCategory={toggleCategory} />
-            <ChatbotModal isOpen={openChatbot} setIsOpen={setOpenChatbot} />
+
         </div>
 
     );
