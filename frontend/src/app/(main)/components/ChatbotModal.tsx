@@ -1,12 +1,16 @@
 import {
     Dialog,
     DialogPanel,
+    Listbox,
+    ListboxButton,
+    ListboxOption,
+    ListboxOptions,
     Transition,
     TransitionChild,
 } from "@headlessui/react";
 import React, { Fragment, useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { X, Send, Bot, User, Sparkles, SendHorizontal } from "lucide-react"; // Icons
+import { X, Send, Bot, User, Sparkles, SendHorizontal, Library, ChevronDown, Check, Plus, Search } from "lucide-react"; // Icons
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm'
 import Link from "next/link";
@@ -29,52 +33,88 @@ type Message = {
     content?: string;      // natural language answer
     insights?: Insight[]; // cards
 };
-const ChatbotModal = ({ book }: { book?: string }) => {
-    const [isOpen,
-        setIsOpen] = useState(false)
+
+export type ContextItem = {
+    id: string | number;
+    name: string;
+};
+
+type ChatbotModalProps = {
+    book?: string;
+    contextItems?: ContextItem[]; // <--- New Prop for the list
+};
+const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
+    const [isOpen, setIsOpen] = useState(false)
     const [input, setInput] = useState("");
     const sessionId = useRef("1111");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
     const [messages, setMessages] = useState<Message[]>([
         { role: "ai", content: "Hello! I'm Bookist AI. Ask me about any book, author, or insight." }
     ]);
     const [loading, setLoading] = useState(false);
 
     const bottomRef = useRef<HTMLDivElement>(null);
-
+    const filteredItems = searchQuery === ""
+        ? contextItems
+        : contextItems.filter((item) =>
+            item.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
     // Auto-scroll to bottom
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, loading]);
 
-    const sendMessage = async () => {
-        if (!input.trim() || loading) return;
+    const removeContext = (id: string | number) => {
+        setSelectedContexts((prev) => prev.filter((item) => item.id !== id));
+    };
 
+    const sendMessage = async () => {
+        // 1. Prevent empty messages or double submissions
+        if (!input.trim() || loading) return;
         const userMsg = input;
         setInput("");
         setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
         setLoading(true);
 
         try {
-            // Simulator for testing - Replace with your actual endpoint
-            const { data } = await axios.post("http://10.63.43.43:8000/chat/ai", {
-                message: userMsg,
-                session_id: sessionId.current,
-                book: book
-            });
-            console.log("data", data)
+            let payload
+            let contextIds
+            if (book) {
+                contextIds = selectedContexts.map((ctx) => ctx.id);
+                console.log(book, contextIds)
+                payload = {
+                    message: userMsg,
+                    session_id: sessionId.current,
+                    books_ids: [book],     // e.g. [12, 45, 99]
+                    insights_ids: contextIds, // e.g. "Atomic Habits" (fallback if needed)
+                };
+            }
+            else {
+                contextIds = selectedContexts.map((ctx) => ctx.name);
+                payload = {
+                    message: userMsg,
+                    session_id: sessionId.current,
+                    books_ids: contextIds,     // e.g. [12, 45, 99]
+                    insights_ids: [], // e.g. "Atomic Habits" (fallback if needed)
+                };
+            }
+            const { data } = await axios.post("http://10.63.43.43:8000/chat/ai", payload);
+            console.log("AI Response:", data);
             setMessages((prev) => [
                 ...prev,
                 {
                     role: "ai",
                     content: data.answer,
-                    insights: data.insights,
+                    insights: data.insights, // This expects your backend to return the insights map
                 },
             ]);
-        } catch {
-            setMessages((prev) => [
-                ...prev,
-                { role: "ai", content: "I'm having trouble connecting right now. Please try again." },
-            ]);
+        } catch (error) {
+            // console.error("Chat Error:", error);
+            // setMessages((prev) => [
+            //     ...prev,
+            //     { role: "ai", content: "I'm having trouble connecting right now. Please try again." },
+            // ]);
         } finally {
             setLoading(false);
         }
@@ -219,7 +259,7 @@ const ChatbotModal = ({ book }: { book?: string }) => {
                                                     <div key={book} className="space-y-2">
                                                         <h2 className="text-lg font-bold "> &bull; {book}</h2>
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                            {insights.map(i => (
+                                                            {(insights as any).map((i: any) => (
                                                                 <Link key={i.id} href={i.link} target="_blank" rel="noopener noreferrer" className="bg-gray-100 p-4 rounded-xl space-y-2">
                                                                     <p className="text-xs font-semibold text-gray-600">
                                                                         {i.category_icon}  {i?.category}
@@ -261,34 +301,113 @@ const ChatbotModal = ({ book }: { book?: string }) => {
                                     )}
                                     <div ref={bottomRef} />
                                 </div>
-
-                                {/* --- Input Area --- */}
-                                <div className="bg-white p-4">
+                                <div className="bg-white p-4 border-t border-gray-200">
+                                    {selectedContexts.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mb-3">
+                                            {selectedContexts.map((ctx) => (
+                                                <span key={ctx.id} className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-lg border border-gray-200 animate-in fade-in zoom-in duration-200">
+                                                    {ctx.name}
+                                                    <button
+                                                        onClick={() => removeContext(ctx.id)}
+                                                        className="hover:bg-gray-300 rounded-full p-0.5 transition-colors"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {/* SECTION 2: Input Row */}
                                     <div className="flex items-center gap-2 p-3 bg-gray-100 border-none  rounded-xl focus-within:ring-2 focus-within:ring-gray-900/10 focus-within:border-gray-300 transition-all">
+
+                                        {/* Dropup Menu (Multiple Selection) */}
+                                        {contextItems.length > 0 && (
+                                            <div className="relative mb-0.5">
+                                                <Listbox value={selectedContexts} onChange={setSelectedContexts} multiple>
+                                                    <ListboxButton className="
+                                                        w-9 h-9 rounded-xl flex items-center justify-center transition-all
+                                                            bg-white text-gray-500 hover:bg-gray-200 border border-gray-200" title="Select Context">
+                                                        <Plus size={18} />
+                                                    </ListboxButton>
+
+                                                    <Transition
+                                                        as={Fragment}
+                                                        leave="transition ease-in duration-100"
+                                                        leaveFrom="opacity-100"
+                                                        leaveTo="opacity-0"
+                                                    >
+                                                        <ListboxOptions className="absolute bottom-full mb-2 left-0 w-120 h-120 overflow-auto rounded-xl bg-white ring-1 ring-black/5 focus:outline-none z-50 p-2 ">
+                                                            <div className="text-sm py-2 font-semibold text-gray-600 uppercase tracking-wider">
+                                                                Select topics
+                                                            </div>
+                                                            <div className="sticky top-0 z-10 py-2">
+                                                                <div className="relative">
+                                                                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Search items..."
+                                                                        value={searchQuery}
+                                                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                                                        // IMPORTANT: Prevent keys from interfering with Listbox navigation
+                                                                        onKeyDown={(e) => e.stopPropagation()}
+                                                                        className="w-full pl-8 pr-3 py-1.5 text-sm bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400  transition-colors"
+                                                                    />
+                                                                </div>
+                                                            </div>
+
+                                                            {filteredItems.map((item) => (
+                                                                <ListboxOption
+                                                                    key={item.id}
+                                                                    value={item}
+                                                                    className={({ active, selected }) =>
+                                                                        `relative cursor-pointer select-none rounded-lg p-2 flex items-center justify-between text-sm transition-colors ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                                                                        } ${selected ? 'bg-gray-50' : ''}`
+                                                                    }
+                                                                >
+                                                                    {({ selected }) => (
+                                                                        <>
+                                                                            <span className={`block truncate ${selected ? 'font-medium text-gray-900' : 'font-normal'}`}>
+                                                                                {item.name}
+                                                                            </span>
+                                                                            {selected && (
+                                                                                <span className="flex items-center text-gray-800">
+                                                                                    <Check size={16} />
+                                                                                </span>
+                                                                            )}
+                                                                        </>
+                                                                    )}
+                                                                </ListboxOption>
+                                                            ))}
+                                                        </ListboxOptions>
+                                                    </Transition>
+                                                </Listbox>
+                                            </div>
+                                        )}
+
                                         <input
                                             value={input}
                                             onChange={(e) => setInput(e.target.value)}
                                             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                                            className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-400 "
-                                            placeholder="Ask about a book..."
+                                            className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-400 py-2.5 ml-1"
+                                            placeholder={selectedContexts.length > 0 ? `Ask about these ${selectedContexts.length} topics...` : "Ask about a book, concept, or author..."}
                                             disabled={loading}
                                         />
+
                                         <button
                                             onClick={sendMessage}
                                             disabled={!input.trim() || loading}
-                                            className={`p-2 rounded-full transition-all ${input.trim()
-                                                ? "bg-gray-900 text-white hover:bg-black shadow-md transform hover:scale-105"
+                                            className={`p-2.5 mb-0.5 rounded-xl transition-all flex items-center justify-center ${input.trim()
+                                                ? "bg-gray-900 text-white hover:bg-black shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                                                 : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                                 }`}
                                         >
-                                            <SendHorizontal size={20} />
+                                            <SendHorizontal size={18} />
                                         </button>
                                     </div>
-                                    {/* <div className="text-center">
-                                    <span className="text-[10px] text-gray-400">AI can make mistakes. Check important info.</span>
-                                </div> */}
+                                    {/* <div className="text-center mt-2">
+                                        <span className="text-[10px] text-gray-400 font-medium">AI can make mistakes. Verify important information.</span>
+                                    </div> */}
                                 </div>
-
                             </DialogPanel>
                         </TransitionChild>
                     </div>

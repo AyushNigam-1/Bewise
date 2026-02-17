@@ -161,7 +161,7 @@ export default function Page() {
                             <SearchBar responsive={true} data={steps} propertyToSearch='step' setFilteredData={setFilteredBooks} />
                             <div className='flex flex-col md:flex-row items-center gap-3 md:relative fixed right-0 bottom-0 m-2 md:m-0' >
                                 <CategoryDialog categories={categories} filteredCategories={filteredCategories} setFilteredCategories={setFilteredCategories} selectedCategory={selectedCategory} toggleCategory={toggleCategory} />
-                                <ChatbotModal book={params.title} />
+                                <ChatbotModal book={decodeURIComponent(params.title!)} contextItems={steps.map(step => ({ id: step.step_id, name: step.step }))} />
                                 <button onClick={() => setMode("Swipe")} className="md:hidden p-3 bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full">
                                     <SwatchBook size={20} />
                                 </button>

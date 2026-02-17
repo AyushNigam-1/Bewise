@@ -9,7 +9,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.output_parsers import PydanticOutputParser
 from src.utils.vector import search_insights
-from urllib.parse import unquote  # Add this import at the top
+from urllib.parse import unquote 
 router = APIRouter()
 
 store: Dict[str, ChatMessageHistory] = {}
@@ -46,15 +46,23 @@ chat = RunnableWithMessageHistory(
 class ChatRequest(BaseModel):
     message: str
     session_id: str
-    book: Optional[str] = None
+    books_ids: Optional[List[str]] = None 
+    insights_ids: Optional[List[int]] = None
 
 
 @router.post("/chat/ai")
 def ai_reply(payload: ChatRequest):
+    print("payload",payload)
     try:
         user_query = payload.message
-        book = unquote(payload.book) if payload.book else None
-        pinecone_hits = search_insights(user_query,book, top_k=5)
+        # book = unquote(payload.book) if payload.book else None
+        pinecone_hits = search_insights(
+            user_query, 
+            payload.books_ids, 
+            payload.insights_ids,
+            top_k=5
+        )
+        print(pinecone_hits)
         # Build context
         blocks = []
         for h in pinecone_hits:

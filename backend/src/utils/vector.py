@@ -46,21 +46,26 @@ def embed_and_upsert_insight(
         }
     ])
 
-def search_insights(query: str, book: str | None = None, top_k: int = 5):
-
+def search_insights(query: str, book_ids: list[str] = None, insight_ids: list[int] = None, top_k: int = 5):
     # 1. Embed query
     q_embedding = embedder.encode(query).tolist()
 
-    # 2. Build optional metadata filter
+    # 2. Build metadata filter
     pinecone_filter = {}
 
-    if book:
-        pinecone_filter["book"] = {"$eq": book}
+    if book_ids and len(book_ids) > 0:
+            pinecone_filter["book"] = {"$in": book_ids}
 
-    # 3. Pinecone search (get more candidates for reranking)
+    # FILTER BY INSIGHT ID (Integer)
+    if insight_ids and len(insight_ids) > 0:
+        pinecone_filter["insight_id"] = {"$in": insight_ids}
+
+    print(f"Searching with filter: {pinecone_filter}")
+
+    # 3. Pinecone search
     pinecone_res = index.query(
         vector=q_embedding,
-        top_k=20,
+        top_k=20, # Fetch more for reranking
         include_metadata=True,
         filter=pinecone_filter if pinecone_filter else None
     )
@@ -77,13 +82,14 @@ def search_insights(query: str, book: str | None = None, top_k: int = 5):
     ]
 
     # 5. Rerank
+    # (Assuming you have the reranker initialized as 'reranker')
     scores = reranker.predict(rerank_pairs)
 
     reranked = []
 
     for m, score in zip(matches, scores):
         reranked.append({
-            "insight_id": int(m["id"]),
+            "insight_id": int(m["id"]), # Ensure this matches your ID format
             "rerank_score": float(score),
             "book": m["metadata"].get("book"),
             "category": m["metadata"].get("category"),
@@ -92,13 +98,7 @@ def search_insights(query: str, book: str | None = None, top_k: int = 5):
             "description": m["metadata"].get("description"),
         })
 
-    # 6. Sort by rerank score
+    # 6. Sort and return
     reranked.sort(key=lambda x: x["rerank_score"], reverse=True)
-
-    # 7. Return final top_k
-    final = reranked[:top_k]
-
-    print("RERANKED RESULTS:", final)
-
-    return final
+    return reranked[:top_k]
 

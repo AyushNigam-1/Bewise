@@ -15,9 +15,16 @@ type Categories = {
     icon: string,
     description: string,
 }
-
+type Book = {
+    author: string,
+    category: string,
+    description: string,
+    id: number,
+    thumbnail: string,
+    title: string
+}
 const Page = () => {
-    const [books, setBooks] = useState<any[]>([]);
+    const [books, setBooks] = useState<Book[]>([]);
     const [filteredBooks, setFilteredBooks] = useState<any[]>([]);
     const [filteredCategories, setFilteredCategories] = useState<Categories[]>([])
     const [isOpen, setIsOpen] = useState(false);
@@ -38,6 +45,7 @@ const Page = () => {
                 const categories = await getAllCategories()
                 // const bookmarks = await getFavouriteBooks(user.user_id)
                 // setBookmarkedBooks(bookmarks)
+                console.log(books)
                 setBooks(books);
                 setFilteredBooks(books);
                 setCategories(categories)
@@ -99,7 +107,7 @@ const Page = () => {
                             setFilteredCategories={setFilteredCategories}
                             selectedCategory={selectedCategory}
                             toggleCategory={toggleCategory} />
-                        <ChatbotModal />
+                        <ChatbotModal contextItems={books.map(book => ({ id: book.id, name: book.title }))} />
                     </div>
                 </div>
             </div>
