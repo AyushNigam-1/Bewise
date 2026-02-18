@@ -5,12 +5,15 @@ import {
     ListboxButton,
     ListboxOption,
     ListboxOptions,
+    Popover,
+    PopoverButton,
+    PopoverPanel,
     Transition,
     TransitionChild,
 } from "@headlessui/react";
 import React, { Fragment, useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { X, Send, Bot, User, Sparkles, SendHorizontal, Library, ChevronDown, Check, Plus, Search } from "lucide-react"; // Icons
+import { X, Send, Bot, User, Sparkles, SendHorizontal, Library, ChevronDown, Check, Plus, Search, ChevronRight } from "lucide-react"; // Icons
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm'
 import Link from "next/link";
@@ -119,7 +122,16 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
             setLoading(false);
         }
     };
-
+    const toggleContext = (item: ContextItem) => {
+        setSelectedContexts((prev) => {
+            const exists = prev.some((i) => i.id === item.id);
+            if (exists) {
+                return prev.filter((i) => i.id !== item.id);
+            } else {
+                return [...prev, item];
+            }
+        });
+    };
     return (
         <>
             <button onClick={() => setIsOpen(true)} className=" p-3 font-semibold  bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full flex gap-2 items-center">
@@ -151,17 +163,17 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                             leaveFrom="opacity-100 scale-100 translate-y-0"
                             leaveTo="opacity-0 scale-95 translate-y-4"
                         >
-                            <DialogPanel className="w-full max-w-7xl bg-gray-100 rounded-2xl shadow-2xl flex flex-col  h-[calc(100vh-100px)] overflow-hidden border border-gray-100 space-y-3">
+                            <DialogPanel className="w-full max-w-7xl bg-gray-200 rounded-2xl shadow-2xl flex flex-col  h-[calc(100vh-200px)] overflow-hidden border border-gray-300 space-y-3">
 
                                 {/* --- Header --- */}
                                 <div className="border-b border-gray-100 flex p-4 justify-between items-center bg-white sticky top-0 z-10">
                                     <div className="flex items-center gap-2">
-                                        <div className="p-2 bg-gray-700 rounded-full text-white">
-                                            <Bot size={22} />
+                                        <div className="p-2 md:p-3 bg-gray-700 rounded-full text-white">
+                                            <Bot size={20} />
                                         </div>
                                         <div className="flex flex-col">
-                                            <h3 className="font-bold text-xl text-gray-700">Bookist AI</h3>
-                                            <p className="text-xs text-gray-500 flex items-center gap-1">
+                                            <h3 className="font-bold md:text-lg text-gray-600">Bookist AI</h3>
+                                            <p className="text-xs md:text-sm text-gray-500 flex items-center gap-1">
                                                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
                                                 Online
                                             </p>
@@ -169,14 +181,14 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                     </div>
                                     <button
                                         onClick={() => setIsOpen(false)}
-                                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-colors"
+                                        className="p-2 md:p-3 text-gray-400 bg-gray-100  hover:text-gray-600 hover:bg-gray-50 rounded-full transition-colors"
                                     >
-                                        <X size={20} />
+                                        <X size={16} />
                                     </button>
                                 </div>
                                 {/* <hr className="border border-gray-200" /> */}
                                 {/* --- Messages Area --- */}
-                                <div className="flex-1 overflow-y-auto space-y-6 px-4 bg-gray-100">
+                                <div className="flex-1 overflow-y-auto space-y-6 px-4 bg-gray-200">
                                     {messages.map((m, i) => (
                                         <div
                                             key={i}
@@ -191,7 +203,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
 
                                             {/* Bubble */}
                                             <div
-                                                className={`md:max-w-[70%] p-4 space-y-2 text-sm  leading-relaxed ${m.role === "user"
+                                                className={`md:max-w-[70%]  p-2 md:p-3 space-y-2 text-xs md:text-sm  leading-relaxed ${m.role === "user"
                                                     ? "bg-gray-700 text-white rounded-2xl rounded-tr-sm"
                                                     : "bg-white border border-gray-100 text-gray-700 rounded-2xl rounded-tl-sm"
                                                     }`}
@@ -289,7 +301,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                     {/* Loading Indicator */}
                                     {loading && (
                                         <div className="flex gap-3 justify-start">
-                                            <div className="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center flex-shrink-0">
+                                            <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-100 flex items-center justify-center flex-shrink-0">
                                                 <Bot size={16} className="text-gray-400" />
                                             </div>
                                             <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1">
@@ -301,51 +313,70 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                     )}
                                     <div ref={bottomRef} />
                                 </div>
-                                <div className="bg-white p-4 border-t border-gray-200">
+                                <div className="bg-white p-4 ">
                                     {selectedContexts.length > 0 && (
                                         <div className="flex flex-wrap gap-2 mb-3">
                                             {selectedContexts.map((ctx) => (
-                                                <span key={ctx.id} className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-lg border border-gray-200 animate-in fade-in zoom-in duration-200">
+                                                <span key={ctx.id} className="inline-flex items-center gap-3 px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg border border-gray-300 animate-in fade-in zoom-in duration-200">
                                                     {ctx.name}
                                                     <button
                                                         onClick={() => removeContext(ctx.id)}
                                                         className="hover:bg-gray-300 rounded-full p-0.5 transition-colors"
                                                     >
-                                                        <X size={12} />
+                                                        <X size={16} />
                                                     </button>
                                                 </span>
                                             ))}
                                         </div>
                                     )}
                                     {/* SECTION 2: Input Row */}
-                                    <div className="flex items-center gap-2 p-3 bg-gray-100 border-none  rounded-xl focus-within:ring-2 focus-within:ring-gray-900/10 focus-within:border-gray-300 transition-all">
+                                    <div className="flex items-center gap-2">
 
                                         {/* Dropup Menu (Multiple Selection) */}
-                                        {contextItems.length > 0 && (
-                                            <div className="relative mb-0.5">
-                                                <Listbox value={selectedContexts} onChange={setSelectedContexts} multiple>
-                                                    <ListboxButton className="
-                                                        w-9 h-9 rounded-xl flex items-center justify-center transition-all
-                                                            bg-white text-gray-500 hover:bg-gray-200 border border-gray-200" title="Select Context">
-                                                        <Plus size={18} />
-                                                    </ListboxButton>
+                                        <Popover className="relative mb-0.5">
+                                            {({ open, close }) => (
+                                                <>
+                                                    <PopoverButton
+                                                        className={`flex items-center justify-center transition-all outline-none 
+                                                               p-2 md:p-3 bg-gray-100 border border-gray-300 rounded-full text-gray-400 hover:bg-gray-200 
+                                                            }`}
+                                                        title="Select Context"
+                                                    >
+                                                        <Plus size={22} />
+                                                    </PopoverButton>
 
                                                     <Transition
                                                         as={Fragment}
-                                                        leave="transition ease-in duration-100"
-                                                        leaveFrom="opacity-100"
-                                                        leaveTo="opacity-0"
+                                                        enter="transition ease-out duration-200"
+                                                        enterFrom="opacity-0 translate-y-2"
+                                                        enterTo="opacity-100 translate-y-0"
+                                                        leave="transition ease-in duration-150"
+                                                        leaveFrom="opacity-100 translate-y-0"
+                                                        leaveTo="opacity-0 translate-y-2"
                                                     >
-                                                        <ListboxOptions className="absolute bottom-full mb-2 left-0 w-120 h-120 overflow-auto rounded-xl bg-white ring-1 ring-black/5 focus:outline-none z-50 p-2 ">
-                                                            <div className="text-sm py-2 font-semibold text-gray-600 uppercase tracking-wider">
-                                                                Select topics
+                                                        <PopoverPanel
+                                                            className="absolute bottom-full mb-3 left-0 w-80 h-[500px] flex flex-col rounded-xl bg-white border p-3 border-gray-200 shadow-2xl ring-1 ring-black/5 z-50  space-y-3"
+                                                        >
+                                                            {/* --- HEADER --- */}
+                                                            <div className="flex items-center justify-between bg-white">
+                                                                <h3 className="font-bold text-gray-700 text-lg  tracking-wide">
+                                                                    Select {book ? "Insights" : "Books"}
+                                                                </h3>
+                                                                <button
+                                                                    onClick={close}
+                                                                    className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                                                                >
+                                                                    <X size={16} />
+                                                                </button>
                                                             </div>
-                                                            <div className="sticky top-0 z-10 py-2">
+
+                                                            {/* --- SEARCH BAR --- */}
+                                                            <div className="sticky top-0 z-10 ">
                                                                 <div className="relative">
                                                                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                                                                     <input
                                                                         type="text"
-                                                                        placeholder="Search items..."
+                                                                        placeholder="Search"
                                                                         value={searchQuery}
                                                                         onChange={(e) => setSearchQuery(e.target.value)}
                                                                         // IMPORTANT: Prevent keys from interfering with Listbox navigation
@@ -355,40 +386,45 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                                                 </div>
                                                             </div>
 
-                                                            {filteredItems.map((item) => (
-                                                                <ListboxOption
-                                                                    key={item.id}
-                                                                    value={item}
-                                                                    className={({ active, selected }) =>
-                                                                        `relative cursor-pointer select-none rounded-lg p-2 flex items-center justify-between text-sm transition-colors ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                                                                        } ${selected ? 'bg-gray-50' : ''}`
-                                                                    }
-                                                                >
-                                                                    {({ selected }) => (
-                                                                        <>
-                                                                            <span className={`block truncate ${selected ? 'font-medium text-gray-900' : 'font-normal'}`}>
-                                                                                {item.name}
-                                                                            </span>
-                                                                            {selected && (
-                                                                                <span className="flex items-center text-gray-800">
-                                                                                    <Check size={16} />
-                                                                                </span>
-                                                                            )}
-                                                                        </>
-                                                                    )}
-                                                                </ListboxOption>
-                                                            ))}
-                                                        </ListboxOptions>
+                                                            {/* --- SCROLLABLE LIST --- */}
+                                                            <div className="overflow-y-auto h-full space-y-2 custom-scroll-hide" >
+                                                                {filteredItems.length === 0 ? (
+                                                                    <p className=" text-gray-400 text-center py-4 ">
+                                                                        No matches found.
+                                                                    </p>
+                                                                ) : (
+                                                                    filteredItems.map((item) => {
+                                                                        const isSelected = selectedContexts.some(i => i.id === item.id);
+                                                                        return (
+                                                                            <button
+                                                                                key={item.id}
+                                                                                onClick={() => toggleContext(item)}
+                                                                                className={`w-full cursor-pointer text-left rounded-lg flex items-center justify-between hover:text-gray-900 transition-all pr-2
+                                                                                        ${isSelected
+                                                                                        ? 'text-gray-900 font-medium'
+                                                                                        : 'text-gray-500'
+                                                                                    }`}
+                                                                            >
+                                                                                <span className="truncate pr-2">{item.name}</span>
+                                                                                {isSelected && (
+                                                                                    <Check size={16} className="text-gray-600 flex-shrink-0" />
+                                                                                )}
+                                                                            </button>
+                                                                        );
+                                                                    })
+                                                                )}
+                                                            </div>
+                                                        </PopoverPanel>
                                                     </Transition>
-                                                </Listbox>
-                                            </div>
-                                        )}
+                                                </>
+                                            )}
+                                        </Popover>
 
                                         <input
                                             value={input}
                                             onChange={(e) => setInput(e.target.value)}
                                             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                                            className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-400 py-2.5 ml-1"
+                                            className="flex-1 border border-gray-300 bg-gray-100 text-sm md:text-base placeholder-gray-400 placeholder:font-medium outline-none  text-gray-800 p-3 md:p-3 rounded-full"
                                             placeholder={selectedContexts.length > 0 ? `Ask about these ${selectedContexts.length} topics...` : "Ask about a book, concept, or author..."}
                                             disabled={loading}
                                         />
@@ -396,12 +432,12 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                         <button
                                             onClick={sendMessage}
                                             disabled={!input.trim() || loading}
-                                            className={`p-2.5 mb-0.5 rounded-xl transition-all flex items-center justify-center ${input.trim()
-                                                ? "bg-gray-900 text-white hover:bg-black shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                                                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                            className={` p-2 md:p-3 rounded-full  transition-all flex items-center justify-center ${input.trim()
+                                                ? "bg-gray-900 text-white hover:bg-black"
+                                                : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-300"
                                                 }`}
                                         >
-                                            <SendHorizontal size={18} />
+                                            <ChevronRight size={20} />
                                         </button>
                                     </div>
                                     {/* <div className="text-center mt-2">

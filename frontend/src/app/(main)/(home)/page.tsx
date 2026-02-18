@@ -96,7 +96,7 @@ const Page = () => {
 
     return (
         <div className="flex flex-col w-full " >
-            <div className={`flex justify-between items-center h-14 md:h-18 sticky top-0 bg-gray-100 z-30 `} >
+            <div className={`flex justify-between items-center h-14 md:h-18 sticky top-0 z-30 `} >
                 <h4 className="justify-between flex lg:text-3xl font-bold text-gray-700 text-3xl text-center md:text-left gap-2" >Explore</h4>
                 <div className="flex gap-2 items-center">
                     <SearchBar responsive={true} data={books} propertyToSearch='title' setFilteredData={setFilteredBooks} />

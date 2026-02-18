@@ -46,19 +46,19 @@ const CategoryDialog: React.FC<categoryProps> = ({ filteredCategories, setFilter
                             leaveFrom="opacity-100 translate-y-0 sm:scale-100"
                             leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                         >
-                            <DialogPanel className="max-w-lg shadow rounded-xl bg-gray-100 p-3 flex flex-col gap-3 " >
+                            <DialogPanel className="max-w-lg shadow rounded-xl bg-white p-3 flex flex-col gap-3 " >
                                 <div className='justify-between flex items-center' >
                                     <DialogTitle className="font-bold text-lg md:text-2xl text-gray-800" > Select Categories </DialogTitle>
                                     <button
                                         onClick={() => { setIsOpen(false); setFilteredCategories(categories) }}
                                         type="button"
-                                        className="text-gray-600 cursor-pointer bg-gray-200  focus:outline-none rounded-full   p-2 w-min  font-semibold "
+                                        className="text-gray-600 cursor-pointer bg-gray-100  focus:outline-none rounded-full   p-2 w-min  font-semibold "
                                     >
                                         <X size={16} />
                                     </button>
                                 </div>
                                 <SearchBar responsive={false} data={categories} propertyToSearch='name' setFilteredData={setFilteredCategories} />
-                                <div className="overflow-y-scroll h-[50vh] gap-3 flex flex-col rounded-lg   scrollbar-thumb-gray-300 scrollbar-thin scrollbar-track-gray-100 scrollbar-thumb-rounded-full scrollbar-track-rounded-full" >
+                                <div className="overflow-y-scroll h-[50vh] gap-3 flex flex-col rounded-lg custom-scroll-hide" >
                                     {filteredCategories?.map((category) => (
                                         <div className="relative overflow-visible inline-block" key={category.name} >
                                             <button
@@ -68,7 +68,7 @@ const CategoryDialog: React.FC<categoryProps> = ({ filteredCategories, setFilter
                                                         setIsOpen(false);
                                                     }
                                                 }
-                                                className={`relative flex flex-col gap-2 rounded-xl select-none hover:bg-gray-200 cursor-pointer text-gray-400 p-2 bg-gray-200 w-full 
+                                                className={`relative flex flex-col gap-2 rounded-xl select-none hover:bg-gray-100 cursor-pointer text-gray-400 p-2 bg-gray-100 w-full 
                                             ${selectedCategory?.map(c => c).includes(category) ? ' border-2 border-gray-400' : ''}`}
                                             >
                                                 <div className='flex flex-col gap-1' >
