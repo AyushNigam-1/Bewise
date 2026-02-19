@@ -11,12 +11,9 @@ from psycopg2.extras import Json
 import os
 import secrets
 from dotenv import load_dotenv
+from controllers.vector import recommend_for_user , recommend_next_insights
 
 load_dotenv()
-
-# -------------------------------------------------------------------
-# CONFIG
-# -------------------------------------------------------------------
 
 SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
@@ -25,10 +22,6 @@ ACCESS_TOKEN_EXPIRE = timedelta(minutes=15)
 REFRESH_TOKEN_EXPIRE = timedelta(days=30)
 
 router = APIRouter()
-
-# -------------------------------------------------------------------
-# MODELS
-# -------------------------------------------------------------------
 
 class UserRegister(BaseModel):
     name: str
@@ -47,10 +40,6 @@ class UserProfile(BaseModel):
     favourite_books: List[int]
     favourite_insights: List[Union[dict, str]]
 
-# -------------------------------------------------------------------
-# TOKEN HELPERS
-# -------------------------------------------------------------------
-
 @router.get("/me")
 def me(access_token: str = Cookie(None)):
 
@@ -67,7 +56,7 @@ def me(access_token: str = Cookie(None)):
     cur = conn.cursor()
 
     cur.execute(
-        'SELECT id, name, email FROM "user" WHERE email=%s',
+        'SELECT id, name, email , favourite_books , favourite_insights FROM "user" WHERE email=%s',
         (email,)
     )
 
@@ -80,7 +69,9 @@ def me(access_token: str = Cookie(None)):
     return {
         "user_id": user[0],
         "name": user[1],
-        "email": user[2]
+        "email": user[2],
+        "favourite_books": user[3],
+        "favourite_insights": user[4]
     }
 
 def create_token(data: dict, exp: timedelta):
@@ -98,10 +89,6 @@ def get_user_by_email(conn, email: str):
     row = cur.fetchone()
     cur.close()
     return row
-
-# -------------------------------------------------------------------
-# REGISTER
-# -------------------------------------------------------------------
 
 @router.post("/register")
 def register_user(user: UserRegister):
@@ -169,11 +156,6 @@ def login_user(user: UserLogin, response: Response):
     return res
 
 
-# -------------------------------------------------------------------
-# REFRESH
-# -------------------------------------------------------------------
-
-@router.post("/refresh")
 @router.post("/refresh")
 def refresh_token(request: Request, response: Response):
 
@@ -224,11 +206,6 @@ def logout(request: Request, response: Response):
 
     return {"ok": True}
 
-
-# -------------------------------------------------------------------
-# EVERYTHING BELOW REMAINS UNCHANGED
-# (your favourites / insights logic)
-# -------------------------------------------------------------------
 @router.post("/password/request-reset")
 def request_reset(email: str = Body(...)):
 
@@ -303,4 +280,137 @@ def reset_password(token: str = Body(...), new_password: str = Body(...)):
     conn.close()
 
     return {"message": "Password updated"}
+
+
+@router.post("/bookmark/book/{user_id}/{book_id}")
+def toggle_bookmark_book(user_id: int, book_id: int):
+
+    conn = connect_db()
+    cur = conn.cursor()
+
+    cur.execute('SELECT favourite_books FROM "user" WHERE id=%s', (user_id,))
+    row = cur.fetchone()
+
+    books = row[0] if row and row[0] else []
+
+    if book_id in books:
+        books.remove(book_id)
+        action = False
+    else:
+        books.append(book_id)
+        action = True
+
+    cur.execute(
+        'UPDATE "user" SET favourite_books=%s WHERE id=%s',
+        (books, user_id)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "bookmarked":action ,
+        "favourite_books": books
+    }
+
+
+@router.post("/bookmark/insight/{user_id}/{insight_id}")
+def toggle_bookmark_insight(user_id: int, insight_id: int):
+
+    conn = connect_db()
+    cur = conn.cursor()
+
+    cur.execute('SELECT favourite_insights FROM "user" WHERE id=%s', (user_id,))
+    row = cur.fetchone()
+
+    insights = row[0] if row and row[0] else []
+
+    if insight_id in insights:
+        insights.remove(insight_id)
+        action = False
+
+    else:
+        insights.append(insight_id)
+        action = True
+
+    cur.execute(
+        'UPDATE "user" SET favourite_insights=%s WHERE id=%s',
+        (Json(insights), user_id)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "bookmarked":action,
+        "favourite_insights": insights
+    }
+
+@router.get("/recommend/{user_id}")
+def recommend(user_id: int):
+
+    conn = connect_db()
+    cur = conn.cursor()
+
+    cur.execute(
+        'SELECT favourite_insights FROM "user" WHERE id=%s',
+        (user_id,)
+    )
+
+    row = cur.fetchone()
+    conn.close()
+
+    insight_ids = row[0] or []
+
+    recommendations = recommend_for_user(insight_ids)
+
+    return {"recommendations": recommendations}
+
+class SessionRecommendRequest(BaseModel):
+    insight_id: int
+    user_id: int
+
+@router.post("/insights/session-recommend")
+def session_recommend(payload: SessionRecommendRequest):
+
+    conn = connect_db()
+    cur = conn.cursor()
+
+    # 1️⃣ Get current insight
+    cur.execute(
+        "SELECT title, description FROM insights WHERE id=%s",
+        (payload.insight_id,)
+    )
+    insight_row = cur.fetchone()
+
+    if not insight_row:
+        conn.close()
+        raise HTTPException(404, "Insight not found")
+
+    title, description = insight_row
+
+    # 2️⃣ Get user's bookmarked insights
+    cur.execute(
+        'SELECT favourite_insights FROM "user" WHERE id=%s',
+        (payload.user_id,)
+    )
+
+    user_row = cur.fetchone()
+    conn.close()
+
+    bookmarked_ids = user_row[0] if user_row and user_row[0] else []
+
+    # 3️⃣ Call vector recommender
+    recommendations = recommend_next_insights(
+        current_insight_title=title,
+        current_insight_description=description,
+        user_bookmarked_ids=bookmarked_ids,
+        current_insight_id=payload.insight_id,
+        top_k=3
+    )
+
+    return {
+        "recommendations": recommendations
+    }
+
 

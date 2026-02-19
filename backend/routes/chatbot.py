@@ -8,8 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.output_parsers import PydanticOutputParser
-from src.utils.vector import search_insights
-from urllib.parse import unquote 
+from controllers.vector import search_insights
 router = APIRouter()
 
 store: Dict[str, ChatMessageHistory] = {}
