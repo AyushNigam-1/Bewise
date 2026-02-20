@@ -18,7 +18,7 @@ interface Book {
 interface CardProps {
     book: Book;
     bookmarkBook: (bookId: number) => void;
-    isBookmarked: boolean
+    isBookmarked: boolean | undefined
 }
 
 const Card: React.FC<CardProps> = ({ book, bookmarkBook, isBookmarked }) => {

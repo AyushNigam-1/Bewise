@@ -1,36 +1,21 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+"use client"
 import "./globals.css";
-import Navbar from "./(main)/components/Navbar";
-// import Sidebar from "./components/Sidebar";
-import { Montserrat } from 'next/font/google';
+import { useUserStore } from "./stores/useUserStores";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
-const montserrat = Montserrat({ subsets: ['latin'] });
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata = {
-  title: "Bevise",
-  description: "Your app description",
-  manifest: "/manifest.json",
-  // themeColor: [{ media: "(prefers-color-scheme: dark)", color: "#fff" }],
-  icons: [
-    { rel: "apple-touch-icon", url: "/icon-192x192.png" },
-    { rel: "icon", url: "/icon-192x192.png" },
-  ],
-};
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+  const fetchUser = useUserStore(state => state.getUser);
+  useEffect(() => {
+    fetchUser();
+  }, []);
+  const [queryClient] = useState(() => new QueryClient());
+
   return (
     <html lang="en" className="">
       <head>
@@ -38,9 +23,11 @@ export default function RootLayout({
         <meta name="theme-color" content="#10b981" />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
-      <body className={`${montserrat.className} antialiased  flex flex-col h-screen`}>
-        {children}
-      </body>
+      <QueryClientProvider client={queryClient}>
+        <body className="antialiased  flex flex-col h-screen">
+          {children}
+        </body>
+      </QueryClientProvider>
     </html>
   );
 }

@@ -111,3 +111,38 @@ export const removeFavouriteInsight = async (
         throw new Error(error.response?.data?.detail || 'Failed to remove favourite insight');
     }
 };
+
+export const toggleBookmarkBook = async (
+    user_id: number,
+    book_id: number
+) => {
+    console.log(user_id, book_id)
+    try {
+        const res = await axios.post(
+            `${API_BASE_URL}/bookmark/book/${user_id}/${book_id}`,
+            {},
+            { withCredentials: true }
+        );
+
+        return res.data;
+    } catch (err: any) {
+        throw new Error(err.response?.data?.detail || "Failed to toggle book bookmark");
+    }
+};
+
+export const toggleBookmarkInsight = async (
+    user_id: number,
+    insight_id: number
+) => {
+    try {
+        const res = await axios.post(
+            `${API_BASE_URL}/bookmark/insight/${user_id}/${insight_id}`,
+            {},
+            { withCredentials: true }
+        );
+
+        return res.data;
+    } catch (err: any) {
+        throw new Error(err.response?.data?.detail || "Failed to toggle insight bookmark");
+    }
+};

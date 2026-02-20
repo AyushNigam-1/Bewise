@@ -3,11 +3,11 @@
 import { addFavouriteInsight, getCompletedInsights, getFavouriteCategories, getFavouriteInsights, toggleFavouriteBook } from '@/app/services/userService';
 import React, { use, useEffect, useState } from 'react'
 import SearchBar from '../components/SearchBar';
-import { Description, Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
 import Link from 'next/link';
 import ShareModal from '../components/ShareModal';
 import CategoryDialog from '../components/CategoryDialog';
 import { Slide, toast, ToastContainer } from "react-toastify"
+
 type Categories = {
     name: string,
     // icon: string,
@@ -28,7 +28,6 @@ const page = () => {
     const [filteredCategories, setFilteredCategories] = useState<Categories[]>([])
     const [selectedCategory, setSelectedCategory] = useState<Categories[]>([])
     const [filteredInsights, setFilteredInsights] = useState<StepData[]>([])
-
     const [insights, setInsights] = React.useState<any[]>([]);
     const [categories, setCategories] = useState<Categories[]>([])
     const [isOpen, setIsOpen] = useState(false)
@@ -103,10 +102,10 @@ const page = () => {
 
     return (
         <div>
-            <div className="sticky top-0 w-full bg-gray-100 z-10 h-14 md:h-20">
+            <div className="sticky top-0 w-full bg-white z-10 h-14 md:h-20">
                 <div className={`flex justify-between items-center h-full`} >
                     <div className='flex flex-col gap-1'>
-                        <div className='justify-between flex lg:text-4xl font-bold text-gray-700 text-2xl text-center md:text-left  gap-2' >
+                        <div className='justify-between flex lg:text-3xl font-bold text-gray-700 text-3xl text-center md:text-left gap-2' >
                             <p>
                                 Bookmarks
                             </p>
@@ -116,11 +115,12 @@ const page = () => {
                         <div className='md:flex gap-3' >
                             <SearchBar responsive={true} data={insights} propertyToSearch='title' setFilteredData={setFilteredInsights} />
                             <div className='flex flex-col gap-3 md:relative fixed right-0 m-4 md:m-0 bottom-0' >
-                                <button onClick={() => setIsOpen(true)} className=" p-3 font-semibold  bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full  flex gap-2 items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
-                                    </svg>
-                                </button>
+                                <CategoryDialog
+                                    categories={categories}
+                                    filteredCategories={filteredCategories}
+                                    setFilteredCategories={setFilteredCategories}
+                                    selectedCategory={selectedCategory}
+                                    toggleCategory={toggleCategory} />
                                 {/* <button onClick={() => setMode("Swipe")} className="md:hidden p-3 bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M4.098 19.902a3.75 3.75 0 0 0 5.304 0l6.401-6.402M6.75 21A3.75 3.75 0 0 1 3 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 0 0 3.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008Z" />
@@ -177,15 +177,6 @@ const page = () => {
                     </div>
                 ))}
             </div>
-            <CategoryDialog
-                isOpen={isOpen}
-                setIsOpen={setIsOpen}
-                categories={categories}
-                setFilteredCategories={setFilteredCategories}
-                filteredCategories={filteredCategories}
-                selectedCategory={selectedCategory}
-                toggleCategory={toggleCategory} />
-            <ToastContainer />
         </div>
     )
 }

@@ -1,14 +1,14 @@
 "use client";
-import React, { Fragment, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Card from "../components/Cards";
 import SearchBar from "../components/SearchBar";
-import { findBooksByCategories, getAllBooks, getAllCategories } from "@/app/services/bookService";
-import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Transition } from '@headlessui/react'
-import ShareModal from "../components/ShareModal";
+import { findBooksByCategories, getAllCategories } from "@/app/services/bookService";
 import CategoryDialog from "../components/CategoryDialog";
-import { getFavouriteBooks, toggleFavouriteBook } from "@/app/services/userService";
-import { Bot, SlidersHorizontal } from "lucide-react";
 import ChatbotModal from "../components/ChatbotModal";
+import { useQuery } from "@tanstack/react-query";
+import { useMutations } from "@/app/hooks/useMutations";
+import { useUserStore } from "@/app/stores/useUserStores";
+import { User } from "@/app/types";
 
 type Categories = {
     name: string,
@@ -24,53 +24,35 @@ type Book = {
     title: string
 }
 const Page = () => {
-    const [books, setBooks] = useState<Book[]>([]);
-    const [filteredBooks, setFilteredBooks] = useState<any[]>([]);
     const [filteredCategories, setFilteredCategories] = useState<Categories[]>([])
-    const [isOpen, setIsOpen] = useState(false);
-    const [openChatbot, setOpenChatbot] = useState(false)
     const [selectedCategory, setSelectedCategory] = useState<Categories[]>([])
-    const [categories, setCategories] = useState<Categories[]>([])
-    const [bookmarkedBooks, setBookmarkedBooks] = useState<any[]>([])
-    const [user, setUser] = useState<any>(null)
-    // const user = JSON.parse(localStorage.getItem("user") || "{}")
-    useEffect(() => {
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-        }
-        const fetchBooks = async () => {
-            try {
-                const books = await getAllBooks();
-                const categories = await getAllCategories()
-                // const bookmarks = await getFavouriteBooks(user.user_id)
-                // setBookmarkedBooks(bookmarks)
-                console.log(books)
-                setBooks(books);
-                setFilteredBooks(books);
-                setCategories(categories)
-                setFilteredCategories(categories)
-            } catch (error) {
-                console.error("Error fetching books:", error);
-            }
-        };
-        fetchBooks();
-    }, []);
+    const [filteredBooks, setFilteredBooks] = useState<any>([])
+    const { bookmarkBook } = useMutations()
+    const user = useUserStore((state: any) => state.user as User | null);
+
+    const { data: books = [] } = useQuery({
+        queryKey: ["books-by-category", selectedCategory],
+        queryFn: () =>
+            findBooksByCategories(
+                selectedCategory.length
+                    ? selectedCategory.map(cat => cat.name)
+                    : []
+            ),
+    });
+
+    const {
+        data: categories = [],
+    } = useQuery({
+        queryKey: ["categories"],
+        queryFn: getAllCategories,
+    });
 
     useEffect(() => {
-        const fetchInsights = async () => {
-            try {
-                const data = await findBooksByCategories(
-                    selectedCategory.length ? selectedCategory.map(cat => cat.name) : []
-                )
-                setFilteredBooks(data)
-            } catch (error) {
-                console.error("Error fetching steps:", error)
-            }
+        if (books.length && categories.length) {
+            setFilteredBooks(books);
+            setFilteredCategories(categories)
         }
-
-        fetchInsights()
-    }, [selectedCategory])
+    }, [books, categories]);
 
     const toggleCategory = (category: Categories) => {
         setSelectedCategory(prev =>
@@ -78,20 +60,6 @@ const Page = () => {
                 ? prev.filter(c => c.name !== category.name)
                 : [...prev, category]
         )
-        setIsOpen(false)
-    }
-    const bookmarkBook = async (bookId: number) => {
-        try {
-            const data = await toggleFavouriteBook(
-                user.user_id,
-                bookId
-            )
-            // console.log(data)
-            setBookmarkedBooks(data)
-
-        } catch (error) {
-            console.error("Error fetching steps:", error)
-        }
     }
 
     return (
@@ -107,19 +75,16 @@ const Page = () => {
                             setFilteredCategories={setFilteredCategories}
                             selectedCategory={selectedCategory}
                             toggleCategory={toggleCategory} />
-                        <ChatbotModal contextItems={books.map(book => ({ id: book.id, name: book.title }))} />
+                        <ChatbotModal contextItems={filteredBooks?.map((book: any) => ({ id: book.id, name: book.title }))} />
                     </div>
                 </div>
             </div>
             <div className="columns-1 gap-3 lg:columns-5 space-y-4" >
-                {filteredBooks.map((book: any) => (
-                    <Card key={`${book.id}-${bookmarkedBooks.includes(book.id)}`} book={book} bookmarkBook={bookmarkBook} isBookmarked={bookmarkedBooks.includes(book.id)} />
+                {filteredBooks?.map((book: any) => (
+                    <Card key={`${book.id}`} book={book} bookmarkBook={bookmarkBook.mutate} isBookmarked={user?.favourite_books?.includes(book.id)} />
                 ))}
             </div>
-
-
         </div>
-
     );
 };
 

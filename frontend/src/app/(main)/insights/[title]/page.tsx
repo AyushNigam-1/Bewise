@@ -1,4 +1,5 @@
 "use client"
+
 import SearchBar from '@/app/(main)/components/SearchBar';
 import { getBookContentKeys, getBookContentValue } from '@/app/services/bookService';
 import Link from 'next/link';
@@ -6,94 +7,72 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Loader from '@/app/(main)/components/Loader';
 import Slider from "@/app/(main)/components/Slider"
-import { addFavouriteInsight, getCompletedInsights, getFavouriteIds } from '@/app/services/userService';
 import ShareModal from '../../components/ShareModal';
 import CategoryDialog from '../../components/CategoryDialog';
-import { Slide, toast, ToastContainer } from 'react-toastify';
-import ProgressBar from '../../components/ProgressBar';
-import { Bookmark, BookmarkCheck, CheckCircle, CircleEllipsis, Dot, DotSquare, Filter, Share, Share2, SlidersHorizontal, SwatchBook } from 'lucide-react';
+import { ToastContainer } from 'react-toastify';
+import { Bookmark, Share2, SwatchBook } from 'lucide-react';
 import ChatbotModal from '../../components/ChatbotModal';
+import { useUserStore } from '@/app/stores/useUserStores';
+import { useQuery } from "@tanstack/react-query";
+import { useMutations } from '@/app/hooks/useMutations';
+
 interface StepData {
     step: string;
     category: string;
     icon: string;
     step_id: number;
-    // example: string;
     description: string;
-    // recommended_response: string;
-    // hypothetical_situation: string;
 }
+
 type Categories = {
     name: string,
     icon: string,
     description: string,
     steps_count: string
 }
+
 export default function Page() {
+
     const params = useParams<{ title?: string }>()
-    const [steps, setSteps] = useState<StepData[]>([])
-    const [categories, setCategories] = useState<Categories[]>([])
     const [selectedCategory, setSelectedCategory] = useState<Categories[]>([])
-    const [filteredBooks, setFilteredBooks] = useState<StepData[]>([])
+    const [filteredInsights, setFilteredInsights] = useState<StepData[]>([])
     const [filteredCategories, setFilteredCategories] = useState<Categories[]>([])
-    const [bookmarks, setBookmarkes] = useState<number[]>([])
+
     const [mode, setMode] = useState("List")
-    const [isOpen, setIsOpen] = useState(false)
     const [shareModal, setShareModal] = useState(false)
     const [shareUrl, setShareUrl] = useState("")
-    const [user, setUser] = useState<any>()
-    const [completedInsights, setCompletedInsights] = useState<string[]>([])
-    // const user = JSON.parse(localStorage.getItem("user") || "{}")
+    const user = useUserStore(state => state.user);
+    const { bookmarkInsight } = useMutations()
 
-    // useEffect(() => {
-    //     const storedUser = localStorage.getItem("user");
-    //     if (storedUser) {
-    //         setUser(JSON.parse(storedUser));
-    //     }
-    //     const getbookmarksIds = async () => {
-    //         if (!params?.title) return
-    //         const bookmarksIds = await getFavouriteIds(user.user_id)
-    //         const completedInsights = await getCompletedInsights(user.user_id, params.title);
-    //         console.log(completedInsights)
-    //         setCompletedInsights(completedInsights)
-    //         setBookmarkes(bookmarksIds)
-    //     }
-    //     getbookmarksIds()
-    // }, [])
+    const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+        queryKey: ["categories", params?.title],
+        queryFn: () => getBookContentKeys(params!.title!),
+        enabled: !!params?.title,
+    });
 
-    useEffect(() => {
-        const fetchCategories = async () => {
-            if (!params?.title) return
-            try {
-                const data = await getBookContentKeys(params.title)
-                setCategories(data)
-                setFilteredCategories(data)
-                console.log(data)
-            } catch (error) {
-                console.error("Error fetching categories:", error)
-            }
-        }
-
-        fetchCategories()
-    }, [params?.title])
+    const { data: steps = [], isLoading: insightsLoading } = useQuery({
+        queryKey: [
+            "insights",
+            params?.title,
+            selectedCategory.map(cat => cat.name)
+        ],
+        queryFn: () =>
+            getBookContentValue(
+                params!.title!,
+                selectedCategory.length
+                    ? selectedCategory.map(cat => cat.name)
+                    : []
+            ),
+        enabled: !!params?.title,
+    });
 
     useEffect(() => {
-        const fetchInsights = async () => {
-            if (!params.title) return
-            try {
-                const data = await getBookContentValue(
-                    params.title,
-                    selectedCategory.length ? selectedCategory.map(cat => cat.name) : []
-                )
-                setSteps(data)
-                setFilteredBooks(data)
-            } catch (error) {
-                console.error("Error fetching steps:", error)
-            }
+        if (steps.length && categories.length) {
+            setFilteredInsights(steps);
+            setFilteredCategories(categories)
         }
+    }, [steps, categories]);
 
-        fetchInsights()
-    }, [params?.title, selectedCategory])
 
     const toggleCategory = (category: Categories) => {
         setSelectedCategory(prev =>
@@ -101,48 +80,9 @@ export default function Page() {
                 ? prev.filter(c => c.name !== category.name)
                 : [...prev, category]
         )
-        setIsOpen(false)
     }
 
-    const handleAdd = async (id: number, category: string, icon: string) => {
-        try {
-            let desc = categories.find((cate) => cate.name === category)?.description
-            // console.log(id, category, desc, user.user_id)
-            // await addFavouriteInsight(user.user_id, { id, category, description: desc ? desc : "", icon })
-
-            if (!bookmarks.includes(id)) {
-                setBookmarkes((bookmarks) => ([...bookmarks, id]))
-                toast.success('Bookmark Added', {
-                    position: "top-center",
-                    autoClose: 3000,
-                    hideProgressBar: false,
-                    closeOnClick: true,
-                    pauseOnHover: true,
-                    draggable: true,
-                    progress: undefined,
-                    theme: "colored",
-                    transition: Slide,
-                });
-            }
-            else {
-                setBookmarkes((bookmarks) => bookmarks.filter((bookmark) => bookmark !== id))
-                toast.error('Bookmark Removed', {
-                    position: "top-center",
-                    autoClose: 3000,
-                    hideProgressBar: false,
-                    closeOnClick: true,
-                    pauseOnHover: true,
-                    draggable: true,
-                    progress: undefined,
-                    theme: "colored",
-                    transition: Slide,
-                });
-            }
-
-        } catch (err: any) {
-            console.error("Bookmarking failed:", err.message)
-        }
-    }
+    if (insightsLoading) return <p>Loading...</p>;
 
     return (
         <div className="flex flex-col relative">
@@ -157,11 +97,11 @@ export default function Page() {
                     </div>
                     <div className=''>
                         <div className='flex gap-3' >
-                            <ProgressBar completed={completedInsights.length} total={steps.length} />
-                            <SearchBar responsive={true} data={steps} propertyToSearch='step' setFilteredData={setFilteredBooks} />
+                            {/* <ProgressBar completed={completedInsights.length} total={steps.length} /> */}
+                            <SearchBar responsive={true} data={steps} propertyToSearch='step' setFilteredData={setFilteredInsights} />
                             <div className='flex flex-col md:flex-row items-center gap-3 md:relative fixed right-0 bottom-0 m-2 md:m-0' >
-                                <CategoryDialog categories={categories} filteredCategories={filteredCategories} setFilteredCategories={setFilteredCategories} selectedCategory={selectedCategory} toggleCategory={toggleCategory} />
-                                <ChatbotModal book={decodeURIComponent(params.title!)} contextItems={steps.map(step => ({ id: step.step_id, name: step.step }))} />
+                                <CategoryDialog categories={categories} filteredCategories={filteredCategories} setFilteredCategories={() => ""} selectedCategory={selectedCategory} toggleCategory={toggleCategory} />
+                                <ChatbotModal book={decodeURIComponent(params.title!)} contextItems={steps.map((step: any) => ({ id: step.step_id, name: step.step }))} />
                                 <button onClick={() => setMode("Swipe")} className="md:hidden p-3 bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full">
                                     <SwatchBook size={20} />
                                 </button>
@@ -176,16 +116,11 @@ export default function Page() {
                 mode == 'Swipe' ? steps.length && <Slider title={params?.title} steps={steps} /> : <>
                     {steps ? (
                         <div className="columns-1 md:columns-2 lg:columns-3 gap-3 space-y-3 md:gap-4 md:space-y-4" >
-                            {filteredBooks.map((step, index) => (
-                                <div className='relative rounded-2xl' key={`${step.step_id}-${bookmarks.includes(step.step_id)}`} >
+                            {filteredInsights.map((step) => (
+                                <div className='relative rounded-2xl' key={step.step_id} >
                                     <div className={`rounded-2xl h-full col-span-1 p-3 flex-col flex gap-4 break-inside-avoid bg-gray-100 `}  >
-                                        <Link href={{
-                                            pathname: `/insight/${params.title}/${step?.category}/${step.step_id}`,
-                                            query: {
-                                                isCompleted: completedInsights.includes(String(step.step_id)),
-                                                // user_id: user.user_id
-                                            }
-                                        }} className='flex flex-col gap-2' >
+                                        <Link href="/insight/${params.title}/${step?.category}/${step.step_id}"
+                                            className='flex flex-col gap-2' >
                                             <div className='flex justify-between items-center'>
                                                 <span className=' text-gray-600 font-medium  text-sm flex gap-1 items-center w-min text-nowrap flex-nowrap rounded-lg' >
                                                     <span>
@@ -204,28 +139,11 @@ export default function Page() {
 
                                         </Link>
                                         <div className="flex gap-2 justify-between mt-auto items-center">
-                                            {
-                                                completedInsights.includes(String(step.step_id)) ?
-                                                    <span className='flex gap-1 items-center mt-auto text-green-600' >
-                                                        <CheckCircle size={18} />
-                                                        <p className=' text-sm font-medium' >
-                                                            Completed
-                                                        </p>
-                                                    </span>
-                                                    :
-                                                    <span className='flex gap-1 items-center mt-auto text-yellow-600' >
-                                                        <CircleEllipsis size={18} />
-                                                        <p className=' text-sm font-medium' >
-                                                            Pending
-                                                        </p>
-                                                    </span>
-                                            }
-                                            <div className='flex gap-4 items-center'>
-                                                <button onClick={() => handleAdd(step.step_id, step.category, step.icon)}
+                                            <div className='flex gap-4 items-center justify-between'>
+                                                <button onClick={() => bookmarkInsight.mutate(step.step_id)}
                                                     type="button"
-                                                    className={`text-gray-600 bg-white  focus:outline-none rounded-full p-2 w-min  font-semibold ${bookmarks.includes(step.step_id) ? 'outline-gray-300 outline-1 text-gray-500' : ''} `}
-                                                >{bookmarks.includes(step.step_id) ? <BookmarkCheck size={18} /> : <Bookmark size={20} />}
-
+                                                    className={`text-gray-600 bg-white  focus:outline-none rounded-full p-2 w-min  font-semibold  `}
+                                                ><Bookmark size={18} className={user?.favourite_insights.includes(step.step_id) ? "fill-gray-500" : ""} />
                                                 </button>
                                                 <button
                                                     onClick={() => { setShareUrl(step.step); setShareModal(true) }}
@@ -244,8 +162,6 @@ export default function Page() {
                         <Loader />
                     )}
                     <ShareModal isOpen={shareModal} setIsOpen={setShareModal} shareUrl={shareUrl} />
-
-
                 </>
             }
             <ToastContainer />

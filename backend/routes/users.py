@@ -155,7 +155,6 @@ def login_user(user: UserLogin, response: Response):
 
     return res
 
-
 @router.post("/refresh")
 def refresh_token(request: Request, response: Response):
 
@@ -166,28 +165,26 @@ def refresh_token(request: Request, response: Response):
     conn = connect_db()
     cur = conn.cursor()
 
-    cur.execute(
-        "SELECT user_id FROM user_sessions WHERE refresh_token=%s AND expires_at > NOW()",
-        (refresh,)
-    )
+    cur.execute("""
+        SELECT u.email 
+        FROM user_sessions s
+        JOIN "user" u ON s.user_id = u.id
+        WHERE s.refresh_token=%s AND s.expires_at > NOW()
+    """, (refresh,))
 
     row = cur.fetchone()
-
+    conn.close()
+    
     if not row:
         raise HTTPException(401, "Session expired")
+    email = row[0] 
 
-    user_id = row[0]
-
-    access = create_token({"sub": user_id}, ACCESS_TOKEN_EXPIRE)
+    access = create_token({"sub": email}, ACCESS_TOKEN_EXPIRE)
 
     response.set_cookie("access_token", access, httponly=True, samesite="Lax")
 
     return {"ok": True}
 
-
-# -------------------------------------------------------------------
-# LOGOUT
-# -------------------------------------------------------------------
 
 @router.post("/logout")
 def logout(request: Request, response: Response):

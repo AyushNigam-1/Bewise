@@ -163,7 +163,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                             leaveFrom="opacity-100 scale-100 translate-y-0"
                             leaveTo="opacity-0 scale-95 translate-y-4"
                         >
-                            <DialogPanel className="w-full max-w-7xl bg-gray-200 rounded-2xl shadow-2xl flex flex-col  h-[calc(100vh-200px)] overflow-hidden border border-gray-300 space-y-3">
+                            <DialogPanel className="w-full max-w-7xl bg-gray-100 rounded-2xl shadow-2xl flex flex-col  h-[calc(100vh-200px)] overflow-hidden border border-gray-300 space-y-3">
 
                                 {/* --- Header --- */}
                                 <div className="border-b border-gray-100 flex p-4 justify-between items-center bg-white sticky top-0 z-10">
@@ -188,7 +188,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                 </div>
                                 {/* <hr className="border border-gray-200" /> */}
                                 {/* --- Messages Area --- */}
-                                <div className="flex-1 overflow-y-auto space-y-6 px-4 bg-gray-200">
+                                <div className="flex-1 overflow-y-auto space-y-6 px-4 bg-gray-100">
                                     {messages.map((m, i) => (
                                         <div
                                             key={i}

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { registerUser } from '@/app/services/userService';
+import { useUserStore } from '@/app/stores/useUserStores';
 
 const CreateAccount = () => {
     const [formData, setFormData] = useState({
@@ -24,11 +25,12 @@ const CreateAccount = () => {
         setLoading(true);
 
         try {
-            const data = await registerUser({
+            await registerUser({
                 name: formData.username,
                 email: formData.email,
                 password: formData.password
             });
+            await useUserStore.getState().getUser();
             router.push('/');
         } catch (err: any) {
             console.error("Registration failed:", err?.response?.data?.message || err.message);

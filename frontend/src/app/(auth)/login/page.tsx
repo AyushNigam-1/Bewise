@@ -5,6 +5,7 @@ import Link from 'next/link'
 import React, { useState } from 'react'
 import { loginUser } from '@/app/services/userService'
 import { useRouter } from 'next/navigation'
+import { useUserStore } from '@/app/stores/useUserStores'
 
 const Login = () => {
     const height = useElementHeight("main")
@@ -23,7 +24,8 @@ const Login = () => {
         e.preventDefault()
         setLoading(true)
         try {
-            const data = await loginUser(formData)
+            await loginUser(formData)
+            await useUserStore.getState().getUser();
             router.push("/")
         } catch (err: any) {
             console.error("Login error:", err?.response?.data?.message || err.message)
@@ -42,7 +44,7 @@ const Login = () => {
             <h1 className="text-4xl text-gray-600 font-extrabold text-center">Login</h1>
             <p className="text-sm text-gray-500 text-center">Welcome back! Please enter your credentials.</p>
             <div className="flex flex-col lg:flex-row items-center justify-between">
-                <button className="w-full flex justify-center items-center gap-1 bg-white text-gray-600 rounded-md hover:bg-gray-50 border border-gray-200 transition-colors duration-300 p-3 font-semibold">
+                <button className="w-full flex justify-center items-center gap-1 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-50 border border-gray-200 transition-colors duration-300 p-3 font-semibold">
                     <img src="https://img.icons8.com/material-rounded/66/4D4D4D/google-logo.png" alt="Google" className="w-5" /> Login with Google
                 </button>
             </div>
