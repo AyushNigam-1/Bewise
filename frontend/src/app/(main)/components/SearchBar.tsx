@@ -1,4 +1,6 @@
-import { Search } from 'lucide-react';
+"use client";
+
+import { Search, X } from 'lucide-react';
 import React, { useState } from 'react';
 
 const filterArrayBySearch = <T,>(data: T[], property: keyof T, search: string): T[] => {
@@ -31,45 +33,37 @@ const SearchBar = ({
     };
 
     return (
-        <div className={`${responsive ? maximize ? ' w-full absolute left-0 top-2  ' : '' : ""} items-center `} >
-            <form className={`${responsive ? maximize ? "" : "hidden md:flex" : ""}`} >
+        <div className={`${responsive ? maximize ? 'w-full absolute left-0 top-2 z-50' : '' : ""} items-center transition-all duration-300`} >
+            <form className={`${responsive ? maximize ? "" : "hidden md:flex" : "flex"} w-full`} >
                 <label htmlFor="simple-search" className="sr-only">Search</label>
-                <div className="relative w-full flex items-center gap-2 bg-gray-100 rounded-xl p-2 md:p-2.5">
-                    <div className=" flex items-center  pointer-events-none">
-                        <Search size={18} className='text-gray-400' />
-                    </div>
+
+                {/* Search Bar Container: Switches to dark gray in dark mode */}
+                <div className="relative w-full flex items-center gap-2 border border-transparent dark:border-gray-700 bg-gray-100 dark:bg-gray-800 rounded-xl p-2 md:p-2.5 transition-colors duration-300">
+                    <Search size={18} className='text-gray-400 dark:text-gray-500' />
+
                     <input
                         type="text"
                         id="simple-search"
                         value={search}
                         onChange={handleChange}
-                        className={`placeholder:font-medium placeholder:text-gray-400 text-gray-900 md:text-lg outline-none focus:ring-blue-500 focus:border-blue-500 block w-full `}
+                        // Added bg-transparent so the parent background shows through, and dark:text colors
+                        className="bg-transparent placeholder:font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-gray-100 md:text-lg outline-none focus:ring-transparent block w-full"
                         placeholder="Search"
                     />
                 </div>
             </form>
-            <button
-                className={`md:hidden p-2 rounded-full bg-gray-100 text-gray-800  ${responsive ? maximize ? "absolute right-0.5 top-0" : "" : "hidden"} `}
-                type="button"
-                onClick={() => setMaximize(!maximize)}>{maximize ? <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-                    : <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="size-6 "
-                        strokeWidth={1.5}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-                        />
-                    </svg>}</button>
-        </div>
 
+            {/* Mobile Toggle Button */}
+            <button
+                // Button matches the search bar theme
+                className={`md:hidden p-2.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 transition-colors duration-300 ${responsive ? maximize ? "absolute right-0.5 top-0" : "" : "hidden"}`}
+                type="button"
+                onClick={() => setMaximize(!maximize)}
+            >
+                {/* Replaced bulky raw SVGs with clean Lucide icons */}
+                {maximize ? <X size={20} /> : <Search size={20} />}
+            </button>
+        </div>
     );
 };
 

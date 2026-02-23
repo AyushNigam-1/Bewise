@@ -2,8 +2,8 @@ import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { Recommendation } from "../types";
 
-// const API = "http://10.63.43.43:8000" // Update based on your FastAPI server
-const API = "http://localhost:8000"
+const API = "http://localhost:8000"// // Update based on your FastAPI server
+// const API = "http://10.126.224.43:8000"
 
 export function getDeviceId() {
     if (typeof window === "undefined") return "";
@@ -164,3 +164,27 @@ export const addCompletedInsight = async (userId: number, bookName: string, insi
         throw error;
     }
 }
+
+export const getBookmarkedBooks = async (user_id: number) => {
+    try {
+        const response = await axios.get(
+            `${API}/bookmarks/books/${user_id}`,
+            { withCredentials: true }
+        );
+        return response.data;
+    } catch (error: any) {
+        throw new Error(error.response?.data?.detail || "Failed to fetch bookmarked books");
+    }
+};
+
+export const getBookmarkedInsights = async (user_id: number) => {
+    try {
+        const response = await axios.get(
+            `${API}/bookmarks/insights/${user_id}`,
+            { withCredentials: true }
+        );
+        return response.data;
+    } catch (error: any) {
+        throw new Error(error.response?.data?.detail || "Failed to fetch bookmarked insights");
+    }
+};

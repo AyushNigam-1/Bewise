@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://10.63.43.43:8000" // Update based on your FastAPI server
+// const API_BASE_URL = "http://10.126.224.43:8000" // Update based on your FastAPI server
+const API_BASE_URL = "http://localhost:8000" // Update based on your FastAPI server
 
 export const getAllBooks = async () => {
     try {
@@ -19,10 +20,13 @@ export const getAllCategories = async () => {
     }
 };
 export const findBooksByCategories = async (categories: string[]) => {
+    console.log("called")
     try {
         const response = await axios.post(`${API_BASE_URL}/books/find-by-categories`, categories);
+        console.log("response", response)
         return response.data;
     } catch (error: any) {
+        console.log(error)
         throw error;
     }
 };

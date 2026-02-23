@@ -23,6 +23,7 @@ type Book = {
     thumbnail: string,
     title: string
 }
+
 const Page = () => {
     const [filteredCategories, setFilteredCategories] = useState<Categories[]>([])
     const [selectedCategory, setSelectedCategory] = useState<Categories[]>([])
@@ -40,9 +41,7 @@ const Page = () => {
             ),
     });
 
-    const {
-        data: categories = [],
-    } = useQuery({
+    const { data: categories = [] } = useQuery({
         queryKey: ["categories"],
         queryFn: getAllCategories,
     });
@@ -63,9 +62,15 @@ const Page = () => {
     }
 
     return (
-        <div className="flex flex-col w-full " >
-            <div className={`flex justify-between items-center h-14 md:h-18 sticky top-0 z-30 `} >
-                <h4 className="justify-between flex lg:text-3xl font-bold text-gray-700 text-3xl text-center md:text-left gap-2" >Explore</h4>
+        <div className="flex flex-col w-full" >
+            {/* Added bg-white dark:bg-gray-900 so the sticky header covers scrolling content properly */}
+            <div className={`flex justify-between items-center h-14 md:h-18 sticky top-0 z-30 bg-white dark:bg-gray-900 transition-colors duration-300`} >
+
+                {/* Updated text color for dark mode (dark:text-gray-200) */}
+                <h4 className="justify-between flex lg:text-3xl font-bold text-gray-700 dark:text-gray-200 text-3xl text-center md:text-left gap-2" >
+                    Explore
+                </h4>
+
                 <div className="flex gap-2 items-center">
                     <SearchBar responsive={true} data={books} propertyToSearch='title' setFilteredData={setFilteredBooks} />
                     <div className="flex flex-col md:flex-row gap-2 md:relative fixed right-0 bottom-0 m-2 md:m-0">
@@ -79,7 +84,9 @@ const Page = () => {
                     </div>
                 </div>
             </div>
-            <div className="columns-1 gap-3 lg:columns-5 space-y-4" >
+
+            {/* Added py-4 to give breathing room below the sticky header */}
+            <div className="columns-1 gap-3 lg:columns-5 space-y-4 py-4" >
                 {filteredBooks?.map((book: any) => (
                     <Card key={`${book.id}`} book={book} bookmarkBook={bookmarkBook.mutate} isBookmarked={user?.favourite_books?.includes(book.id)} />
                 ))}

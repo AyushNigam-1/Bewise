@@ -3,6 +3,8 @@ import "./globals.css";
 import { useUserStore } from "./stores/useUserStores";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Montserrat } from 'next/font/google';
+const montserrat = Montserrat({ subsets: ['latin'] });
 
 export default function RootLayout({
   children,
@@ -24,7 +26,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
       <QueryClientProvider client={queryClient}>
-        <body className="antialiased  flex flex-col h-screen">
+        <body className={`${montserrat.className} antialiased bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col h-screen`}>
           {children}
         </body>
       </QueryClientProvider>

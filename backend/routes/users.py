@@ -411,3 +411,93 @@ def session_recommend(payload: SessionRecommendRequest):
     }
 
 
+@router.get("/bookmarks/books/{user_id}")
+def get_bookmarked_books(user_id: int):
+    conn = connect_db()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+        
+    try:
+        cur = conn.cursor()
+        
+        # 1. Get the list of saved book IDs for the user
+        cur.execute('SELECT favourite_books FROM "user" WHERE id=%s', (user_id,))
+        row = cur.fetchone()
+        book_ids = row[0] if row and row[0] else []
+
+        # If they haven't bookmarked anything, return an empty list early
+        if not book_ids:
+            return {"bookmarked_books": []}
+
+        # 2. Fetch the actual book records matching your EXACT schema
+        cur.execute(
+            'SELECT id, title, author, thumbnail, description, category FROM book WHERE id IN %s', 
+            (tuple(book_ids),)
+        )
+        books_data = cur.fetchall()
+
+        # 3. Format exactly like your /books route
+        result = []
+        for id, title, author, thumbnail, description, category in books_data:
+            result.append({
+                "id": id,
+                "title": title,
+                "author": author,
+                "thumbnail": thumbnail,
+                "description": description,
+                "category": category
+            })
+
+        return {"bookmarked_books": result}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+
+@router.get("/bookmarks/insights/{user_id}")
+def get_bookmarked_insights(user_id: int):
+    conn = connect_db()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+        
+    try:
+        cur = conn.cursor()
+        
+        # 1. Get the list of saved insight IDs for the user
+        cur.execute('SELECT favourite_insights FROM "user" WHERE id=%s', (user_id,))
+        row = cur.fetchone()
+        insight_ids = row[0] if row and row[0] else []
+
+        # If they haven't bookmarked anything, return an empty list early
+        if not insight_ids:
+            return {"bookmarked_insights": []}
+
+        # 2. Fetch the actual insight records matching your EXACT schema
+        cur.execute(
+            'SELECT id, book_name, category_name, title, description, detailed_breakdown FROM insights WHERE id IN %s', 
+            (tuple(insight_ids),)
+        )
+        insights_data = cur.fetchall()
+
+        # 3. Format exactly like your /insights/{step_id} route
+        result = []
+        for id, book_name, category_name, title, description, detailed_breakdown in insights_data:
+            result.append({
+                "step_id": id,
+                "book_name": book_name,
+                "category": category_name,
+                "title": title,
+                "description": description,
+                "detailed_breakdown": detailed_breakdown
+            })
+
+        return {"bookmarked_insights": result}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()

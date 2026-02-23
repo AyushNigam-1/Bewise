@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
 import { Fragment } from 'react'
 import SearchBar from './SearchBar'
-import { SlidersHorizontal, X } from 'lucide-react'
+import { SlidersHorizontal, X, CheckCircle } from 'lucide-react'
 
 interface categoryProps {
     filteredCategories: any[],
@@ -14,29 +14,41 @@ interface categoryProps {
     selectedCategory: any[]
 }
 
-const CategoryDialog: React.FC<categoryProps> = ({ filteredCategories, setFilteredCategories, categories, toggleCategory, selectedCategory }) => {
+const CategoryDialog: React.FC<categoryProps> = ({
+    filteredCategories,
+    setFilteredCategories,
+    categories,
+    toggleCategory,
+    selectedCategory
+}) => {
     const [isOpen, setIsOpen] = useState(false)
+
     return (
         <>
-            <button onClick={() => setIsOpen(true)} className=" p-3 font-semibold  bg-gradient-to-r text-white bg-gray-700  shadow cursor-pointer rounded-full  flex gap-2 items-center">
+            {/* Trigger Button: Adapts to dark mode (Black in light, White in dark) */}
+            <button
+                onClick={() => setIsOpen(true)}
+                className="p-3 font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow cursor-pointer rounded-full flex gap-2 items-center transition-all duration-300 hover:scale-105"
+            >
                 <SlidersHorizontal size={20} />
             </button>
 
             <Transition appear show={isOpen} as={Fragment}>
                 <Dialog onClose={() => { setIsOpen(false); setFilteredCategories(categories) }} className="relative z-50" >
+                    {/* Backdrop */}
                     <TransitionChild
                         as={Fragment}
-                        enter="ease-out duration-100"
+                        enter="ease-out duration-300"
                         enterFrom="opacity-0"
                         enterTo="opacity-100"
                         leave="ease-in duration-200"
                         leaveFrom="opacity-100"
                         leaveTo="opacity-0"
                     >
-                        <DialogBackdrop className="fixed inset-0 bg-black/30 backdrop-blur-xs" />
+                        <DialogBackdrop className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm transition-opacity" />
                     </TransitionChild>
 
-                    < div className="fixed inset-0 w-screen  p-4 flex justify-center gap-4 items-center" >
+                    <div className="fixed inset-0 w-screen p-4 flex justify-center items-center" >
                         <TransitionChild
                             as={Fragment}
                             enter="ease-out duration-300"
@@ -46,57 +58,73 @@ const CategoryDialog: React.FC<categoryProps> = ({ filteredCategories, setFilter
                             leaveFrom="opacity-100 translate-y-0 sm:scale-100"
                             leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                         >
-                            <DialogPanel className="max-w-lg shadow rounded-xl bg-white p-3 flex flex-col gap-3 " >
-                                <div className='justify-between flex items-center' >
-                                    <DialogTitle className="font-bold text-lg md:text-2xl text-gray-800" > Select Categories </DialogTitle>
+                            {/* Modal Panel: White in light mode, Dark Gray in dark mode */}
+                            <DialogPanel className="w-full max-w-lg shadow-2xl rounded-2xl bg-white dark:bg-gray-900 border border-transparent dark:border-gray-800 p-4 md:p-5 flex flex-col gap-4 transition-colors duration-300" >
+
+                                <div className='justify-between flex items-center mb-1' >
+                                    <DialogTitle className="font-bold text-xl md:text-2xl text-gray-900 dark:text-gray-100" >
+                                        Select Categories
+                                    </DialogTitle>
                                     <button
                                         onClick={() => { setIsOpen(false); setFilteredCategories(categories) }}
                                         type="button"
-                                        className="text-gray-600 cursor-pointer bg-gray-100  focus:outline-none rounded-full   p-2 w-min  font-semibold "
+                                        className="text-gray-500 dark:text-gray-400 cursor-pointer bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-full p-2 w-min font-semibold transition-colors"
                                     >
-                                        <X size={16} />
+                                        <X size={18} />
                                     </button>
                                 </div>
+
                                 <SearchBar responsive={false} data={categories} propertyToSearch='name' setFilteredData={setFilteredCategories} />
-                                <div className="overflow-y-scroll h-[50vh] gap-3 flex flex-col rounded-lg custom-scroll-hide" >
-                                    {filteredCategories?.map((category) => (
-                                        <div className="relative overflow-visible inline-block" key={category.name} >
-                                            <button
-                                                onClick={
-                                                    () => {
+
+                                <div className="overflow-y-auto h-[50vh] md:h-[400px] gap-3 flex flex-col rounded-lg custom-scroll-hide mt-2" >
+                                    {filteredCategories?.map((category) => {
+                                        // Check if current category is selected to apply conditional styling
+                                        const isSelected = selectedCategory?.some(c => c.name === category.name);
+
+                                        return (
+                                            <div className="relative overflow-visible block" key={category.name} >
+                                                <button
+                                                    onClick={() => {
                                                         toggleCategory(category)
                                                         setIsOpen(false);
-                                                    }
-                                                }
-                                                className={`relative flex flex-col gap-2 rounded-xl select-none hover:bg-gray-100 cursor-pointer text-gray-400 p-2 bg-gray-100 w-full 
-                                            ${selectedCategory?.map(c => c).includes(category) ? ' border-2 border-gray-400' : ''}`}
-                                            >
-                                                <div className='flex flex-col gap-1' >
-                                                    <div className='flex gap-2  justify-between' >
-                                                        <div className='flex gap-2 text-base md:text-lg items-center' >
-                                                            {category.icon}
-                                                            < h4 className='font-semibold text-gray-600  flex gap-2' >
-                                                                {category.name}
-                                                            </h4>
-                                                        </div>
-                                                        {
-                                                            selectedCategory?.map(c => c).includes(category) && (
-                                                                <span className=' z-10 rounded-full font-medium  text-xs flex gap-1 items-center text-gray-600' >
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6" >
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                                    </svg>
-
-                                                                </span>
-                                                            )
+                                                    }}
+                                                    className={`relative flex flex-col gap-2 rounded-xl select-none cursor-pointer w-full p-3 transition-colors duration-200 text-left border-2
+                                                        ${isSelected
+                                                            ? 'bg-gray-100 dark:bg-gray-800 border-gray-400 dark:border-gray-500 shadow-sm'
+                                                            : 'bg-gray-50 dark:bg-gray-800/50 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
                                                         }
+                                                    `}
+                                                >
+                                                    <div className='flex flex-col gap-1 w-full' >
+                                                        <div className='flex gap-2 justify-between items-start w-full' >
+                                                            <div className='flex gap-2 text-base md:text-lg items-center' >
+                                                                <span className="text-gray-700 dark:text-gray-300">
+                                                                    {category.icon}
+                                                                </span>
+                                                                <h4 className='font-semibold text-gray-800 dark:text-gray-200 flex gap-2 leading-tight' >
+                                                                    {category.name}
+                                                                </h4>
+                                                            </div>
+                                                            {isSelected && (
+                                                                <span className='z-10 rounded-full font-medium text-xs flex gap-1 items-center text-gray-600 dark:text-gray-300 flex-shrink-0' >
+                                                                    <CheckCircle size={20} className="text-gray-800 dark:text-gray-200" />
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <h6 className="text-sm md:text-sm text-left rounded-lg text-gray-600 dark:text-gray-400 leading-snug mt-1" >
+                                                            {category.description}
+                                                        </h6>
                                                     </div>
-                                                    < h6 className="text-sm md:text-sm text-left rounded-lg text-gray-600" >
-                                                        {category.description}
-                                                    </h6>
-                                                </div>
-                                            </button>
-                                        </div>
-                                    ))}
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {filteredCategories.length === 0 && (
+                                        <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                                            No categories found.
+                                        </p>
+                                    )}
                                 </div>
                             </DialogPanel>
                         </TransitionChild>

@@ -15,7 +15,6 @@ const Login = () => {
         password: "",
     });
     const [loading, setLoading] = useState(false)
-
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value })
     }
@@ -25,8 +24,8 @@ const Login = () => {
         setLoading(true)
         try {
             await loginUser(formData)
-            await useUserStore.getState().getUser();
             router.push("/")
+            useUserStore.getState().getUser()
         } catch (err: any) {
             console.error("Login error:", err?.response?.data?.message || err.message)
         } finally {
@@ -36,7 +35,7 @@ const Login = () => {
 
     return (
         <div id='main' className="max-w-md md:w-full flex flex-col gap-4">
-            <div className='bg-white rounded-full p-2 w-min mx-auto'>
+            <div className='bg-gray-100 rounded-full p-2 w-min mx-auto'>
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-12 text-gray-600">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                 </svg>
@@ -60,7 +59,7 @@ const Login = () => {
                         placeholder='Email'
                         value={formData.email}
                         onChange={handleChange}
-                        className="mt-1 p-3 w-full bg-gray-200 outline-none rounded-md"
+                        className="mt-1 p-3 w-full border border-gray-200 bg-gray-100 outline-none rounded-md"
                     />
                 </div>
                 <div>
@@ -71,7 +70,7 @@ const Login = () => {
                         placeholder='Password'
                         value={formData.password}
                         onChange={handleChange}
-                        className="mt-1 p-3 w-full bg-gray-200 outline-none rounded-md"
+                        className="mt-1 p-3 w-full border border-gray-200 bg-gray-100 outline-none rounded-md"
                     />
                 </div>
                 <button type="submit" className="w-full bg-gray-700 text-white p-2 rounded-md hover:bg-gray-800 transition-colors duration-300 font-semibold text-center cursor-pointer">

@@ -32,8 +32,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
-
+  background: oklch(27.8% 0.033 256.848);
 }
 
 ::-webkit-scrollbar {
@@ -42,8 +41,6 @@
 
 ::-webkit-scrollbar-thumb {
   background-color: oklch(96.7% 0.003 264.542);
-  border-radius: 20%;
-  /* border: 1px solid oklch(92.8% 0.006 264.531); */
 }
 
 For Firefox * {
