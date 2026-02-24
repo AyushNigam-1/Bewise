@@ -12,59 +12,58 @@ import {
 } from 'next-share'
 import { Slide, toast, ToastContainer } from "react-toastify"
 import Link from 'next/link'
-import { Copy } from 'lucide-react'
-
-// import { Copy } from 'lucide-react'
+import { Copy, X } from 'lucide-react' // Imported X icon
 
 export default function ShareModal({ isOpen, setIsOpen, shareUrl }: { isOpen: boolean, setIsOpen: (open: boolean) => void, shareUrl: string }) {
 
     const handleCopy = async () => {
-        toast.success('Copied Successfully', {
-            position: "top-center",
-            autoClose: false,
-            hideProgressBar: true,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-            theme: "colored",
-            transition: Slide,
-        });
-
-        // await navigator.clipboard.writeText(shareUrl)
-        // alert('Link copied!')
+        try {
+            await navigator.clipboard.writeText(shareUrl)
+            toast.success('Copied Successfully', {
+                position: "top-center",
+                autoClose: 2000, // Changed from false to 2000 so it dismisses automatically
+                hideProgressBar: true,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "colored",
+                transition: Slide,
+            });
+        } catch (err) {
+            toast.error('Failed to copy');
+        }
     }
-    const socialMediaLinks = [
 
+    const socialMediaLinks = [
         {
             name: "Whatsapp",
-            icon: <WhatsappIcon size={42} round={true} className='' />,
+            icon: <WhatsappIcon size={42} round={true} />,
             url: `https://web.whatsapp.com/send?text=${encodeURIComponent('Check this out! ' + shareUrl)}`
         },
         {
             name: "Telegram",
-            icon: <TelegramIcon size={42} round={true} className='' />,
+            icon: <TelegramIcon size={42} round={true} />,
             url: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent('Check this out!')}`
         },
         {
             name: "Messenger",
-            icon: <FacebookMessengerIcon size={42} round={true} className='' />,
+            icon: <FacebookMessengerIcon size={42} round={true} />,
             url: `https://www.messenger.com/t/?link=${encodeURIComponent(shareUrl)}`
         },
         {
             name: "Twitter",
-            icon: <TwitterIcon size={42} round={true} className='' />,
+            icon: <TwitterIcon size={42} round={true} />,
             url: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent('Check this out!')}`
         },
         {
             name: "LinkedIn",
-            icon: <LinkedinIcon size={42} round={true} className='' />,
+            icon: <LinkedinIcon size={42} round={true} />,
             url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`
         },
-
         {
             name: "Reddit",
-            icon: <RedditIcon size={42} round={true} className='' />,
+            icon: <RedditIcon size={42} round={true} />,
             url: `https://www.reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent('Check this out!')}`
         }
     ];
@@ -72,16 +71,17 @@ export default function ShareModal({ isOpen, setIsOpen, shareUrl }: { isOpen: bo
     return (
         <Transition appear show={isOpen} as={Fragment}>
             <Dialog as="div" className="relative z-50" onClose={() => setIsOpen(false)}>
+                {/* Backdrop: Darkens more in dark mode */}
                 <TransitionChild
                     as={Fragment}
-                    enter="ease-out duration-100"
+                    enter="ease-out duration-200"
                     enterFrom="opacity-0"
                     enterTo="opacity-100"
                     leave="ease-in duration-200"
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="fixed inset-0 bg-black/20 backdrop-blur-xs" />
+                    <div className="fixed inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-sm transition-opacity" />
                 </TransitionChild>
 
                 <div className="fixed inset-0 overflow-y-auto">
@@ -95,45 +95,54 @@ export default function ShareModal({ isOpen, setIsOpen, shareUrl }: { isOpen: bo
                             leaveFrom="opacity-100 translate-y-0 sm:scale-100"
                             leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                         >
-                            <DialogPanel className="w-full max-w-sm transform overflow-hidden rounded-2xl bg-gray-100 p-4 text-left align-middle shadow-xl transition-all flex flex-col gap-4">
+                            {/* Modal Panel: Adapts background and border for dark mode */}
+                            <DialogPanel className="w-full max-w-sm transform overflow-hidden rounded-2xl bg-white dark:bg-gray-900 border border-transparent dark:border-gray-800 p-5 text-left align-middle shadow-2xl transition-all flex flex-col gap-5">
+
+                                {/* Header */}
                                 <div className='flex justify-between items-center'>
-                                    <DialogTitle as="h3" className="font-bold text-lg md:text-xl text-gray-600">
+                                    <DialogTitle as="h3" className="font-bold text-lg md:text-xl text-gray-900 dark:text-gray-100">
                                         Share Link
                                     </DialogTitle>
                                     <button
                                         onClick={() => setIsOpen(false)}
                                         type="button"
-                                        className="text-gray-600 cursor-pointer bg-gray-200  focus:outline-none rounded-full   p-2 w-min  font-semibold "
+                                        className="text-gray-500 dark:text-gray-400 focus:outline-none rounded-full  font-semibold transition-colors"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                                        </svg>
+                                        <X size={18} />
                                     </button>
                                 </div>
-                                <div className="flex items-center gap-2 justify-between bg-gray-200 rounded-xl p-2">
-                                    <h6
-                                        className="text-gray-900 md:text-base outline-none  focus:ring-blue-500 focus:border-blue-500  line-clamp-1"
-                                    >   {shareUrl}    </h6>
+
+                                {/* URL Box & Copy Button */}
+                                <div className="flex items-center gap-2 justify-between bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-2 transition-colors">
+                                    <h6 className="text-gray-700 dark:text-gray-300 md:text-base outline-none truncate px-2 select-all">
+                                        {shareUrl}
+                                    </h6>
                                     <button
                                         onClick={handleCopy}
-                                        className="px-4 py-3 cursor-pointer rounded-xl text-gray-700  transition bg-gray-100 flex items-center gap-2"
+                                        className="p-2.5 cursor-pointer rounded-lg text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center flex-shrink-0"
                                     >
-                                        <Copy size={20} />
+                                        <Copy size={18} />
                                     </button>
                                 </div>
-                                <div className="grid grid-cols-3 flex-wrap gap-y-3 gap-x-12">
-                                    {
-                                        socialMediaLinks.map((link) => (
-                                            <Link key={link.name} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center  rounded-full flex-col text-gray-600 md:text-base col-span-1 text-sm
-                                             ">
-                                                <span className='flex items-center justify-center p-2 bg-gray-200 rounded-full '>
-                                                    {link.icon}
-                                                </span>
-                                                <p>
-                                                    {link.name}
-                                                </p>
-                                            </Link>))
-                                    }
+
+                                {/* Social Links Grid */}
+                                <div className="grid grid-cols-3 flex-wrap gap-y-6 gap-x-4 mt-2">
+                                    {socialMediaLinks.map((link) => (
+                                        <Link
+                                            key={link.name}
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center justify-center flex-col text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 md:text-sm text-xs transition-colors group"
+                                        >
+                                            <span className='flex items-center justify-center p-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-full group-hover:scale-110 transition-transform shadow-sm'>
+                                                {link.icon}
+                                            </span>
+                                            <p className="mt-2 font-medium">
+                                                {link.name}
+                                            </p>
+                                        </Link>
+                                    ))}
                                 </div>
                             </DialogPanel>
                         </TransitionChild>

@@ -309,9 +309,9 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                                         leaveFrom="opacity-100 translate-y-0"
                                                         leaveTo="opacity-0 translate-y-2"
                                                     >
-                                                        <PopoverPanel className="absolute bottom-full mb-3 left-0 w-80 h-[400px] flex flex-col rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl z-50 overflow-hidden">
+                                                        <PopoverPanel className="absolute bottom-full mb-3 left-0 w-80 h-[400px] flex flex-col rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl z-50 overflow-hidden  p-4  space-y-4">
                                                             {/* Popover Header */}
-                                                            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                                                            <div className="flex items-center justify-between  dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                                                                 <h3 className="font-bold text-gray-800 dark:text-gray-200">
                                                                     Select {book ? "Insights" : "Books"}
                                                                 </h3>
@@ -319,9 +319,9 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                                                     <X size={14} />
                                                                 </button>
                                                             </div>
-
+                                                            <hr className="border-b-0.5 border-gray-600" />
                                                             {/* Popover Search Bar */}
-                                                            <div className="p-3 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
+                                                            <div className="bg-white dark:bg-gray-800 dark:border-gray-700">
                                                                 <div className="relative">
                                                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={16} />
                                                                     <input
@@ -336,7 +336,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                                             </div>
 
                                                             {/* Popover Scrollable List */}
-                                                            <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scroll-hide bg-white dark:bg-gray-800">
+                                                            <div className="flex-1 overflow-y-auto space-y-1 custom-scroll-hide bg-white dark:bg-gray-800">
                                                                 {filteredItems.length === 0 ? (
                                                                     <p className="text-gray-400 dark:text-gray-500 text-sm text-center py-6">No matches found.</p>
                                                                 ) : (

@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Loader from '@/app/(main)/components/Loader';
-import Slider from "@/app/(main)/components/Slider"
 import ShareModal from '../../components/ShareModal';
 import CategoryDialog from '../../components/CategoryDialog';
 import { ToastContainer } from 'react-toastify';
@@ -15,6 +14,7 @@ import ChatbotModal from '../../components/ChatbotModal';
 import { useUserStore } from '@/app/stores/useUserStores';
 import { useQuery } from "@tanstack/react-query";
 import { useMutations } from '@/app/hooks/useMutations';
+import Slider from '../../components/Slider';
 
 interface StepData {
     step: string;
@@ -127,7 +127,7 @@ export default function Page() {
 
             {
                 mode === 'Swipe' ? (
-                    steps.length ? <Slider title={params?.title} steps={steps} /> : null
+                    steps.length ? <Slider title={params?.title!} steps={steps} /> : null
                 ) : (
                     <>
                         {steps.length ? (
