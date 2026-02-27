@@ -1,17 +1,22 @@
-from fastapi import APIRouter, HTTPException, Response, Request , Body
+from fastapi import APIRouter, HTTPException, Response, Request, Body
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Union
 import bcrypt
 from jose import jwt
-from fastapi import  Cookie
+from fastapi import Cookie
 from datetime import datetime, timedelta
 from controllers.connection import connect_db
 from psycopg2.extras import Json
 import os
 import secrets
+import json # <-- Added for Redis serialization
 from dotenv import load_dotenv
-from controllers.vector import recommend_for_user , recommend_next_insights
+from controllers.vector import recommend_for_user, recommend_next_insights
+from redis_client import redis_client,CACHE_TTL
+
+# Assuming you import your redis client here as you mentioned:
+# from your_redis_file import redis_client, CACHE_TTL
 
 load_dotenv()
 
@@ -28,17 +33,16 @@ class UserRegister(BaseModel):
     email: str
     password: str
 
-
 class UserLogin(BaseModel):
     email: str
     password: str
-
 
 class UserProfile(BaseModel):
     name: str
     email: str
     favourite_books: List[int]
     favourite_insights: List[Union[dict, str]]
+
 
 @router.get("/me")
 def me(access_token: str = Cookie(None)):
@@ -74,6 +78,7 @@ def me(access_token: str = Cookie(None)):
         "favourite_insights": user[4]
     }
 
+
 def create_token(data: dict, exp: timedelta):
     payload = data.copy()
     payload["exp"] = datetime.utcnow() + exp
@@ -89,6 +94,7 @@ def get_user_by_email(conn, email: str):
     row = cur.fetchone()
     cur.close()
     return row
+
 
 @router.post("/register")
 def register_user(user: UserRegister):
@@ -116,6 +122,7 @@ def register_user(user: UserRegister):
 
     finally:
         conn.close()
+
 
 # -------------------------------------------------------------------
 # LOGIN
@@ -154,6 +161,7 @@ def login_user(user: UserLogin, response: Response):
     res.set_cookie("refresh_token", refresh, httponly=True, samesite="Lax")
 
     return res
+
 
 @router.post("/refresh")
 def refresh_token(request: Request, response: Response):
@@ -202,6 +210,7 @@ def logout(request: Request, response: Response):
     response.delete_cookie("refresh_token")
 
     return {"ok": True}
+
 
 @router.post("/password/request-reset")
 def request_reset(email: str = Body(...)):
@@ -305,6 +314,9 @@ def toggle_bookmark_book(user_id: int, book_id: int):
     conn.commit()
     conn.close()
 
+    # 🔥 CACHE INVALIDATION: Wipe the user's bookmarked books cache
+    redis_client.delete(f"bookmarks:books:{user_id}")
+
     return {
         "bookmarked":action ,
         "favourite_books": books
@@ -338,13 +350,27 @@ def toggle_bookmark_insight(user_id: int, insight_id: int):
     conn.commit()
     conn.close()
 
+    # 🔥 CACHE INVALIDATION: Wipe all insight-related caches for this user
+    redis_client.delete(f"bookmarks:insights:{user_id}")
+    redis_client.delete(f"recommend:{user_id}")
+    
+    # Clean up specific session recommendations
+    for key in redis_client.scan_iter(f"session_recommend:{user_id}:*"):
+        redis_client.delete(key)
+
     return {
         "bookmarked":action,
         "favourite_insights": insights
     }
 
+
 @router.get("/recommend/{user_id}")
 def recommend(user_id: int):
+    # 🔍 CACHE CHECK
+    cache_key = f"recommend:{user_id}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
 
     conn = connect_db()
     cur = conn.cursor()
@@ -360,15 +386,26 @@ def recommend(user_id: int):
     insight_ids = row[0] or []
 
     recommendations = recommend_for_user(insight_ids)
+    result = {"recommendations": recommendations}
 
-    return {"recommendations": recommendations}
+    # 💾 CACHE SET
+    redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+
+    return result
+
 
 class SessionRecommendRequest(BaseModel):
     insight_id: int
     user_id: int
 
+
 @router.post("/insights/session-recommend")
 def session_recommend(payload: SessionRecommendRequest):
+    # 🔍 CACHE CHECK
+    cache_key = f"session_recommend:{payload.user_id}:{payload.insight_id}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
 
     conn = connect_db()
     cur = conn.cursor()
@@ -406,13 +443,22 @@ def session_recommend(payload: SessionRecommendRequest):
         top_k=3
     )
 
-    return {
-        "recommendations": recommendations
-    }
+    result = {"recommendations": recommendations}
+
+    # 💾 CACHE SET
+    redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+
+    return result
 
 
 @router.get("/bookmarks/books/{user_id}")
 def get_bookmarked_books(user_id: int):
+    # 🔍 CACHE CHECK
+    cache_key = f"bookmarks:books:{user_id}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = connect_db()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -437,9 +483,9 @@ def get_bookmarked_books(user_id: int):
         books_data = cur.fetchall()
 
         # 3. Format exactly like your /books route
-        result = []
+        result_list = []
         for id, title, author, thumbnail, description, category in books_data:
-            result.append({
+            result_list.append({
                 "id": id,
                 "title": title,
                 "author": author,
@@ -448,7 +494,12 @@ def get_bookmarked_books(user_id: int):
                 "category": category
             })
 
-        return {"bookmarked_books": result}
+        result = {"bookmarked_books": result_list}
+
+        # 💾 CACHE SET
+        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -459,6 +510,12 @@ def get_bookmarked_books(user_id: int):
 
 @router.get("/bookmarks/insights/{user_id}")
 def get_bookmarked_insights(user_id: int):
+    # 🔍 CACHE CHECK
+    cache_key = f"bookmarks:insights:{user_id}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = connect_db()
     if not conn:
         raise HTTPException(status_code=500, detail="Database connection failed")
@@ -483,9 +540,9 @@ def get_bookmarked_insights(user_id: int):
         insights_data = cur.fetchall()
 
         # 3. Format exactly like your /insights/{step_id} route
-        result = []
+        result_list = []
         for id, book_name, category_name, title, description, detailed_breakdown in insights_data:
-            result.append({
+            result_list.append({
                 "step_id": id,
                 "book_name": book_name,
                 "category": category_name,
@@ -494,7 +551,12 @@ def get_bookmarked_insights(user_id: int):
                 "detailed_breakdown": detailed_breakdown
             })
 
-        return {"bookmarked_insights": result}
+        result = {"bookmarked_insights": result_list}
+
+        # 💾 CACHE SET
+        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
