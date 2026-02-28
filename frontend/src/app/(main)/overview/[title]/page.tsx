@@ -1,16 +1,18 @@
 "use client"
-import { useEffect, useState } from "react";
-import { getBookInfoByTitle } from "@/app/services/bookService";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import ShareModal from "../../components/ShareModal";
-import Loader from "../../components/Loader";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Book, Bookmark, Share2, ShoppingBag, User } from "lucide-react";
 import { ToastContainer } from "react-toastify";
+
+import { getBookInfoByTitle } from "@/app/services/bookService";
+import ShareModal from "../../../components/modals/ShareModal";
+import Loader from "../../../components/Loader";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { useMutations } from "@/app/hooks/useMutations";
+import { useBookmarkBook } from "@/app/hooks/mutations/useBookmark";
 
-// 1. Define the BookInfo Interface
 interface BookInfo {
     id: number;
     title: string;
@@ -19,37 +21,21 @@ interface BookInfo {
     sub_categories_count: number;
     total_insights: number;
     categories: string;
-    // You can add 'description' or 'about_author' here if your API returns them later
 }
 
 const Overview = () => {
-    // 2. Apply the interface to the state
-    const [book, setBook] = useState<BookInfo | null>(null);
     const params = useParams<{ title?: string }>();
     const [isOpen, setIsOpen] = useState<boolean>(false);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
 
     const user = useUserStore(state => state.user);
-    const { bookmarkBook } = useMutations();
+    const { mutate: bookmarkBook } = useBookmarkBook();
 
-    useEffect(() => {
-        const getBook = async () => {
-            if (!params.title) return;
-            setIsLoading(true);
-            try {
-                // Assuming getBookInfoByTitle returns data matching the BookInfo interface
-                const bookInfo = await getBookInfoByTitle(params.title);
-                if (bookInfo) {
-                    setBook(bookInfo);
-                }
-            } catch (error) {
-                console.error("Failed to fetch book info:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-        getBook();
-    }, [params.title]);
+    // 2. React Query Integration
+    const { data: book, isLoading } = useQuery<BookInfo>({
+        queryKey: ['book-info', params.title],
+        queryFn: () => getBookInfoByTitle(params.title as string),
+        enabled: !!params.title,
+    });
 
     if (isLoading) return <Loader />
 
@@ -74,8 +60,8 @@ const Overview = () => {
                             </span>
 
                             <div className="flex gap-4 md:gap-5 flex-wrap md:justify-normal max-w-[600px]">
-                                {/* 3. Fixed 'Number' to 'number' in map function and added dark mode pill styles */}
-                                {book?.categories.split(/[,&]/).map((category: string, index: number) => (
+                                {/* Safely optional chain the split method to prevent crashes if categories is undefined */}
+                                {book?.categories?.split(/[,&]/).map((category: string, index: number) => (
                                     <h4
                                         className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-1 px-3 rounded-lg w-min text-nowrap text-xs md:text-sm flex gap-1 text-gray-800 dark:text-gray-200 items-center transition-colors"
                                         key={String(index)}
@@ -92,12 +78,13 @@ const Overview = () => {
                         {/* Action Buttons (Top Right) */}
                         <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 bottom-0 m-2 md:m-0 z-40">
                             <button
-                                onClick={() => book?.id && bookmarkBook.mutate(book.id)}
+                                onClick={() => book?.id && bookmarkBook(book.id)}
                                 className="inline-flex items-center justify-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 p-3 rounded-full transition-colors shadow-lg md:shadow-none"
                             >
                                 <Bookmark
                                     size={20}
-                                    className={user?.favourite_books.includes(book?.id || 0) ? "fill-current" : ""}
+                                    // Added safe optional chaining for user and favourite_books
+                                    className={user?.favourite_books?.includes(book?.id || 0) ? "fill-current" : ""}
                                 />
                             </button>
                             <button

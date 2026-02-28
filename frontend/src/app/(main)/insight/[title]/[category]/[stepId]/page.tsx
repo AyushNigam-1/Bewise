@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { getStepDetails } from "@/app/services/bookService";
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import ShareModal from "@/app/(main)/components/ShareModal";
+import ShareModal from "@/app/components/modals/ShareModal";
 import { Slide, toast, ToastContainer } from 'react-toastify';
 import { Bookmark, Share2 } from "lucide-react";
 import Link from "next/link";
@@ -14,6 +14,7 @@ import { useUserStore } from "@/app/stores/useUserStores";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSessionRecommendations } from "@/app/services/userService";
 import { useMutations } from "@/app/hooks/useMutations";
+import { useBookmarkInsight } from "@/app/hooks/mutations/useBookmark";
 
 interface StepDetails {
     step_id: number;
@@ -39,7 +40,7 @@ export default function Page() {
     const { title, stepId } = useParams<{ title: string; stepId: string }>();
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const router = useRouter();
-    const { bookmarkInsight } = useMutations()
+    const { mutate: bookmarkInsight } = useBookmarkInsight();
 
     const user = useUserStore((state: any) => state.user as User | null);
 
@@ -94,7 +95,7 @@ export default function Page() {
                 {/* 2. Action Buttons matching the Overview dark mode standard */}
                 <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 bottom-0 m-4 md:m-0 z-40">
                     <button
-                        onClick={() => bookmarkInsight.mutate(stepDetails.step_id)}
+                        onClick={() => bookmarkInsight(stepDetails.step_id)}
                         type="button"
                         className="text-white dark:text-gray-900 bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 focus:outline-none rounded-full p-3 font-semibold transition-colors shadow-lg md:shadow-none"
                     >

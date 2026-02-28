@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
 import { Fragment } from 'react'
-import SearchBar from './SearchBar'
+import SearchBar from '../SearchBar'
 import { SlidersHorizontal, X, CheckCircle } from 'lucide-react'
 
 interface categoryProps {
@@ -78,7 +78,6 @@ const CategoryDialog: React.FC<categoryProps> = ({
 
                                 <div className="overflow-y-auto h-[50vh] md:h-[400px] gap-3 flex flex-col rounded-lg custom-scroll-hide mt-2" >
                                     {filteredCategories?.map((category) => {
-                                        // Check if current category is selected to apply conditional styling
                                         const isSelected = selectedCategory?.some(c => c.name === category.name);
 
                                         return (

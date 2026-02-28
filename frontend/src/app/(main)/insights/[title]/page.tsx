@@ -1,20 +1,21 @@
 "use client"
 
-import SearchBar from '@/app/(main)/components/SearchBar';
+import SearchBar from '@/app/components/SearchBar';
 import { getBookContentKeys, getBookContentValue } from '@/app/services/bookService';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import Loader from '@/app/(main)/components/Loader';
-import ShareModal from '../../components/ShareModal';
-import CategoryDialog from '../../components/CategoryDialog';
+import Loader from '@/app/components/Loader';
+import ShareModal from '../../../components/modals/ShareModal';
+import CategoryDialog from '../../../components/modals/CategoryModal';
 import { ToastContainer } from 'react-toastify';
 import { Bookmark, Share2, SwatchBook } from 'lucide-react';
-import ChatbotModal from '../../components/ChatbotModal';
+import ChatbotModal from '../../../components/modals/ChatbotModal';
 import { useUserStore } from '@/app/stores/useUserStores';
 import { useQuery } from "@tanstack/react-query";
 import { useMutations } from '@/app/hooks/useMutations';
-import Slider from '../../components/Slider';
+import Slider from '../../../components/Slider';
+import { useBookmarkInsight } from '@/app/hooks/mutations/useBookmark';
 
 interface StepData {
     step: string;
@@ -41,10 +42,8 @@ export default function Page() {
     const [mode, setMode] = useState("List")
     const [shareModal, setShareModal] = useState(false)
     const [shareUrl, setShareUrl] = useState("")
-
-    // Type user properly or let Zustand infer it if typed in store
     const user = useUserStore((state: any) => state.user);
-    const { bookmarkInsight } = useMutations()
+    const { mutate: bookmarkInsight } = useBookmarkInsight();
 
     const { data: categories = [], isLoading: categoriesLoading } = useQuery({
         queryKey: ["categories", params?.title],
@@ -162,7 +161,7 @@ export default function Page() {
                                             <div className="flex gap-2 justify-between mt-auto items-center">
                                                 <div className='flex gap-4 items-center justify-between w-full'>
                                                     <button
-                                                        onClick={() => bookmarkInsight.mutate(step.step_id)}
+                                                        onClick={() => bookmarkInsight(step.step_id)}
                                                         type="button"
                                                         // Button styling adapts to dark mode 
                                                         className={`text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none rounded-full p-2.5 w-min font-semibold transition-colors shadow-sm`}

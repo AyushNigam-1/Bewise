@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import useElementHeight from "../../hooks/useHeight";
+import useElementHeight from "../hooks/useHeight";
 
 const Loader = () => {
     const height = useElementHeight("loader-container");

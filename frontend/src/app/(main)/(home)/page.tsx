@@ -1,34 +1,19 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import Card from "../components/Cards";
-import SearchBar from "../components/SearchBar";
+import SearchBar from "../../components/SearchBar";
 import { findBooksByCategories, getAllCategories } from "@/app/services/bookService";
-import CategoryDialog from "../components/CategoryDialog";
-import ChatbotModal from "../components/ChatbotModal";
+import CategoryDialog from "../../components/modals/CategoryModal";
+import ChatbotModal from "../../components/modals/ChatbotModal";
 import { useQuery } from "@tanstack/react-query";
 import { useMutations } from "@/app/hooks/useMutations";
 import { useUserStore } from "@/app/stores/useUserStores";
-import { User } from "@/app/types";
-
-type Categories = {
-    name: string,
-    icon: string,
-    description: string,
-}
-type Book = {
-    author: string,
-    category: string,
-    description: string,
-    id: number,
-    thumbnail: string,
-    title: string
-}
+import { Categories, User } from "@/app/types";
+import BookCard from "../../components/BookCards";
 
 const Page = () => {
     const [filteredCategories, setFilteredCategories] = useState<Categories[]>([])
     const [selectedCategory, setSelectedCategory] = useState<Categories[]>([])
     const [filteredBooks, setFilteredBooks] = useState<any>([])
-    const { bookmarkBook } = useMutations()
     const user = useUserStore((state: any) => state.user as User | null);
 
     const { data: books = [] } = useQuery({
@@ -63,10 +48,8 @@ const Page = () => {
 
     return (
         <div className="flex flex-col w-full" >
-            {/* Added bg-white dark:bg-gray-900 so the sticky header covers scrolling content properly */}
             <div className={`flex justify-between items-center h-14 md:h-18 sticky top-0 z-30 bg-white dark:bg-gray-900 transition-colors duration-300`} >
 
-                {/* Updated text color for dark mode (dark:text-gray-200) */}
                 <h4 className="justify-between flex lg:text-3xl font-bold text-gray-700 dark:text-gray-200 text-3xl text-center md:text-left gap-2" >
                     Explore
                 </h4>
@@ -85,10 +68,9 @@ const Page = () => {
                 </div>
             </div>
 
-            {/* Added py-4 to give breathing room below the sticky header */}
             <div className="columns-1 gap-3 lg:columns-5 space-y-4 py-4" >
                 {filteredBooks?.map((book: any) => (
-                    <Card key={`${book.id}`} book={book} bookmarkBook={bookmarkBook.mutate} isBookmarked={user?.favourite_books?.includes(book.id)} />
+                    <BookCard key={`${book.id}`} book={book} isBookmarked={user?.favourite_books?.includes(book.id)} />
                 ))}
             </div>
         </div>

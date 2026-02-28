@@ -13,3 +13,17 @@ export type User = {
     favourite_books: number[]
     favourite_insights: number[]
 };
+
+export type Categories = {
+    name: string,
+    icon: string,
+    description: string,
+}
+export type Book = {
+    author: string,
+    category: string,
+    description: string,
+    id: number,
+    thumbnail: string,
+    title: string
+}
