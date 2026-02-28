@@ -6,7 +6,6 @@ SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
 
 async def require_user(request: Request):
-
     token = request.cookies.get("access_token")
 
     if not token:

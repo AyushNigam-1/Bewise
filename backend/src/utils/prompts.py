@@ -94,29 +94,5 @@ def categorization_prompt(categories,steps_only):
     )
     return prompt
 
-def hierarchy_prompt(categorized_steps):
-    prompt = (
-        f"""
-    🧠 Goal:
-        Order the topics from the most foundational to the most advanced, based on how a learner would best understand them. Topics that require prior knowledge must come later.
-
-        ⚠️ Rules:
-        - ❌ Do NOT change, reword, or merge any topic names.
-        - ✅ Use only the exact topic names provided.
-        - ❌ Do NOT add or remove topics.
-        - ✅ Maintain full coverage by reusing all topics in the list exactly once.
-        - 📌 If unsure about order, place the more general/basic topic earlier.
-
-    Topics:
-    {json.dumps(list(categorized_steps.keys()))}
-
-    Preferred JSON format:
-    ["Fundamental Topic", "Intermediate Topic", "Advanced Topic"]
-    
-    **Return only a JSON array of the correctly ordered topics with no extra text.**
-    """
-)
-    
-    return prompt
 
 

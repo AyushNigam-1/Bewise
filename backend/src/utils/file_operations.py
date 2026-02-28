@@ -14,3 +14,15 @@ def save_json_file(folder, filename, data):
     file_path = os.path.join(folder, filename)
     with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
+
+def delete_json_file(folder, filename):
+    """Deletes a JSON file if it exists. Returns True if deleted, False otherwise."""
+    file_path = os.path.join(folder, filename)
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return True
+        return False
+    except Exception as e:
+        print(f"Error deleting file {file_path}: {e}")
+        return False

@@ -1,16 +1,4 @@
-import os
-from pinecone import Pinecone
-from sentence_transformers import SentenceTransformer, CrossEncoder
-
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-INDEX_NAME = os.getenv("PINECONE_INDEX")
-
-pc = Pinecone(api_key=PINECONE_API_KEY)
-index = pc.Index(INDEX_NAME)
-
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
-
-reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+from core.pinecone import pinecone_index as index, embedder, reranker
 
 def embed_and_upsert_insight(
     insight_id: int,
@@ -45,6 +33,7 @@ def embed_and_upsert_insight(
             }
         }
     ])
+
 
 def search_insights(query: str, book_ids: list[str] = None, insight_ids: list[int] = None, top_k: int = 5):
     # 1. Embed query
@@ -82,7 +71,6 @@ def search_insights(query: str, book_ids: list[str] = None, insight_ids: list[in
     ]
 
     # 5. Rerank
-    # (Assuming you have the reranker initialized as 'reranker')
     scores = reranker.predict(rerank_pairs)
 
     reranked = []
@@ -101,6 +89,7 @@ def search_insights(query: str, book_ids: list[str] = None, insight_ids: list[in
     # 6. Sort and return
     reranked.sort(key=lambda x: x["rerank_score"], reverse=True)
     return reranked[:top_k]
+
 
 def recommend_for_user(
     bookmarked_insight_ids: list[int],
@@ -178,6 +167,7 @@ def recommend_for_user(
 
     return reranked[:top_k]
 
+
 def recommend_next_insights(
     current_insight_title: str,
     current_insight_description: str,
@@ -205,6 +195,7 @@ def recommend_next_insights(
         pinecone_filter["insight_id"] = {
             "$nin": [current_insight_id]
         }
+        
     # 2. Vector search
     res = index.query(
         vector=session_embedding,
@@ -247,5 +238,3 @@ def recommend_next_insights(
     reranked.sort(key=lambda x: x["score"], reverse=True)
 
     return reranked[:top_k]
-
-
