@@ -124,6 +124,7 @@ def get_content_keys_logic(title: str) -> List[Dict[str, str]]:
         raise HTTPException(status_code=404, detail="Book not found")
 
     content = book_data[0] 
+    print(content,"content")
     result = [
         {
             "name": key, "icon": value.get("icon", ""),

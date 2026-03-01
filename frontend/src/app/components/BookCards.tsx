@@ -11,8 +11,6 @@ interface Book {
     thumbnail: string;
     description: string;
     category: string[];
-    sub_categories_count: number;
-    total_insights: number;
     id: number;
 }
 

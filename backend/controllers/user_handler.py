@@ -187,7 +187,7 @@ def toggle_bookmark_book_logic(user_id: int, book_id: int) -> Dict[str, Any]:
     conn.commit()
     conn.close()
 
-    redis_client.delete(f"bookmarks:books:{user_id}")
+    redis_client.delete(f"bookmarks:books_data:{user_id}")
     return {"bookmarked": action, "favourite_books": books}
 
 def toggle_bookmark_insight_logic(user_id: int, insight_id: int) -> Dict[str, Any]:
@@ -208,7 +208,8 @@ def toggle_bookmark_insight_logic(user_id: int, insight_id: int) -> Dict[str, An
     conn.commit()
     conn.close()
 
-    redis_client.delete(f"bookmarks:insights:{user_id}")
+    redis_client.delete(f"bookmarks:insights_data:{user_id}")
+    
     redis_client.delete(f"recommend:{user_id}")
     for key in redis_client.scan_iter(f"session_recommend:{user_id}:*"):
         redis_client.delete(key)
@@ -267,8 +268,9 @@ def session_recommend_logic(user_id: int, insight_id: int):
     redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
     return result
 
-def get_bookmarked_books_logic(user_id: int):
-    cache_key = f"bookmarks:books:{user_id}"
+def get_bookmarked_books_with_categories_logic(user_id: int) -> Dict[str, Any]:
+    # Update cache key to reflect the combined payload
+    cache_key = f"bookmarks:books_data:{user_id}"
     cached_data = redis_client.get(cache_key)
     if cached_data:
         return json.loads(cached_data)
@@ -279,29 +281,106 @@ def get_bookmarked_books_logic(user_id: int):
         
     try:
         cur = conn.cursor()
+        
+        # Step 1: Fetch user's favourite book IDs
         cur.execute('SELECT favourite_books FROM "user" WHERE id=%s', (user_id,))
         row = cur.fetchone()
         book_ids = row[0] if row and row[0] else []
 
+        # If no bookmarks, return empty arrays immediately
         if not book_ids:
-            return {"bookmarked_books": []}
+            result = {"bookmarked_books": [], "favourite_categories": []}
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+            return result
 
-        cur.execute('SELECT id, title, author, thumbnail, description, category FROM book WHERE id IN %s', (tuple(book_ids),))
+        # Step 2: Fetch book details and cast category to a text array
+        cur.execute('''
+            SELECT id, title, author, thumbnail, description, category::text[] 
+            FROM book 
+            WHERE id = ANY(%s)
+        ''', (book_ids,))
         books_data = cur.fetchall()
 
-        result_list = [{"id": id, "title": title, "author": author, "thumbnail": thumbnail, "description": description, "category": category} for id, title, author, thumbnail, description, category in books_data]
-        result = {"bookmarked_books": result_list}
+        # Step 3: Load the local JSON file
+        try:
+            with open('categories.json', 'r', encoding='utf-8') as file:
+                categories_data = json.load(file)
+        except FileNotFoundError:
+            categories_data = {}
+
+        # Step 4: Process books and extract unique main categories
+        result_books = []
+        unique_categories = set()
+
+        for id_, title, author, thumbnail, description, category_list in books_data:
+            # category_list is now a clean Python list thanks to ::text[] in SQL
+            safe_categories = category_list if isinstance(category_list, list) else []
+            
+            result_books.append({
+                "id": id_, 
+                "title": title, 
+                "author": author, 
+                "thumbnail": thumbnail, 
+                "description": description, 
+                "category": safe_categories # Keep as array for the frontend
+            })
+            
+            # Add to our unique set for JSON lookup
+            for cat_name in safe_categories:
+                if cat_name:
+                    unique_categories.add(cat_name)
+
+        # Step 5: Map JSON details to the unique categories
+        result_categories = []
+        for cat_name in unique_categories:
+            # Since books use Main Categories, we look them up at the root of the JSON
+            cat_details = categories_data.get(cat_name, {})
+            
+            result_categories.append({
+                "name": cat_name,
+                "icon": cat_details.get("icon", "📚"), # Fallback icon
+                "description": cat_details.get("description", "Explore books in this category.") # Fallback description
+            })
+
+        result = {
+            "books": result_books,
+            "categories": result_categories
+        }
 
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
         return result
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cur.close()
         conn.close()
 
-def get_bookmarked_insights_logic(user_id: int):
-    cache_key = f"bookmarks:insights:{user_id}"
+def get_category_details_from_json(category_name: str, categories_data: dict) -> Dict[str, str]:
+    for main_cat, main_data in categories_data.items():
+        subcategories = main_data.get("subcategories", {})
+        if category_name in subcategories:
+            return {
+                "name": category_name,
+                "icon": subcategories[category_name].get("icon", ""),
+                "description": subcategories[category_name].get("description", "")
+            }
+        
+        if category_name == main_cat:
+            return {
+                "name": category_name,
+                "icon": main_data.get("icon", ""),
+                "description": main_data.get("description", "")
+            }
+            
+    return {
+        "name": category_name,
+        "icon": "📌",
+        "description": "Explore insights from this category."
+    }
+
+def get_bookmarked_insights_with_categories_logic(user_id: int) -> Dict[str, Any]:
+    cache_key = f"bookmarks:insights_data:{user_id}"
     cached_data = redis_client.get(cache_key)
     if cached_data:
         return json.loads(cached_data)
@@ -312,21 +391,63 @@ def get_bookmarked_insights_logic(user_id: int):
         
     try:
         cur = conn.cursor()
+        
         cur.execute('SELECT favourite_insights FROM "user" WHERE id=%s', (user_id,))
         row = cur.fetchone()
         insight_ids = row[0] if row and row[0] else []
 
         if not insight_ids:
-            return {"bookmarked_insights": []}
+            result = {"bookmarked_insights": [], "favourite_categories": []}
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+            return result
 
-        cur.execute('SELECT id, book_name, category_name, title, description, detailed_breakdown FROM insights WHERE id IN %s', (tuple(insight_ids),))
+        cur.execute('''
+            SELECT id, book_name, category_name, title, description, detailed_breakdown 
+            FROM insights 
+            WHERE id = ANY(%s)
+        ''', (insight_ids,))
         insights_data = cur.fetchall()
 
-        result_list = [{"step_id": id, "book_name": book_name, "category": category_name, "title": title, "description": description, "detailed_breakdown": detailed_breakdown} for id, book_name, category_name, title, description, detailed_breakdown in insights_data]
-        result = {"bookmarked_insights": result_list}
+        try:
+            with open('categories.json', 'r', encoding='utf-8') as file:
+                categories_data = json.load(file)
+        except FileNotFoundError:
+            categories_data = {}
+
+        result_insights = []
+        unique_categories = set()
+        
+        for id_, book_name, category_name, title, description, detailed_breakdown in insights_data:
+            result_insights.append({
+                "step_id": id_, 
+                "book_name": book_name, 
+                "category": category_name, 
+                "title": title, 
+                "description": description, 
+                "detailed_breakdown": detailed_breakdown
+            })
+            if category_name:
+                unique_categories.add(category_name)
+
+        result_categories = []
+        category_icon_map = {} 
+
+        for cat_name in unique_categories:
+            details = get_category_details_from_json(cat_name, categories_data)
+            result_categories.append(details)
+            category_icon_map[cat_name] = details["icon"]
+
+        for insight in result_insights:
+            insight["icon"] = category_icon_map.get(insight["category"], "📌")
+
+        result = {
+            "insights": result_insights,
+            "categories": result_categories
+        }
 
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
         return result
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:

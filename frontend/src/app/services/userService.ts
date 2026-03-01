@@ -121,11 +121,21 @@ export const fetchSessionRecommendations = async (uid: number, stepId: string) =
     }
 };
 
-export async function getFavouriteCategories(userId: number) {
-    // console.log(userId)
-    const response = await axios.get(`${API}/favourite/insight/categories/${userId}`);
-    return response.data.categories;
-}
+export const getFavouriteCategories = async (userId: number) => {
+    try {
+        const response = await axios.get(`${API}/user/favourite-categories`, {
+            params: { user_id: userId },
+            // Include credentials if your backend requires cookies/sessions
+            withCredentials: true
+        });
+
+        // Return the array of categories from the response
+        return response.data.categories;
+    } catch (error) {
+        console.error("Failed to fetch favourite categories:", error);
+        throw error;
+    }
+};
 
 export async function getFavouriteIds(userId: number) {
     const response = await axios.get(`${API}/favourite/insights/ids/${userId}`);

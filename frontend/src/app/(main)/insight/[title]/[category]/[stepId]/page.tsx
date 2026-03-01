@@ -1,50 +1,52 @@
 "use client";
 
-import { useState, Fragment } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { getStepDetails } from "@/app/services/bookService";
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import ShareModal from "@/app/components/modals/ShareModal";
-import { Slide, toast, ToastContainer } from 'react-toastify';
 import { Bookmark, Share2 } from "lucide-react";
 import Link from "next/link";
-import { Transition } from "@headlessui/react";
+import { motion } from "framer-motion";
+import { ToastContainer } from 'react-toastify';
+import { getStepDetails } from "@/app/services/bookService";
 import { useUserStore } from "@/app/stores/useUserStores";
-import { useQuery } from "@tanstack/react-query";
 import { fetchSessionRecommendations } from "@/app/services/userService";
-import { useMutations } from "@/app/hooks/useMutations";
 import { useBookmarkInsight } from "@/app/hooks/mutations/useBookmark";
+import ShareModal from "@/app/components/modals/ShareModal";
+import { Recommendation, User } from "@/app/types";
 
-interface StepDetails {
-    step_id: number;
-    title: string;
-    description: string;
-    detailed_breakdown: string;
-}
 
-interface Recommendation {
-    insight_id: number;
-    title: string;
-    category: string;
-    category_icon: string;
-    description: string;
-}
+const pageVariants = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } }
+};
 
-interface User {
-    user_id: number;
-    favourite_insights: number[];
-}
+const staggerContainer = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: { staggerChildren: 0.1 }
+    }
+};
+
+const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: {
+        opacity: 1,
+        y: 0,
+        transition: { type: "spring", stiffness: 100, damping: 15 }
+    }
+};
 
 export default function Page() {
-    const { title, stepId } = useParams<{ title: string; stepId: string }>();
+    const { stepId } = useParams<{ title: string; stepId: string }>();
     const [isOpen, setIsOpen] = useState<boolean>(false);
-    const router = useRouter();
     const { mutate: bookmarkInsight } = useBookmarkInsight();
 
     const user = useUserStore((state: any) => state.user as User | null);
 
-    const { data: stepDetails, isLoading: stepLoading, error } = useQuery({
+    const { data: stepDetails, error } = useQuery({
         queryKey: ["step", stepId],
         queryFn: () => getStepDetails(stepId as string),
         enabled: !!stepId,
@@ -55,9 +57,7 @@ export default function Page() {
         try {
             return JSON.parse(`"${text}"`);
         } catch (e) {
-            return text
-                .replace(/\\n/g, '\n')
-                .replace(/\\"/g, '"');
+            return text.replace(/\\n/g, '\n').replace(/\\"/g, '"');
         }
     };
 
@@ -66,15 +66,13 @@ export default function Page() {
         isLoading: recommendationsLoading,
     } = useQuery({
         queryKey: ["session-recommend", stepId, user?.user_id],
-        queryFn: () =>
-            fetchSessionRecommendations(user!.user_id, stepId),
+        queryFn: () => fetchSessionRecommendations(user!.user_id, stepId),
         enabled: !!user && !!stepId,
     });
 
     if (error) return <p className="text-red-500">Error: {error.message}</p>;
     if (!stepDetails) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
 
-    // 1. Markdown Components updated with dark mode text colors
     const markdownComponents: Components = {
         h1: ({ children }) => <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-gray-100 mb-6">{children}</h1>,
         h2: ({ children }) => <h2 className="text-2xl md:text-3xl font-semibold text-gray-800 dark:text-gray-200 mb-4 mt-8">{children}</h2>,
@@ -86,13 +84,18 @@ export default function Page() {
     };
 
     return (
-        <div className="prose prose-lg w-full py-2 md:py-4 flex flex-col gap-2 transition-colors duration-300">
+        // 1. Wrap the entire page content in a subtle entrance fade
+        <motion.div
+            variants={pageVariants}
+            initial="hidden"
+            animate="show"
+            className="prose prose-lg w-full py-2 md:py-4 flex flex-col gap-2 transition-colors duration-300"
+        >
             <div className="flex justify-between items-start md:items-center">
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
                     {stepDetails.title}
                 </h1>
 
-                {/* 2. Action Buttons matching the Overview dark mode standard */}
                 <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 bottom-0 m-4 md:m-0 z-40">
                     <button
                         onClick={() => bookmarkInsight(stepDetails.step_id)}
@@ -101,7 +104,6 @@ export default function Page() {
                     >
                         <Bookmark
                             size={20}
-                            // Changed to fill-current so it inherits the text color seamlessly
                             className={user?.favourite_insights?.includes(stepDetails.step_id) ? "fill-current" : ""}
                         />
                     </button>
@@ -115,7 +117,7 @@ export default function Page() {
                     <ShareModal
                         isOpen={isOpen}
                         setIsOpen={setIsOpen}
-                        shareUrl={`https://www.bookworm.com/overview/${stepDetails?.title}`}
+                        shareUrl={`https://www.bookist.com/overview/${stepDetails?.title}`}
                     />
                 </div>
             </div>
@@ -123,8 +125,8 @@ export default function Page() {
             <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 leading-relaxed">
                 {stepDetails.description}
             </p>
+
             <div>
-                {/* Markdown Wrapper */}
                 <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={markdownComponents}
@@ -133,50 +135,46 @@ export default function Page() {
                 </ReactMarkdown>
             </div>
 
-            <hr className="border-b border-gray-200 dark:border-gray-800 my-2  transition-colors" />
+            <hr className="border-b border-gray-200 dark:border-gray-800 my-2 transition-colors" />
 
             <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 my-2">Recommended Insights</h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
-                {/* 3. CRITICAL BUG FIX: Added '!' to check if NOT loading */}
+            {/* 2. Staggered Container for Recommendations */}
+            <motion.div
+                variants={staggerContainer}
+                initial="hidden"
+                whileInView="show"
+                viewport={{ once: true, amount: 0.1 }}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8"
+            >
                 {!recommendationsLoading
                     ? recommendations.map((recommendation: Recommendation) => (
-                        <Transition
-                            key={recommendation.insight_id}
-                            as={Fragment}
-                            appear
-                            show={true}
-                            enter="transition-all duration-300 ease-out"
-                            enterFrom="opacity-0 translate-y-3 scale-95"
-                            enterTo="opacity-100 translate-y-0 scale-100"
-                        >
-                            <div className="relative rounded-2xl h-full">
-                                {/* Recommendation Card UI with Dark Mode */}
-                                <div className="rounded-2xl h-full col-span-1 p-4 flex-col flex gap-4 break-inside-avoid bg-gray-100 dark:bg-gray-800 border border-transparent dark:border-gray-700 transition-colors hover:border-gray-300 dark:hover:border-gray-500">
-                                    <Link
-                                        href={`/insight/${recommendation.title}/${recommendation?.category}/${recommendation.insight_id}`}
-                                        className="flex flex-col gap-2 h-full"
-                                    >
-                                        <div className="text-gray-600 dark:text-gray-400 font-medium text-sm flex gap-1 items-center w-min text-nowrap rounded-lg">
-                                            <span>{recommendation.category_icon}</span>
-                                            <span className="line-clamp-2">{recommendation.category}</span>
-                                        </div>
+                        <motion.div variants={cardVariants} key={recommendation.insight_id} className="h-full">
+                            <div className="rounded-2xl h-full col-span-1 p-4 flex-col flex gap-4 break-inside-avoid bg-gray-100 dark:bg-gray-800 border border-transparent dark:border-gray-700 transition-colors hover:border-gray-300 dark:hover:border-gray-500">
+                                <Link
+                                    href={`/insight/${recommendation.title}/${recommendation?.category}/${recommendation.insight_id}`}
+                                    className="flex flex-col gap-2 h-full"
+                                >
+                                    <div className="text-gray-600 dark:text-gray-400 font-medium text-sm flex gap-1 items-center w-min text-nowrap rounded-lg">
+                                        <span>{recommendation.category_icon}</span>
+                                        <span className="line-clamp-2">{recommendation.category}</span>
+                                    </div>
 
-                                        <h4 className="line-clamp-2 text-gray-900 dark:text-gray-100 font-semibold text-lg md:text-xl leading-tight">
-                                            {recommendation.title}
-                                        </h4>
+                                    <h4 className="line-clamp-2 text-gray-900 dark:text-gray-100 font-semibold text-lg md:text-xl leading-tight">
+                                        {recommendation.title}
+                                    </h4>
 
-                                        <h6 className="text-gray-600 dark:text-gray-400 mt-auto line-clamp-3 text-sm leading-relaxed">
-                                            {recommendation.description}
-                                        </h6>
-                                    </Link>
-                                </div>
+                                    <h6 className="text-gray-600 dark:text-gray-400 mt-auto line-clamp-3 text-sm leading-relaxed">
+                                        {recommendation.description}
+                                    </h6>
+                                </Link>
                             </div>
-                        </Transition>
+                        </motion.div>
                     ))
                     : Array.from({ length: 3 }).map((_, i) => (
-                        // Skeleton Loader Dark Mode
-                        <div
+                        // 3. Animated Skeletons! 
+                        <motion.div
+                            variants={cardVariants}
                             key={i}
                             className="bg-gray-100 dark:bg-gray-800 border border-transparent dark:border-gray-700 rounded-2xl p-4 flex flex-col gap-4 animate-pulse h-full min-h-[160px]"
                         >
@@ -186,11 +184,11 @@ export default function Page() {
                                 <div className="h-3 w-full bg-gray-200 dark:bg-gray-700 rounded" />
                                 <div className="h-3 w-5/6 bg-gray-200 dark:bg-gray-700 rounded" />
                             </div>
-                        </div>
+                        </motion.div>
                     ))}
-            </div>
+            </motion.div>
 
             <ToastContainer />
-        </div>
+        </motion.div>
     );
 }

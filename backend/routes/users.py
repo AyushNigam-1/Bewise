@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Response, Request, Body, Cookie
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Union
+from enum import Enum
 from controllers.user_handler import (
     get_me_logic,
     register_user_logic,
@@ -14,8 +15,8 @@ from controllers.user_handler import (
     toggle_bookmark_insight_logic,
     recommend_logic,
     session_recommend_logic,
-    get_bookmarked_books_logic,
-    get_bookmarked_insights_logic
+    get_bookmarked_books_with_categories_logic,
+    get_bookmarked_insights_with_categories_logic
 )
 
 router = APIRouter()
@@ -39,6 +40,9 @@ class SessionRecommendRequest(BaseModel):
     insight_id: int
     user_id: int
 
+class BookmarkType(str, Enum):
+    books = "books"
+    insights = "insights"
 # --- Routes ---
 @router.get("/me")
 def me(access_token: str = Cookie(None)):
@@ -107,10 +111,10 @@ def recommend(user_id: int):
 def session_recommend(payload: SessionRecommendRequest):
     return session_recommend_logic(payload.user_id, payload.insight_id)
 
-@router.get("/bookmarks/books/{user_id}")
-def get_bookmarked_books(user_id: int):
-    return get_bookmarked_books_logic(user_id)
-
-@router.get("/bookmarks/insights/{user_id}")
-def get_bookmarked_insights(user_id: int):
-    return get_bookmarked_insights_logic(user_id)
+# 2. The single, dynamic route
+@router.get("/bookmarks/{item_type}/{user_id}")
+def get_bookmarks(item_type: BookmarkType, user_id: int):
+    if item_type == BookmarkType.books:
+        return get_bookmarked_books_with_categories_logic(user_id)
+    elif item_type == BookmarkType.insights:
+        return get_bookmarked_insights_with_categories_logic(user_id)
