@@ -1,4 +1,7 @@
 from core.pinecone import pinecone_index as index, embedder, reranker
+import hashlib
+import json
+from core.redis import redis_client
 
 def embed_and_upsert_insight(
     insight_id: int,
@@ -36,25 +39,30 @@ def embed_and_upsert_insight(
 
 
 def search_insights(query: str, book_ids: list[str] = None, insight_ids: list[int] = None, top_k: int = 5):
-    # 1. Embed query
+
+    cache_key = "vector:" + hashlib.md5(
+        f"{query}-{book_ids}-{insight_ids}".encode()
+    ).hexdigest()
+
+    cached = redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
+    
     q_embedding = embedder.encode(query).tolist()
 
-    # 2. Build metadata filter
     pinecone_filter = {}
 
     if book_ids and len(book_ids) > 0:
             pinecone_filter["book"] = {"$in": book_ids}
 
-    # FILTER BY INSIGHT ID (Integer)
     if insight_ids and len(insight_ids) > 0:
         pinecone_filter["insight_id"] = {"$in": insight_ids}
 
     print(f"Searching with filter: {pinecone_filter}")
 
-    # 3. Pinecone search
     pinecone_res = index.query(
         vector=q_embedding,
-        top_k=20, # Fetch more for reranking
+        top_k=20, 
         include_metadata=True,
         filter=pinecone_filter if pinecone_filter else None
     )
@@ -64,20 +72,18 @@ def search_insights(query: str, book_ids: list[str] = None, insight_ids: list[in
     if not matches:
         return []
 
-    # 4. Prepare rerank pairs
     rerank_pairs = [
         (query, f'{m["metadata"].get("title","")} {m["metadata"].get("description","")}')
         for m in matches
     ]
 
-    # 5. Rerank
     scores = reranker.predict(rerank_pairs)
 
     reranked = []
 
     for m, score in zip(matches, scores):
         reranked.append({
-            "insight_id": int(m["id"]), # Ensure this matches your ID format
+            "insight_id": int(m["id"]),
             "rerank_score": float(score),
             "book": m["metadata"].get("book"),
             "category": m["metadata"].get("category"),
@@ -86,7 +92,6 @@ def search_insights(query: str, book_ids: list[str] = None, insight_ids: list[in
             "description": m["metadata"].get("description"),
         })
 
-    # 6. Sort and return
     reranked.sort(key=lambda x: x["rerank_score"], reverse=True)
     return reranked[:top_k]
 

@@ -13,6 +13,7 @@ import ShareModal from "@/app/components/modals/ShareModal";
 import CategoryDialog from "@/app/components/modals/CategoryModal";
 import { useBookmarkInsight } from "@/app/hooks/mutations/useBookmark";
 import { InsightCard } from "../InsightsCard";
+import ChatbotModal from "../modals/ChatbotModal";
 
 const EMPTY_INSIGHTS: StepData[] = [];
 const EMPTY_CATEGORIES: Categories[] = [];
@@ -66,14 +67,14 @@ const InsightsTab = () => {
                     <div className="justify-between flex lg:text-3xl font-bold text-gray-900 dark:text-gray-100 text-3xl text-center md:text-left gap-2">
                         <p>Bookmarks</p>
                     </div>
-                    <div className="md:flex gap-3">
+                    <div className="md:flex gap-3 items-center">
                         <SearchBar
                             responsive={true}
                             data={categoryFilteredInsights}
                             propertyToSearch="title"
                             setFilteredData={setFilteredInsights as React.Dispatch<React.SetStateAction<any[]>>}
                         />
-                        <div className="flex flex-col gap-3 md:relative fixed right-0 m-4 md:m-0 bottom-0">
+                        <div className="flex gap-3 md:relative fixed right-0 m-4 md:m-0 bottom-0">
                             <CategoryDialog
                                 categories={categories}
                                 filteredCategories={filteredCategories}
@@ -81,12 +82,15 @@ const InsightsTab = () => {
                                 selectedCategory={selectedCategory}
                                 toggleCategory={toggleCategory}
                             />
+                            <ChatbotModal
+                                // books={insights.map(())}
+                                contextItems={insights.map((insight: any) => ({ id: insight.step_id, name: insight.title }))}
+                            />
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Content Area */}
             <div>
                 {isLoading && (
                     <div className="flex flex-col items-center justify-center w-full py-20 text-gray-400">

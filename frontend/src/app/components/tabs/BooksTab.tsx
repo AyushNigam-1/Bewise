@@ -10,6 +10,7 @@ import SearchBar from "@/app/components/layout/SearchBar";
 import CategoryDialog from "@/app/components/modals/CategoryModal";
 import BookCard from "@/app/components/BookCards";
 import { AnimatePresence, motion } from "framer-motion";
+import ChatbotModal from "../modals/ChatbotModal";
 
 const EMPTY_BOOKS: BookData[] = [];
 const EMPTY_CATEGORIES: Categories[] = [];
@@ -79,6 +80,9 @@ const BooksTab = () => {
                                 setFilteredCategories={setFilteredCategories}
                                 selectedCategory={selectedCategory}
                                 toggleCategory={toggleCategory}
+                            />
+                            <ChatbotModal
+                                contextItems={books.map((insight: any) => ({ id: insight.step_id, name: insight.title }))}
                             />
                         </div>
                     </div>

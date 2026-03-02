@@ -2,8 +2,8 @@ import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { Recommendation } from "../types";
 
-const API = "http://localhost:8000"// // Update based on your FastAPI server
-// const API = "http://10.126.224.43:8000"
+// const API = "http://localhost:8000"// // Update based on your FastAPI server
+const API = "http://10.126.224.43:8000"
 
 export function getDeviceId() {
     if (typeof window === "undefined") return "";

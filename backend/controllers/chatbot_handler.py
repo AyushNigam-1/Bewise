@@ -1,98 +1,119 @@
 import traceback
-from typing import Optional, Dict, List
-from fastapi import HTTPException
+from typing import Optional, Dict, List, TypedDict
+from pydantic import BaseModel, Field
+from langgraph.graph import StateGraph, START, END
+from langchain_core.runnables import RunnableLambda
 from services.vector import search_insights
-from core.llm import chat, parser, RAGResponse
+from core.llm import llm
 
-def ai_reply_logic(
-    message: str, 
-    session_id: str, 
-    books_ids: Optional[List[str]] = None, 
-    insights_ids: Optional[List[int]] = None
-) -> Dict:
-    try:
-        # 1. Retrieve context from Pinecone
-        pinecone_hits = search_insights(
-            message, 
-            books_ids, 
-            insights_ids,
-            top_k=5
-        )
-        
-        # 2. Build context blocks
-        blocks = []
-        for h in pinecone_hits:
-            blocks.append(
-                f"""
-                Id: {h["insight_id"]}
-                Book: {h["book"]}
-                Category: {h["category"]}
-                Title: {h["title"]}
-                Description: {h["description"]}
-                """
-            )
+class RAGResponse(BaseModel):
+    answer: str = Field(description="Short answer based ONLY on provided context")
+    ids: List[int] = Field(description="Relevant insight ids. Empty if none.")
 
-        context = "\n---\n".join(blocks)
+class RAGState(TypedDict):
+    message: str
+    session_id: str
+    books_ids: Optional[List[str]]
+    insights_ids: Optional[List[int]]
+    pinecone_hits: List[dict]
+    final_response: dict
 
-        grounded_prompt = f"""
-            User question:
-            {message}
+def retrieve_node(state: RAGState):
+    hits = search_insights(
+        state["message"],
+        state.get("books_ids"),
+        state.get("insights_ids"),
+        top_k=5
+    )
+    return {"pinecone_hits": hits}
 
-            Candidate insights:
-            {context}
 
-            Rules:
-            - Select ONLY insights that directly answer the question.
-            - If nothing matches, return empty ids list [].
-            - Do NOT hallucinate.
+def generate_node(state: RAGState):
+    message = state["message"]
+    hits = state["pinecone_hits"]
 
-            Return structured JSON.
-        """
+    blocks = [
+        f"Id: {h['insight_id']}\nBook: {h['book']}\nCategory: {h['category']}\nTitle: {h['title']}\nDescription: {h['description']}"
+        for h in hits
+    ]
 
-        format_instructions = parser.get_format_instructions()
+    context = "\n---\n".join(blocks)
 
-        # 3. Invoke LLM with memory
-        result = chat.invoke(
-            {
-                "input": grounded_prompt,
-                "format": format_instructions
-            },
-            config={"configurable": {"session_id": session_id}},
-        )
+    system_prompt = "You are Bookist AI. Answer ONLY using provided insights. Do NOT hallucinate."
 
-        # 4. Parse the output
-        parsed: RAGResponse = parser.parse(result.content)
+    human_prompt = f"""
+    User question: {message}
 
-        # 5. Handle empty/no-match states
-        if not parsed.ids:
-            return {
-                "answer": parsed.answer or "I could not find any relevant insight for this question.",
+    Candidate insights:
+    {context}
+
+    Rules:
+    - Select ONLY insights that directly answer the question.
+    - If nothing matches, return an empty ids list [].
+    """
+
+    structured_llm = llm.with_structured_output(RAGResponse)
+
+    parsed: RAGResponse = structured_llm.invoke([
+        ("system", system_prompt),
+        ("human", human_prompt)
+    ])
+
+    if not parsed.ids:
+        return {
+            "final_response": {
+                "answer": parsed.answer or "No relevant insight found.",
                 "insights": {}
             }
+        }
 
-        # 6. Format successful response
-        final_hits = [h for h in pinecone_hits if h["insight_id"] in parsed.ids]
-        books = {}
+    final_hits = [h for h in hits if h["insight_id"] in parsed.ids]
 
-        for hit in final_hits:
-            book = hit["book"]
-            if book not in books:
-                books[book] = []
+    books: Dict[str, List[dict]] = {}
 
-            books[book].append({
-                "id": hit["insight_id"],
-                "title": hit["title"],
-                "category": hit["category"],
-                "category_icon": hit["category_icon"],
-                "description": hit["description"],
-                "link": f"http://localhost:3000/insight/{hit['book'].replace(' ', '%20')}/{hit['category'].replace(' ', '%20')}/{hit['insight_id']}",
-            })
+    for hit in final_hits:
+        book = hit["book"]
 
-        return {
+        if book not in books:
+            books[book] = []
+
+        books[book].append({
+            "id": hit["insight_id"],
+            "title": hit["title"],
+            "category": hit["category"],
+            "category_icon": hit["category_icon"],
+            "description": hit["description"],
+            "link": f"http://localhost:3000/insight/"
+                    f"{hit['book'].replace(' ', '%20')}/"
+                    f"{hit['category'].replace(' ', '%20')}/"
+                    f"{hit['insight_id']}",
+        })
+
+    return {
+        "final_response": {
             "answer": parsed.answer,
             "insights": books
         }
+    }
 
+workflow = StateGraph(RAGState)
+
+workflow.add_node("retrieve", retrieve_node)
+workflow.add_node("generate", generate_node)
+
+workflow.add_edge(START, "retrieve")
+workflow.add_edge("retrieve", "generate")
+workflow.add_edge("generate", END)
+
+rag_graph = workflow.compile()
+
+def rag_entrypoint(input_data: dict):
+    try:
+        final_state = rag_graph.invoke(input_data)
+        return final_state["final_response"]
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise Exception("RAG agent failed.")
+
+
+rag_runnable = RunnableLambda(rag_entrypoint)

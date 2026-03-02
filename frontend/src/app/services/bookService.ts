@@ -30,6 +30,7 @@ export const findBooksByCategories = async (categories: string[]) => {
         throw error;
     }
 };
+
 export const getBookContentKeys = async (title: string) => {
     try {
         const response = await axios.get(`${API_BASE_URL}/book/${title}/content_keys`);

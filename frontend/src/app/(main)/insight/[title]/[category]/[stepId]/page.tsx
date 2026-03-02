@@ -1,21 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bookmark, Share2 } from "lucide-react";
+import { Bookmark, Share2, Volume2, Square, Loader2, BrainCircuit } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ToastContainer } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
 import { getStepDetails } from "@/app/services/bookService";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { fetchSessionRecommendations } from "@/app/services/userService";
 import { useBookmarkInsight } from "@/app/hooks/mutations/useBookmark";
 import ShareModal from "@/app/components/modals/ShareModal";
+import QuizModal from "@/app/components/modals/QuizModal";
 import { Recommendation, User } from "@/app/types";
-
 
 const pageVariants = {
     hidden: { opacity: 0, y: 10 },
@@ -42,8 +42,11 @@ const cardVariants = {
 export default function Page() {
     const { stepId } = useParams<{ title: string; stepId: string }>();
     const [isOpen, setIsOpen] = useState<boolean>(false);
+    const [isQuizModalOpen, setIsQuizModalOpen] = useState<boolean>(false);
+    const [isAudioLoading, setIsAudioLoading] = useState<boolean>(false);
+    const [isPlaying, setIsPlaying] = useState<boolean>(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
     const { mutate: bookmarkInsight } = useBookmarkInsight();
-
     const user = useUserStore((state: any) => state.user as User | null);
 
     const { data: stepDetails, error } = useQuery({
@@ -51,6 +54,110 @@ export default function Page() {
         queryFn: () => getStepDetails(stepId as string),
         enabled: !!stepId,
     });
+
+    const handleToggleAudio = async () => {
+        if (!stepDetails) return;
+
+        if (isPlaying && audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            setIsPlaying(false);
+            return;
+        }
+
+        if (audioRef.current) {
+            audioRef.current.play();
+            setIsPlaying(true);
+            return;
+        }
+
+        setIsAudioLoading(true);
+        try {
+            const textToSpeak = stepDetails.description;
+
+            const response = await fetch("http://localhost:8000/api/v1/generate-voice", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    text: textToSpeak,
+                    voice: "troy"
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to generate audio");
+            }
+
+            const blob = await response.blob();
+            const audioUrl = URL.createObjectURL(blob);
+
+            const audio = new Audio(audioUrl);
+            audio.onended = () => setIsPlaying(false);
+
+            audioRef.current = audio;
+            audio.play();
+            setIsPlaying(true);
+
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to load audio");
+        } finally {
+            setIsAudioLoading(false);
+        }
+    };
+
+    const actionButtons = [
+        {
+            id: "quiz",
+            title: "Take a quick quiz",
+            onClick: () => setIsQuizModalOpen(true),
+            disabled: false,
+            icon: <BrainCircuit size={20} />,
+        },
+        {
+            id: "audio",
+            title: isPlaying ? "Stop audio" : "Read aloud",
+            onClick: handleToggleAudio,
+            disabled: isAudioLoading,
+            icon: isAudioLoading ? (
+                <Loader2 size={20} className="animate-spin" />
+            ) : isPlaying ? (
+                <Square size={20} className="fill-current" />
+            ) : (
+                <Volume2 size={20} />
+            ),
+        },
+        {
+            id: "bookmark",
+            title: user?.favourite_insights?.includes(stepDetails?.step_id) ? "Remove bookmark" : "Bookmark insight",
+            onClick: () => bookmarkInsight(stepDetails?.step_id),
+            disabled: false,
+            icon: (
+                <Bookmark
+                    size={20}
+                    className={user?.favourite_insights?.includes(stepDetails?.step_id) ? "fill-current" : ""}
+                />
+            ),
+        },
+        {
+            id: "share",
+            title: "Share insight",
+            onClick: () => setIsOpen(true),
+            disabled: false,
+            icon: <Share2 size={20} />,
+        },
+    ];
+
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+        };
+    }, []);
 
     const formatMarkdown = (text: string | null | undefined): string => {
         if (!text) return "";
@@ -60,6 +167,8 @@ export default function Page() {
             return text.replace(/\\n/g, '\n').replace(/\\"/g, '"');
         }
     };
+
+
 
     const {
         data: recommendations = [],
@@ -84,7 +193,6 @@ export default function Page() {
     };
 
     return (
-        // 1. Wrap the entire page content in a subtle entrance fade
         <motion.div
             variants={pageVariants}
             initial="hidden"
@@ -97,27 +205,29 @@ export default function Page() {
                 </h1>
 
                 <div className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 bottom-0 m-4 md:m-0 z-40">
-                    <button
-                        onClick={() => bookmarkInsight(stepDetails.step_id)}
-                        type="button"
-                        className="text-white dark:text-gray-900 bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 focus:outline-none rounded-full p-3 font-semibold transition-colors shadow-lg md:shadow-none"
-                    >
-                        <Bookmark
-                            size={20}
-                            className={user?.favourite_insights?.includes(stepDetails.step_id) ? "fill-current" : ""}
-                        />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setIsOpen(true)}
-                        className="text-white dark:text-gray-900 bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 focus:outline-none rounded-full p-3 font-semibold transition-colors shadow-lg md:shadow-none"
-                    >
-                        <Share2 size={20} />
-                    </button>
+                    {actionButtons.map((btn) => (
+                        <button
+                            key={btn.id}
+                            onClick={btn.onClick}
+                            disabled={btn.disabled}
+                            title={btn.title}
+                            type="button"
+                            className="flex items-center justify-center p-3 font-semibold text-white transition-colors bg-gray-900 rounded-full shadow-lg cursor-pointer dark:text-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 focus:outline-none md:shadow-none disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {btn.icon}
+                        </button>
+                    ))}
+
                     <ShareModal
                         isOpen={isOpen}
                         setIsOpen={setIsOpen}
                         shareUrl={`https://www.bookist.com/overview/${stepDetails?.title}`}
+                    />
+
+                    <QuizModal
+                        isOpen={isQuizModalOpen}
+                        setIsOpen={setIsQuizModalOpen}
+                        textData={`${stepDetails.description}\n\n${formatMarkdown(stepDetails.detailed_breakdown)}`}
                     />
                 </div>
             </div>
@@ -139,7 +249,6 @@ export default function Page() {
 
             <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 my-2">Recommended Insights</h3>
 
-            {/* 2. Staggered Container for Recommendations */}
             <motion.div
                 variants={staggerContainer}
                 initial="hidden"
@@ -172,7 +281,6 @@ export default function Page() {
                         </motion.div>
                     ))
                     : Array.from({ length: 3 }).map((_, i) => (
-                        // 3. Animated Skeletons! 
                         <motion.div
                             variants={cardVariants}
                             key={i}
@@ -187,7 +295,6 @@ export default function Page() {
                         </motion.div>
                     ))}
             </motion.div>
-
             <ToastContainer />
         </motion.div>
     );
