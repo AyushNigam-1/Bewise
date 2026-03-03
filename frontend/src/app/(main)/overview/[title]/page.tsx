@@ -45,7 +45,14 @@ const Overview = () => {
         enabled: !!params.title,
     });
 
-    if (isLoading) return <Loader />
+    // ✅ Absolute Stable Loading Gate
+    if (!params.title || isLoading || !book) {
+        return (
+            <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
+                <Loader />
+            </div>
+        );
+    }
 
     return (
         <motion.div
@@ -58,9 +65,9 @@ const Overview = () => {
 
                 <motion.img
                     variants={itemVariants}
-                    src={book?.thumbnail}
+                    src={book.thumbnail}
                     className="z-30 rounded-xl mx-auto md:h-72 shadow-md md:w-auto object-cover"
-                    alt={book?.title || "Book Cover"}
+                    alt={book.title || "Book Cover"}
                 />
 
                 <div className="flex flex-col md:justify-between gap-4 w-full">
@@ -68,14 +75,14 @@ const Overview = () => {
 
                         <motion.div variants={itemVariants} className="flex flex-col md:items-start gap-4" >
                             <h1 className="text-gray-800 dark:text-gray-100 font-bold text-3xl md:text-4xl md:leading-none">
-                                {book?.title}
+                                {book.title}
                             </h1>
                             <span className="text-gray-600 dark:text-gray-300 text-sm md:text-lg flex items-center justify-between">
-                                &bull; {book?.author} &nbsp; &bull;  {book?.sub_categories_count} Categories &nbsp; &bull;  {book?.total_insights} Insights
+                                &bull; {book.author} &nbsp; &bull;  {book.sub_categories_count} Categories &nbsp; &bull;  {book.total_insights} Insights
                             </span>
 
                             <div className="flex gap-4 md:gap-5 flex-wrap md:justify-normal max-w-[600px]">
-                                {book?.categories?.split(/[,&]/).map((category: string, index: number) => (
+                                {book.categories?.split(/[,&]/).map((category: string, index: number) => (
                                     <h4
                                         className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-1 px-3 rounded-lg w-min text-nowrap text-xs md:text-sm flex gap-2 font-medium text-gray-800 dark:text-gray-200 items-center transition-colors"
                                         key={String(index)}
@@ -89,12 +96,12 @@ const Overview = () => {
 
                         <motion.div variants={itemVariants} className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 bottom-0 m-2 md:m-0 z-40">
                             <button
-                                onClick={() => book?.id && bookmarkBook(book.id)}
+                                onClick={() => book.id && bookmarkBook(book.id)}
                                 className="inline-flex items-center justify-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 p-3 rounded-full transition-colors shadow-lg md:shadow-none"
                             >
                                 <Bookmark
                                     size={20}
-                                    className={user?.favourite_books?.includes(book?.id || 0) ? "fill-current" : ""}
+                                    className={user?.favourite_books?.includes(book.id) ? "fill-current" : ""}
                                 />
                             </button>
                             <button
@@ -104,13 +111,13 @@ const Overview = () => {
                             >
                                 <Share2 size={20} />
                             </button>
-                            <ShareModal isOpen={isOpen} setIsOpen={setIsOpen} shareUrl={`https://www.bookist.com/overview/${book?.title}`} />
+                            <ShareModal isOpen={isOpen} setIsOpen={setIsOpen} shareUrl={`https://www.bookist.com/overview/${book.title}`} />
                         </motion.div>
                     </div>
 
                     <motion.div variants={itemVariants} className="flex flex-col md:flex-row gap-3 justify-between w-full">
                         <Link
-                            href={`/insights/${book?.title}`}
+                            href={`/insights/${book.title}`}
                             className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 justify-center flex gap-2 items-center focus:outline-none rounded-lg py-2 px-4 md:text-lg font-semibold transition-colors "
                         >
                             <ArrowUpRight size={20} />
@@ -135,7 +142,7 @@ const Overview = () => {
                         About Book
                     </p>
                     <p className="text-lg font-medium text-gray-600 dark:text-gray-300 ">
-                        Lorem ipsum dolor sit amet consectetur, adipisicing elit. Cumque sunt quidem nostrum inventore neque, molestiae eligendi officiis earum! Ipsa laudantium iste accusamus? Similique molestiae dolore aut alias! Dolorum molestiae voluptatibus dolorem quo deserunt et. Lorem ipsum dolor sit amet consectetur adipisicing elit. Vel repellendus aspernatur reprehenderit iusto, voluptatibus tempora eum aperiam, hic laboriosam ab, enim eveniet! Aliquam libero illo nisi unde laboriosam placeat ducimus voluptate incidunt dignissimos ipsum error dolorum in necessitatibus praesentium eveniet, doloremque eos atque quasi cumque.
+                        Lorem ipsum dolor sit amet consectetur, adipisicing elit...
                     </p>
                 </motion.div>
 
@@ -145,7 +152,7 @@ const Overview = () => {
                         About Author
                     </p>
                     <p className="text-lg font-medium text-gray-600 dark:text-gray-300 ">
-                        Lorem ipsum dolor sit amet consectetur, adipisicing elit. Cumque sunt quidem nostrum inventore neque, molestiae eligendi officiis earum! Ipsa laudantium iste accusamus? Similique molestiae dolore aut alias! Dolorum molestiae voluptatibus dolorem quo deserunt et. Lorem ipsum dolor sit amet consectetur adipisicing elit. Vel repellendus aspernatur reprehenderit iusto, voluptatibus tempora eum aperiam, hic laboriosam ab, enim eveniet! Aliquam libero illo nisi unde laboriosam placeat ducimus voluptate incidunt dignissimos ipsum error dolorum in necessitatibus praesentium eveniet, doloremque eos atque quasi cumque.
+                        Lorem ipsum dolor sit amet consectetur, adipisicing elit...
                     </p>
                 </motion.div>
             </div>

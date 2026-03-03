@@ -2,8 +2,8 @@ import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { Recommendation } from "../types";
 
-// const API = "http://localhost:8000"// // Update based on your FastAPI server
-const API = "http://10.126.224.43:8000"
+const API = "http://localhost:8000"// // Update based on your FastAPI server
+// const API = "http://10.126.224.43:8000"
 
 export function getDeviceId() {
     if (typeof window === "undefined") return "";
@@ -111,10 +111,11 @@ export const addFavouriteInsight = async (userId: number, insight: {
 
 export const fetchSessionRecommendations = async (uid: number, stepId: string) => {
     try {
-        const { data } = await axios.post<{ recommendations: Recommendation[] }>("http://10.63.43.43:8000/insights/session-recommend", {
+        const { data } = await axios.post<{ recommendations: Recommendation[] }>(`${API}/insights/session-recommend`, {
             insight_id: Number(stepId),
             user_id: uid
         });
+        console.log("data", data)
         return data.recommendations || [];
     } catch (e) {
         console.error("Recommendation failed", e);

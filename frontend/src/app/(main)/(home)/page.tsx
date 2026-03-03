@@ -9,6 +9,8 @@ import ChatbotModal from "../../components/modals/ChatbotModal";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { Categories, User } from "@/app/types";
 import BookCard from "../../components/BookCards";
+import Loader from "@/app/components/layout/Loader";
+import Header from "@/app/components/layout/Header";
 
 const Page = () => {
     const [filteredCategories, setFilteredCategories] = useState<Categories[]>([]);
@@ -16,7 +18,10 @@ const Page = () => {
     const [filteredBooks, setFilteredBooks] = useState<any[]>([]);
     const user = useUserStore((state: any) => state.user as User | null);
 
-    const { data: books = [] } = useQuery({
+    const {
+        data: books = [],
+        isLoading: booksLoading,
+    } = useQuery({
         queryKey: ["books-by-category", selectedCategory],
         queryFn: () =>
             findBooksByCategories(
@@ -26,7 +31,10 @@ const Page = () => {
             ),
     });
 
-    const { data: categories = [] } = useQuery({
+    const {
+        data: categories = [],
+        isLoading: categoriesLoading,
+    } = useQuery({
         queryKey: ["categories"],
         queryFn: getAllCategories,
     });
@@ -46,29 +54,33 @@ const Page = () => {
         );
     };
 
+    // ✅ Absolute stable loading gate
+    if (booksLoading || categoriesLoading) {
+        return (
+            <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
+                <Loader />
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col w-full">
-            <div className={`flex justify-between items-center h-14 md:h-18 sticky top-0 z-30 bg-white dark:bg-gray-900 transition-colors duration-300`}>
-                <h4 className="justify-between flex lg:text-3xl font-bold text-gray-700 dark:text-gray-200 text-3xl text-center md:text-left gap-2">
-                    Explore
-                </h4>
+            <Header
+                title="Explore"
+                items={books}
+                filteredItems={filteredBooks}
+                setFilteredItems={setFilteredBooks}
+                searchKey="title"
+                categories={categories}
+                filteredCategories={filteredCategories}
+                setFilteredCategories={setFilteredCategories}
+                selectedCategory={selectedCategory}
+                toggleCategory={toggleCategory}
+                getItemId={(book: any) => book.id}
+                getItemLabel={(book: any) => book.title}
+            />
 
-                <div className="flex gap-2 items-center">
-                    <SearchBar responsive={true} data={books} propertyToSearch='title' setFilteredData={setFilteredBooks} />
-                    <div className="flex flex-col md:flex-row gap-2 md:relative fixed right-0 bottom-0 m-2 md:m-0">
-                        <CategoryDialog
-                            categories={categories}
-                            filteredCategories={filteredCategories}
-                            setFilteredCategories={setFilteredCategories}
-                            selectedCategory={selectedCategory}
-                            toggleCategory={toggleCategory}
-                        />
-                        <ChatbotModal contextItems={filteredBooks?.map((book: any) => ({ id: book.id, name: book.title }))} />
-                    </div>
-                </div>
-            </div>
-
-            <motion.div layout className="columns-2 gap-4 lg:columns-5 space-y-4 ">
+            <motion.div layout className="columns-2 gap-4 lg:columns-5 space-y-4">
                 <AnimatePresence mode="popLayout">
                     {filteredBooks?.map((book: any, index: number) => (
                         <motion.div
@@ -81,9 +93,13 @@ const Page = () => {
                                 type: "spring",
                                 stiffness: 100,
                                 damping: 15,
-                                mass: 1
+                                mass: 1,
                             }}
-                            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                            exit={{
+                                opacity: 0,
+                                scale: 0.9,
+                                transition: { duration: 0.2 },
+                            }}
                             className="break-inside-avoid"
                         >
                             <BookCard
