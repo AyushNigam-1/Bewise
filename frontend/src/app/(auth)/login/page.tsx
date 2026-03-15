@@ -1,14 +1,16 @@
 "use client"
 
 import Link from 'next/link'
-import React from 'react'
+import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Loader2, User } from 'lucide-react'
+import { Loader2, User, Github } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { toast } from 'react-toastify'
+import { signIn } from '@/app/lib/auth-client'
 
-import { useLogin } from '@/app/hooks/mutations/useAuth'
 
 const loginSchema = z.object({
     email: z.email("Please enter a valid email address"),
@@ -37,7 +39,10 @@ const itemVariants = {
 };
 
 const Login = () => {
-    const { mutate: login, isPending } = useLogin();
+    const router = useRouter();
+
+    const [isPending, setIsPending] = useState(false);
+    const [socialLoading, setSocialLoading] = useState<"google" | "github" | null>(null);
 
     const {
         register,
@@ -48,8 +53,32 @@ const Login = () => {
         defaultValues: { email: "", password: "" }
     });
 
-    const onSubmit = (data: LoginFormValues) => {
-        login(data);
+    const onSubmit = async (data: LoginFormValues) => {
+        setIsPending(true);
+        const { error } = await signIn.email({
+            email: data.email,
+            password: data.password,
+        });
+        setIsPending(false);
+
+        if (error) {
+            toast.error(error.message || "Invalid credentials. Please try again.");
+        } else {
+            router.push("/");
+        }
+    };
+
+    const handleSocialLogin = async (provider: "google" | "github") => {
+        setSocialLoading(provider);
+        const { error } = await signIn.social({
+            provider,
+            callbackURL: "/",
+        });
+
+        if (error) {
+            toast.error(`Failed to connect with ${provider}.`);
+            setSocialLoading(null);
+        }
     };
 
     return (
@@ -69,17 +98,48 @@ const Login = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-2">Welcome back! Please enter your credentials.</p>
             </motion.div>
 
-            <motion.div variants={itemVariants} className="flex flex-col lg:flex-row items-center justify-between">
-                <button className="w-full flex justify-center items-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-300 p-3 font-semibold">
-                    <img src="https://img.icons8.com/material-rounded/66/4D4D4D/google-logo.png" alt="Google" className="w-5 dark:invert" />
-                    Login with Google
+            {/* 🌟 Social Providers */}
+            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <button
+                    type="button"
+                    onClick={() => handleSocialLogin("google")}
+                    disabled={socialLoading !== null}
+                    className="w-full flex justify-center items-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-300 p-3 font-semibold disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                    {socialLoading === "google" ? (
+                        <Loader2 className="animate-spin text-gray-500" size={20} />
+                    ) : (
+                        <>
+                            <img src="https://img.icons8.com/material-rounded/66/4D4D4D/google-logo.png" alt="Google" className="w-5 dark:invert" />
+                            Google
+                        </>
+                    )}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => handleSocialLogin("github")}
+                    disabled={socialLoading !== null}
+                    className="w-full flex justify-center items-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-300 p-3 font-semibold disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                    {socialLoading === "github" ? (
+                        <Loader2 className="animate-spin text-gray-500" size={20} />
+                    ) : (
+                        <>
+                            <Github size={20} />
+                            GitHub
+                        </>
+                    )}
                 </button>
             </motion.div>
 
-            <motion.div variants={itemVariants} className="text-sm text-gray-500 dark:text-gray-500 text-center">
-                <p>or with email</p>
+            <motion.div variants={itemVariants} className="flex items-center gap-3 my-2">
+                <hr className="w-full border-gray-300 dark:border-gray-700" />
+                <span className="text-sm text-gray-500 dark:text-gray-500 text-nowrap">or with email</span>
+                <hr className="w-full border-gray-300 dark:border-gray-700" />
             </motion.div>
 
+            {/* 🌟 Email / Password Form */}
             <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-4'>
                 <motion.div variants={itemVariants}>
                     <input
@@ -104,11 +164,11 @@ const Login = () => {
                 <motion.div variants={itemVariants}>
                     <button
                         type="submit"
-                        disabled={isPending}
-                        className="w-full flex justify-center items-center bg-gray-700 dark:bg-gray-600 text-white p-2.5 rounded-md hover:bg-gray-800 dark:hover:bg-gray-500 transition-colors duration-300 font-semibold text-center cursor-pointer shadow-md disabled:opacity-70 disabled:cursor-not-allowed h-12"
+                        disabled={isPending || socialLoading !== null}
+                        className="w-full flex justify-center items-center bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 p-2.5 rounded-md hover:bg-gray-800 dark:hover:bg-gray-300 transition-colors duration-300 font-semibold text-center cursor-pointer shadow-md disabled:opacity-70 disabled:cursor-not-allowed h-12"
                     >
                         {isPending ? (
-                            <Loader2 className="animate-spin mx-auto text-gray-200" size={24} />
+                            <Loader2 className="animate-spin mx-auto text-current" size={24} />
                         ) : (
                             'Login'
                         )}

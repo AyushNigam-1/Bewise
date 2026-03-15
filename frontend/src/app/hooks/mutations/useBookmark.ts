@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { Slide, toast } from "react-toastify";
-import { toggleBookmarkInsight } from "@/app/services/bookService";
-import { toggleFavouriteBook } from "@/app/services/userService";
+
+import { toggleBookmarkInsight, toggleBookmarkBook } from "@/app/services/bookService"; // Adjust paths as needed
 import { useUserStore } from "@/app/stores/useUserStores";
 
 export const useBookmarkInsight = () => {
@@ -11,19 +11,18 @@ export const useBookmarkInsight = () => {
     return useMutation({
         mutationFn: (insightId: number) => {
             if (!user) throw new Error("Not authenticated");
-            return toggleBookmarkInsight(user.user_id, insightId);
+            return toggleBookmarkInsight(insightId);
         },
         onMutate: async (insightId: number) => {
             toggleInsight(insightId);
         },
         onSuccess: (res) => {
             toast.success(
-                res.bookmarked ? "Bookmark Added" : "Bookmark Removed",
-                { transition: Slide }
+                res.bookmarked ? "Insight Bookmarked" : "Insight Bookmark Removed",
+                { transition: Slide, autoClose: 2000, hideProgressBar: true }
             );
         },
         onError: (_err, insightId) => {
-            // rollback optimistic update
             toggleInsight(insightId);
             toast.error("Bookmark failed", { transition: Slide });
         },
@@ -31,22 +30,26 @@ export const useBookmarkInsight = () => {
 };
 
 export const useBookmarkBook = () => {
+    const toggleBook = useUserStore(state => state.toggleFavouriteBook);
     const user = useUserStore(state => state.user);
 
     return useMutation({
         mutationFn: (bookId: number) => {
             if (!user) throw new Error("Not authenticated");
-            return toggleFavouriteBook(user.user_id, bookId);
+            return toggleBookmarkBook(bookId);
         },
-        onMutate: (bookId) => {
-            // Add optimistic UI update here later
+        onMutate: async (bookId: number) => {
+            toggleBook(bookId);
         },
-        onSuccess: (data) => {
-            toast.success("Bookmark updated");
+        onSuccess: (res) => {
+            toast.success(
+                res.bookmarked ? "Book Bookmarked" : "Book Bookmark Removed",
+                { transition: Slide, autoClose: 2000, hideProgressBar: true }
+            );
         },
         onError: (_err, bookId) => {
-            // rollback optimistic change here later
-            toast.error("Bookmark failed");
+            toggleBook(bookId);
+            toast.error("Bookmark failed", { transition: Slide });
         },
     });
 };

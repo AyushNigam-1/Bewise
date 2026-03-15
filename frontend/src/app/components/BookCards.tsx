@@ -4,15 +4,7 @@ import React, { useState } from "react";
 import ShareModal from "./modals/ShareModal";
 import { Bookmark, Share } from "lucide-react";
 import { useMutations } from "@/app/hooks/useMutations";
-
-interface Book {
-    title: string;
-    author: string;
-    thumbnail: string;
-    description: string;
-    category: string[];
-    id: number;
-}
+import { Book } from "../types";
 
 interface CardProps {
     book: Book;

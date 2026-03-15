@@ -17,7 +17,9 @@ const EMPTY_INSIGHTS: StepData[] = [];
 const EMPTY_CATEGORIES: Categories[] = [];
 
 const InsightsTab = () => {
+    console.log("working")
     const user = useUserStore((state: { user: User | null }) => state.user);
+    console.log(user)
 
     const [shareModal, setShareModal] = useState(false);
     const [shareUrl, setShareUrl] = useState("");
@@ -33,9 +35,9 @@ const InsightsTab = () => {
         isLoading,
         isError,
     } = useQuery({
-        queryKey: ["bookmarkedInsights", user?.user_id],
-        queryFn: () => getBookmarkedInsights(user!.user_id),
-        enabled: !!user?.user_id,
+        queryKey: ["bookmarkedInsights", user?.id],
+        queryFn: () => getBookmarkedInsights(),
+        enabled: !!user?.id,
     });
 
     const insights = insightsData?.insights ?? EMPTY_INSIGHTS;

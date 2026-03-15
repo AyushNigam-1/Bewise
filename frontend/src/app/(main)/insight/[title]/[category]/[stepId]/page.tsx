@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import ReactMarkdown, { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Bookmark, Share2, Volume2, Square, Loader2, BrainCircuit } from "lucide-react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
 import { getStepDetails } from "@/app/services/bookService";
@@ -64,8 +63,8 @@ export default function Page() {
         data: recommendations = [],
         isLoading: recommendationsLoading,
     } = useQuery({
-        queryKey: ["session-recommend", stepId, user?.user_id],
-        queryFn: () => fetchSessionRecommendations(user!.user_id, stepId),
+        queryKey: ["session-recommend", stepId, user?.id],
+        queryFn: () => fetchSessionRecommendations(stepId),
         enabled: !!user && !!stepId,
     });
 

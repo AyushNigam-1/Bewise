@@ -1,13 +1,11 @@
 "use client"
 
 import { create } from "zustand";
-import api from "../interceptor";
 import { User } from "../types";
 
 type UserStore = {
     user: User | null;
-    loading: boolean;
-    getUser: () => Promise<void>;
+    setUser: (user: User | null) => void;
     clearUser: () => void;
     toggleFavouriteBook: (bookId: number) => void;
     toggleFavouriteInsight: (insightId: number) => void;
@@ -15,20 +13,7 @@ type UserStore = {
 
 export const useUserStore = create<UserStore>((set, get) => ({
     user: null,
-    loading: true,
-
-    getUser: async () => {
-        try {
-            const res = await api.get("http://localhost:8000/me", {
-                withCredentials: true
-            });
-            console.log(res.data)
-            set({ user: res.data, loading: false });
-        } catch (e) {
-            console.log("log", e)
-            set({ user: null, loading: false });
-        }
-    },
+    setUser: (user) => set({ user }),
 
     clearUser: () => set({ user: null }),
 
@@ -36,14 +21,14 @@ export const useUserStore = create<UserStore>((set, get) => ({
         const user = get().user;
         if (!user) return;
 
-        const exists = user.favourite_books.includes(bookId);
+        const exists = user.favourite_books?.includes(bookId);
 
         set({
             user: {
                 ...user,
                 favourite_books: exists
                     ? user.favourite_books.filter(id => id !== bookId)
-                    : [...user.favourite_books, bookId]
+                    : [...(user.favourite_books || []), bookId]
             }
         });
     },
@@ -52,14 +37,14 @@ export const useUserStore = create<UserStore>((set, get) => ({
         const user = get().user;
         if (!user) return;
 
-        const exists = user.favourite_insights.includes(insightId);
+        const exists = user.favourite_insights?.includes(insightId);
 
         set({
             user: {
                 ...user,
                 favourite_insights: exists
                     ? user.favourite_insights.filter(id => id !== insightId)
-                    : [...user.favourite_insights, insightId]
+                    : [...(user.favourite_insights || []), insightId]
             }
         });
     }

@@ -1,39 +1,44 @@
 import axios from "axios";
 
 // const API_BASE_URL = "http://10.126.224.43:8000" // Update based on your FastAPI server
-const API_BASE_URL = "http://localhost:8000" // Update based on your FastAPI server
+const API_BASE_URL = "http://localhost:8000"
+
+const apiClient = axios.create({
+    baseURL: API_BASE_URL,
+    withCredentials: true,
+});
 
 export const getAllBooks = async () => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/books`);
+        const response = await apiClient.get(`/books`);
         return response.data;
     } catch (error) {
         throw error;
     }
 };
+
 export const getAllCategories = async () => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/get-categories`);
+        const response = await apiClient.get(`/get-categories`);
         return response.data;
     } catch (error) {
         throw error;
     }
 };
+
 export const findBooksByCategories = async (categories: string[]) => {
-    console.log("called")
     try {
-        const response = await axios.post(`${API_BASE_URL}/books/find-by-categories`, categories);
-        console.log("response", response)
+        const response = await apiClient.post(`/books/find-by-categories`, categories);
         return response.data;
     } catch (error: any) {
-        console.log(error)
+        console.error(error);
         throw error;
     }
 };
 
 export const getBookContentKeys = async (title: string) => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/book/${title}/content_keys`);
+        const response = await apiClient.get(`/book/${title}/content_keys`);
         return response.data;
     } catch (error) {
         throw error;
@@ -42,7 +47,7 @@ export const getBookContentKeys = async (title: string) => {
 
 export const getBookContentValue = async (title: string, category: string[]) => {
     try {
-        const response = await axios.post(`${API_BASE_URL}/book/${title}`, category);
+        const response = await apiClient.post(`/book/${title}`, category);
         return response.data;
     } catch (error) {
         throw error;
@@ -51,8 +56,8 @@ export const getBookContentValue = async (title: string, category: string[]) => 
 
 export async function getStepDetails(stepId: string) {
     try {
-        const response = await axios.get(`${API_BASE_URL}/insights/${stepId}`);
-        return response.data
+        const response = await apiClient.get(`/insights/${stepId}`);
+        return response.data;
     } catch (error) {
         throw error;
     }
@@ -66,7 +71,7 @@ export const createBook = async (bookData: {
     Content: object;
 }) => {
     try {
-        const response = await axios.post(`${API_BASE_URL}/books/`, bookData);
+        const response = await apiClient.post(`/books/`, bookData);
         return response.data;
     } catch (error) {
         throw error;
@@ -81,7 +86,7 @@ export const processBook = async (file: File, bookDetails: Record<string, string
     });
 
     try {
-        const response = await axios.post(`${API_BASE_URL}/process-book`, formData, {
+        const response = await apiClient.post(`/process-book`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
         });
         return response.data;
@@ -89,63 +94,28 @@ export const processBook = async (file: File, bookDetails: Record<string, string
         throw error;
     }
 };
+
 export const getBookInfoByTitle = async (title: string) => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/book/${title}/info`);
+        const response = await apiClient.get(`/book/${title}/info`);
         return response.data;
     } catch (error) {
         throw error;
     }
 };
 
-
-export const removeFavouriteInsight = async (
-    email: string,
-    insight: {
-        id: string;
-        category: string;
-    }
-): Promise<{ message: string }> => {
+export const toggleBookmarkBook = async (book_id: number) => {
     try {
-        const response = await axios.post(`${API_BASE_URL}/favourite/insight/remove`, {
-            email: email,
-            insight: insight
-        });
-        return response.data;
-    } catch (error: any) {
-        throw new Error(error.response?.data?.detail || 'Failed to remove favourite insight');
-    }
-};
-
-export const toggleBookmarkBook = async (
-    user_id: number,
-    book_id: number
-) => {
-    console.log(user_id, book_id)
-    try {
-        const res = await axios.post(
-            `${API_BASE_URL}/bookmark/book/${user_id}/${book_id}`,
-            {},
-            { withCredentials: true }
-        );
-
+        const res = await apiClient.post(`/bookmark/book/${book_id}`);
         return res.data;
     } catch (err: any) {
         throw new Error(err.response?.data?.detail || "Failed to toggle book bookmark");
     }
 };
 
-export const toggleBookmarkInsight = async (
-    user_id: number,
-    insight_id: number
-) => {
+export const toggleBookmarkInsight = async (insight_id: number) => {
     try {
-        const res = await axios.post(
-            `${API_BASE_URL}/bookmark/insight/${user_id}/${insight_id}`,
-            {},
-            { withCredentials: true }
-        );
-
+        const res = await apiClient.post(`/bookmark/insight/${insight_id}`);
         return res.data;
     } catch (err: any) {
         throw new Error(err.response?.data?.detail || "Failed to toggle insight bookmark");

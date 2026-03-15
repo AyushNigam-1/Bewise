@@ -2,19 +2,20 @@ import uvicorn
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from middleware.auth_guard import BetterAuthMiddleware
 from routes.books import router as books_router
 from routes.users import router as users_router
 from routes.voice import router as voice_router
-from routes.chatbot import rag_ai_router
+from routes.chatbot import rag_ai_router 
 from routes.quiz import quiz_ai_router
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
 
-
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(BetterAuthMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

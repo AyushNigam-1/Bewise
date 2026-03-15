@@ -4,19 +4,18 @@ import Link from "next/link";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { Bookmark, LogOut, User, UserPlus } from "lucide-react";
 import { useUserStore } from "@/app/stores/useUserStores";
-import { useLogout } from "@/app/hooks/mutations/useAuth";
+import { signOut } from "@/app/lib/auth-client";
 
 const Navbar = () => {
 
   const user = useUserStore(state => state.user);
-  const { mutate: logout } = useLogout();
 
   return (
     <nav className="border-b border-gray-200 dark:border-gray-800 pb-3 z-50 container mx-auto transition-colors duration-300">
       <div className="flex flex-wrap items-center justify-between">
 
         <h4 className="justify-between flex lg:text-3xl font-bold text-gray-900 dark:text-gray-100 text-3xl text-center md:text-left gap-2 italic transition-colors">
-          Bevise
+          Bewise
         </h4>
 
         <Menu as="div" className="relative inline-block text-left">
@@ -42,7 +41,7 @@ const Navbar = () => {
 
                 <MenuItem>
                   <button
-                    onClick={() => logout()}
+                    onClick={() => signOut()}
                     className="group cursor-pointer flex items-center gap-2 p-2 rounded-lg w-full font-semibold text-left transition-colors data-[focus]:bg-red-50 dark:data-[focus]:bg-red-900/20 data-[focus]:text-red-600 dark:data-[focus]:text-red-400"
                   >
                     <LogOut size={20} className="text-gray-500 dark:text-gray-400 group-data-[focus]:text-red-600 dark:group-data-[focus]:text-red-400" />

@@ -2,12 +2,15 @@
 
 import * as z from 'zod';
 import Link from 'next/link';
-import React from 'react';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Github } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useRegister } from '@/app/hooks/mutations/useAuth';
+import { toast } from 'react-toastify';
+import { signIn, signUp } from '@/app/lib/auth-client';
+
 
 const registerSchema = z.object({
     username: z.string().min(3, "Username must be at least 3 characters"),
@@ -17,13 +20,12 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-// --- Animation Variants ---
 const containerVariants = {
     hidden: { opacity: 0 },
     show: {
         opacity: 1,
         transition: {
-            staggerChildren: 0.1, // Staggers each child element
+            staggerChildren: 0.1,
         },
     },
 };
@@ -38,7 +40,9 @@ const itemVariants = {
 };
 
 const CreateAccount = () => {
-    const { mutate: registerAccount, isPending } = useRegister();
+    const router = useRouter();
+    const [isPending, setIsPending] = useState(false);
+    const [socialLoading, setSocialLoading] = useState<"google" | "github" | null>(null);
 
     const {
         register,
@@ -49,8 +53,38 @@ const CreateAccount = () => {
         defaultValues: { username: "", email: "", password: "" }
     });
 
-    const onSubmit = (data: RegisterFormValues) => {
-        registerAccount(data);
+    // 🌟 1. Handle Email/Password Registration
+    const onSubmit = async (data: RegisterFormValues) => {
+        setIsPending(true);
+
+        const { error } = await signUp.email({
+            email: data.email,
+            password: data.password,
+            name: data.username, // Better Auth uses 'name' by default in the DB
+        });
+
+        setIsPending(false);
+
+        if (error) {
+            toast.error(error.message || "Failed to create account. Please try again.");
+        } else {
+            toast.success("Account created successfully!");
+            router.push("/"); // Redirect to home or onboarding
+        }
+    };
+
+    // 🌟 2. Handle Social Registration/Login
+    const handleSocialLogin = async (provider: "google" | "github") => {
+        setSocialLoading(provider);
+        const { error } = await signIn.social({
+            provider,
+            callbackURL: "/",
+        });
+
+        if (error) {
+            toast.error(`Failed to connect with ${provider}.`);
+            setSocialLoading(null);
+        }
     };
 
     return (
@@ -71,17 +105,48 @@ const CreateAccount = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-1">Join our community with all-time access for free</p>
             </motion.div>
 
-            <motion.div variants={itemVariants}>
-                <button className="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-300 p-3 font-semibold shadow-sm">
-                    <img src="https://img.icons8.com/material-rounded/120/4D4D4D/google-logo.png" alt="Google" className="w-5 dark:invert" />
-                    Sign Up with Google
+            {/* 🌟 Social Providers */}
+            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <button
+                    type="button"
+                    onClick={() => handleSocialLogin("google")}
+                    disabled={socialLoading !== null}
+                    className="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-300 p-3 font-semibold shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                    {socialLoading === "google" ? (
+                        <Loader2 className="animate-spin text-gray-500" size={20} />
+                    ) : (
+                        <>
+                            <img src="https://img.icons8.com/material-rounded/120/4D4D4D/google-logo.png" alt="Google" className="w-5 dark:invert" />
+                            Google
+                        </>
+                    )}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => handleSocialLogin("github")}
+                    disabled={socialLoading !== null}
+                    className="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-300 p-3 font-semibold shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                    {socialLoading === "github" ? (
+                        <Loader2 className="animate-spin text-gray-500" size={20} />
+                    ) : (
+                        <>
+                            <Github size={20} />
+                            GitHub
+                        </>
+                    )}
                 </button>
             </motion.div>
 
-            <motion.div variants={itemVariants} className="text-sm text-gray-500 dark:text-gray-500 text-center">
-                <p>or with email</p>
+            <motion.div variants={itemVariants} className="flex items-center gap-3 my-2">
+                <hr className="w-full border-gray-300 dark:border-gray-700" />
+                <span className="text-sm text-gray-500 dark:text-gray-500 text-nowrap">or with email</span>
+                <hr className="w-full border-gray-300 dark:border-gray-700" />
             </motion.div>
 
+            {/* 🌟 Email / Password Form */}
             <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-4'>
                 <motion.div variants={itemVariants}>
                     <input
@@ -116,7 +181,7 @@ const CreateAccount = () => {
                 <motion.div variants={itemVariants}>
                     <button
                         type="submit"
-                        disabled={isPending}
+                        disabled={isPending || socialLoading !== null}
                         className="w-full h-12 flex justify-center items-center bg-gray-800 dark:bg-gray-700 text-white p-3 rounded-md hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors duration-300 font-semibold shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                         {isPending ? (

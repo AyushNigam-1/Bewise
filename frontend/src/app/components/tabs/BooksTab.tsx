@@ -10,20 +10,20 @@ import BookCard from "@/app/components/BookCards";
 import { AnimatePresence, motion } from "framer-motion";
 import Header from "../layout/Header";
 
-const EMPTY_BOOKS: BookData[] = [];
+const EMPTY_BOOKS: Book[] = [];
 const EMPTY_CATEGORIES: Categories[] = [];
 
 const BooksTab = () => {
     const user = useUserStore((state: { user: User | null }) => state.user);
-
+    console.log(user)
     const [selectedCategory, setSelectedCategory] = useState<Categories[]>([]);
-    const [filteredBooks, setFilteredBooks] = useState<BookData[]>([]);
+    const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
     const [filteredCategories, setFilteredCategories] = useState<Categories[]>([]);
 
     const { data: booksData, isLoading, isError } = useQuery({
-        queryKey: ["bookmarkedBooks", user?.user_id],
-        queryFn: () => getBookmarkedBooks(user!.user_id),
-        enabled: !!user?.user_id,
+        queryKey: ["bookmarkedBooks", user?.id],
+        queryFn: () => getBookmarkedBooks(),
+        enabled: !!user?.id,
     });
 
     const books = booksData?.books ?? EMPTY_BOOKS;
@@ -38,7 +38,7 @@ const BooksTab = () => {
 
         const selectedNames = selectedCategory.map((c) => c.name);
 
-        return books.filter((b: BookData) => {
+        return books.filter((b: Book) => {
             if (Array.isArray(b.category)) {
                 return b.category.some(cat => selectedNames.includes(cat));
             }
@@ -99,7 +99,7 @@ const BooksTab = () => {
                         className="columns-2 gap-4 lg:columns-5 space-y-4"
                     >
                         <AnimatePresence mode="popLayout">
-                            {filteredBooks.map((book: BookData) => (
+                            {filteredBooks.map((book) => (
                                 <motion.div
                                     key={book.id}
                                     layout
