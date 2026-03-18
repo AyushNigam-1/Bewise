@@ -5,6 +5,7 @@ import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { Bookmark, LogOut, User, UserPlus } from "lucide-react";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { signOut } from "@/app/lib/auth-client";
+import posthog from "posthog-js";
 
 const Navbar = () => {
 
@@ -41,7 +42,7 @@ const Navbar = () => {
 
                 <MenuItem>
                   <button
-                    onClick={() => signOut()}
+                    onClick={() => { posthog.capture('user_logged_out'); posthog.reset(); signOut(); }}
                     className="group cursor-pointer flex items-center gap-2 p-2 rounded-lg w-full font-semibold text-left transition-colors data-[focus]:bg-red-50 dark:data-[focus]:bg-red-900/20 data-[focus]:text-red-600 dark:data-[focus]:text-red-400"
                   >
                     <LogOut size={20} className="text-gray-500 dark:text-gray-400 group-data-[focus]:text-red-600 dark:group-data-[focus]:text-red-400" />

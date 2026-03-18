@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
 import { BrainCircuit, X, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "react-toastify";
+import posthog from "posthog-js";
 import axios from "axios";
 
 export type QuizQuestion = {
@@ -74,6 +75,12 @@ export default function QuizModal({ isOpen, setIsOpen, textData }: QuizModalProp
             setCurrentIndex(prev => prev + 1);
             setSelectedAnswer(null);
         } else {
+            const finalScore = selectedAnswer === quiz![currentIndex].correct_answer ? score + 1 : score;
+            posthog.capture('quiz_completed', {
+                score: finalScore,
+                total_questions: quiz!.length,
+                score_percentage: Math.round((finalScore / quiz!.length) * 100),
+            });
             setIsFinished(true);
         }
     };

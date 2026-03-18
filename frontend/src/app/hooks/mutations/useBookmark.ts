@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { Slide, toast } from "react-toastify";
+import posthog from "posthog-js";
 
 import { toggleBookmarkInsight, toggleBookmarkBook } from "@/app/services/bookService"; // Adjust paths as needed
 import { useUserStore } from "@/app/stores/useUserStores";
@@ -16,7 +17,8 @@ export const useBookmarkInsight = () => {
         onMutate: async (insightId: number) => {
             toggleInsight(insightId);
         },
-        onSuccess: (res) => {
+        onSuccess: (res, insightId) => {
+            posthog.capture('insight_bookmarked', { insight_id: insightId, bookmarked: res.bookmarked });
             toast.success(
                 res.bookmarked ? "Insight Bookmarked" : "Insight Bookmark Removed",
                 { transition: Slide, autoClose: 2000, hideProgressBar: true }
@@ -41,7 +43,8 @@ export const useBookmarkBook = () => {
         onMutate: async (bookId: number) => {
             toggleBook(bookId);
         },
-        onSuccess: (res) => {
+        onSuccess: (res, bookId) => {
+            posthog.capture('book_bookmarked', { book_id: bookId, bookmarked: res.bookmarked });
             toast.success(
                 res.bookmarked ? "Book Bookmarked" : "Book Bookmark Removed",
                 { transition: Slide, autoClose: 2000, hideProgressBar: true }

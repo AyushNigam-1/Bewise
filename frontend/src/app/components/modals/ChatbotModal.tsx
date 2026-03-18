@@ -10,6 +10,7 @@ import Link from "next/link";
 import { toast } from "react-toastify";
 import ChatInput from "../ChatInput";
 import { invokeChatbot, generateVoice } from "@/app/services/aiService";
+import posthog from "posthog-js";
 // 🌟 Import Framer Motion for the smooth icon swap
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -129,6 +130,10 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
     };
 
     const handleSendMessage = async (userMsg: string) => {
+        posthog.capture('chatbot_message_sent', {
+            has_book_context: !!book,
+            context_count: selectedContexts.length,
+        });
         setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
         abortControllerRef.current = new AbortController();
         let payload;
@@ -346,7 +351,6 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                                 </div>
                                             ))}
                                         </div>
-
                                         {m.role === "user" && m.content && (
                                             <div className="pr-1 flex items-center h-7 overflow-hidden">
                                                 <AnimatePresence mode="wait">

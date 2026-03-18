@@ -10,6 +10,7 @@ import { Loader2, Github } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { signIn, signUp } from '@/app/lib/auth-client';
+import posthog from 'posthog-js';
 
 
 const registerSchema = z.object({
@@ -67,7 +68,10 @@ const CreateAccount = () => {
 
         if (error) {
             toast.error(error.message || "Failed to create account. Please try again.");
+            posthog.captureException(new Error(error.message || "Signup failed"));
         } else {
+            posthog.identify(data.email, { email: data.email, name: data.username });
+            posthog.capture('user_signed_up', { method: 'email' });
             toast.success("Account created successfully!");
             router.push("/"); // Redirect to home or onboarding
         }
@@ -76,6 +80,7 @@ const CreateAccount = () => {
     // 🌟 2. Handle Social Registration/Login
     const handleSocialLogin = async (provider: "google" | "github") => {
         setSocialLoading(provider);
+        posthog.capture('social_login_clicked', { provider, page: 'signup' });
         const { error } = await signIn.social({
             provider,
             callbackURL: "/",
@@ -83,6 +88,7 @@ const CreateAccount = () => {
 
         if (error) {
             toast.error(`Failed to connect with ${provider}.`);
+            posthog.captureException(new Error(`Social signup failed: ${provider}`));
             setSocialLoading(null);
         }
     };

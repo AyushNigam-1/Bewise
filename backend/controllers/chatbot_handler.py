@@ -1,19 +1,20 @@
 import traceback
 import logging
+import time 
 from typing import Optional, Dict, List, TypedDict, Any
 from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, START, END
 from langchain_core.runnables import RunnableLambda
-
 from core.database import connect_db
 from services.vector import search_insights
 from core.llm import llm
+import sentry_sdk 
+from core.analytics import posthog
 
 logger = logging.getLogger(__name__)
 
 class RAGResponse(BaseModel):
     answer: str = Field(description="Detailed answer or summary based ONLY on provided context")
-    # 🌟 FIX 2a: Added default_factory=list to make it easier for the LLM to return empty arrays safely
     ids: List[int] = Field(default_factory=list, description="Relevant insight ids used for the answer. Empty if none.")
 
 class RAGState(TypedDict):
@@ -25,7 +26,9 @@ class RAGState(TypedDict):
     final_response: dict
 
 def retrieve_node(state: RAGState):
+    start_time = time.time()
     message = state["message"]
+    session_id = state.get("session_id", "anonymous")
     
     raw_books = state.get("books_ids") or []
     raw_insights = state.get("insights_ids") or []
@@ -43,6 +46,7 @@ def retrieve_node(state: RAGState):
     combined_hits = {}
     all_text_names = list(set(book_names + insight_titles))
 
+    explicit_db_hits = 0
     if insight_ids or all_text_names:
         try:
             with connect_db() as conn:
@@ -66,9 +70,11 @@ def retrieve_node(state: RAGState):
                             "description": r[4],
                             "detailed_breakdown": r[5],
                             "category_icon": "📌",
-                            "source": "explicit" # 🌟 We track that the user already has this card
+                            "source": "explicit" 
                         }
+                    explicit_db_hits = len(rows)
         except Exception as e:
+            sentry_sdk.capture_exception(e) # 🚨 SENTRY: Catch DB failures silently
             logger.error(f"DB Fetch Error in RAG: {e}")
 
     pinecone_results = search_insights(
@@ -79,18 +85,31 @@ def retrieve_node(state: RAGState):
         top_k=5
     )
 
+    vector_hits = 0
     for h in pinecone_results:
         i_id = h["insight_id"]
         if i_id not in combined_hits:
-            h["source"] = "vector" # 🌟 We track that this is a NEW recommendation
+            h["source"] = "vector" 
             h["detailed_breakdown"] = h.get("description", "") 
             combined_hits[i_id] = h
+            vector_hits += 1
+
+    # 🌟 POSTHOG: Track the retrieval phase
+    latency = time.time() - start_time
+    posthog.capture(session_id, 'rag_retrieval_completed', {
+        'explicit_db_hits': explicit_db_hits,
+        'vector_hits': vector_hits,
+        'total_context_items': len(combined_hits),
+        'latency_seconds': round(latency, 2)
+    })
 
     return {"pinecone_hits": list(combined_hits.values())}
 
 
 def generate_node(state: RAGState):
+    start_time = time.time()
     message = state["message"]
+    session_id = state.get("session_id", "anonymous")
     hits = state["pinecone_hits"]
 
     blocks = []
@@ -128,18 +147,28 @@ def generate_node(state: RAGState):
 
     structured_llm = llm.with_structured_output(RAGResponse)
 
-    # 🌟 FIX 2b: Wrap the invocation in a try/except block so conversational parsing errors NEVER crash the server
+    llm_success = True
     try:
         parsed: RAGResponse = structured_llm.invoke([
             ("system", system_prompt),
             ("human", human_prompt)
         ])
     except Exception as e:
+        llm_success = False
+        posthog.capture(session_id, 'rag_llm_parsing_failed', {'error': str(e)}) # 🌟 Track failures
         logger.warning(f"LLM Parsing failed (likely conversational query): {e}")
         parsed = RAGResponse(
             answer="I am Wiser, your reading assistant! I'm doing great. How can I help you explore your books and insights today?",
             ids=[]
         )
+
+    # 🌟 POSTHOG: Track the AI generation phase
+    latency = time.time() - start_time
+    posthog.capture(session_id, 'rag_generation_completed', {
+        'llm_success': llm_success,
+        'cited_sources_count': len(parsed.ids),
+        'latency_seconds': round(latency, 2)
+    })
 
     if not parsed.ids and not parsed.answer:
         return {
@@ -153,7 +182,6 @@ def generate_node(state: RAGState):
     books: Dict[str, List[dict]] = {}
 
     for hit in final_hits:
-        # 🌟 FIX 1: If the user explicitly selected this card, DO NOT send it back to the UI!
         if hit.get("source") == "explicit":
             continue 
 
@@ -192,10 +220,37 @@ workflow.add_edge("generate", END)
 rag_graph = workflow.compile()
 
 def rag_entrypoint(input_data: dict):
+    start_time = time.time()
+    session_id = input_data.get("session_id", "anonymous")
+    
+    # 🌟 POSTHOG: Track the start of the entire interaction
+    posthog.capture(session_id, 'rag_interaction_started', {
+        'query_length': len(input_data.get("message", ""))
+    })
+
     try:
         final_state = rag_graph.invoke(input_data)
+        
+        # 🌟 POSTHOG: Track total end-to-end success
+        total_latency = time.time() - start_time
+        posthog.capture(session_id, 'rag_interaction_success', {
+            'total_latency_seconds': round(total_latency, 2)
+        })
+        
         return final_state["final_response"]
+        
     except Exception as e:
+        total_latency = time.time() - start_time
+        
+        # 🚨 SENTRY: Catch the massive graph crash and send the stack trace
+        sentry_sdk.capture_exception(e)
+        
+        # 🌟 POSTHOG: Track the exact moment the user experience broke
+        posthog.capture(session_id, 'rag_interaction_failed', {
+            'error_message': str(e),
+            'failed_after_seconds': round(total_latency, 2)
+        })
+        
         logger.error(f"RAG agent failed: {e}")
         traceback.print_exc()
         raise Exception("RAG agent failed.")

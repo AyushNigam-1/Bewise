@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import { Bookmark, Share2, Volume2, Square, Loader2, BrainCircuit } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
+import posthog from "posthog-js";
 import { getStepDetails } from "@/app/services/bookService";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { fetchSessionRecommendations } from "@/app/services/userService";
@@ -77,6 +78,15 @@ export default function Page() {
         };
     }, []);
 
+    useEffect(() => {
+        if (stepDetails) {
+            posthog.capture('insight_read', {
+                insight_id: stepDetails.step_id,
+                insight_title: stepDetails.title,
+            });
+        }
+    }, [stepDetails?.step_id]);
+
     const formatMarkdown = (text: string | null | undefined): string => {
         if (!text) return "";
         try {
@@ -93,6 +103,7 @@ export default function Page() {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
             setIsPlaying(false);
+            posthog.capture('insight_audio_played', { insight_id: stepDetails.step_id, action: 'stopped' });
             return;
         }
 
@@ -124,6 +135,7 @@ export default function Page() {
             audioRef.current = audio;
             audio.play();
             setIsPlaying(true);
+            posthog.capture('insight_audio_played', { insight_id: stepDetails.step_id, action: 'started' });
         } catch (err) {
             toast.error("Failed to load audio");
         } finally {
@@ -135,7 +147,10 @@ export default function Page() {
         {
             id: "quiz",
             title: "Take a quick quiz",
-            onClick: () => setIsQuizModalOpen(true),
+            onClick: () => {
+                posthog.capture('quiz_started', { insight_id: stepDetails?.step_id, insight_title: stepDetails?.title });
+                setIsQuizModalOpen(true);
+            },
             disabled: false,
             icon: <BrainCircuit size={20} />,
         },

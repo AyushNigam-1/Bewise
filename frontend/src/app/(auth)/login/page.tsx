@@ -10,6 +10,7 @@ import { Loader2, User, Github } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { toast } from 'react-toastify'
 import { signIn } from '@/app/lib/auth-client'
+import posthog from 'posthog-js'
 
 
 const loginSchema = z.object({
@@ -63,13 +64,17 @@ const Login = () => {
 
         if (error) {
             toast.error(error.message || "Invalid credentials. Please try again.");
+            posthog.captureException(new Error(error.message || "Login failed"));
         } else {
+            posthog.identify(data.email, { email: data.email });
+            posthog.capture('user_logged_in', { method: 'email' });
             router.push("/");
         }
     };
 
     const handleSocialLogin = async (provider: "google" | "github") => {
         setSocialLoading(provider);
+        posthog.capture('social_login_clicked', { provider, page: 'login' });
         const { error } = await signIn.social({
             provider,
             callbackURL: "/",
@@ -77,6 +82,7 @@ const Login = () => {
 
         if (error) {
             toast.error(`Failed to connect with ${provider}.`);
+            posthog.captureException(new Error(`Social login failed: ${provider}`));
             setSocialLoading(null);
         }
     };

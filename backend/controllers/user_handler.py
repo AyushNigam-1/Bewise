@@ -1,145 +1,225 @@
 import os
 import json
+import time
+import traceback
 from typing import Dict, Any
 from fastapi import HTTPException
 from psycopg2.extras import Json
 from core.database import connect_db
 from services.vector import recommend_for_user, recommend_next_insights
 from core.redis import redis_client, CACHE_TTL
-
-# 🌟 Deleted all the JWT, Bcrypt, and Secrets logic!
+import sentry_sdk 
+from core.analytics import posthog
 
 # --- Business Logic ---
 
 def get_me_logic(user_id: str) -> Dict[str, Any]:
-    # 🌟 No more JWT decoding. We trust the ID passed from the middleware.
-    conn = connect_db()
-    cur = conn.cursor()
-    cur.execute('SELECT id, name, email, favourite_books, favourite_insights FROM "user" WHERE id=%s', (user_id,))
-    user = cur.fetchone()
-    conn.close()
+    try:
+        conn = connect_db()
+        cur = conn.cursor()
+        cur.execute('SELECT id, name, email, favourite_books, favourite_insights FROM "user" WHERE id=%s', (user_id,))
+        user = cur.fetchone()
+        conn.close()
 
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+        if not user:
+            posthog.capture(user_id, 'user_profile_fetch_failed', {'reason': 'not_found'})
+            raise HTTPException(status_code=401, detail="User not found")
 
-    return {
-        "user_id": user[0], 
-        "name": user[1], 
-        "email": user[2],
-        "favourite_books": user[3] or [], 
-        "favourite_insights": user[4] or []
-    }
+        # 🌟 Track profile views to monitor active user sessions
+        posthog.capture(user_id, 'user_profile_viewed', {
+            'bookmarked_books_count': len(user[3] or []),
+            'bookmarked_insights_count': len(user[4] or [])
+        })
 
-# 🌟 Deleted register, login, refresh, logout, and password reset logic!
+        return {
+            "user_id": user[0], 
+            "name": user[1], 
+            "email": user[2],
+            "favourite_books": user[3] or [], 
+            "favourite_insights": user[4] or []
+        }
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        raise HTTPException(status_code=500, detail="Database error fetching profile")
+
 
 def toggle_bookmark_book_logic(user_id: str, book_id: int) -> Dict[str, Any]:
-    # 🌟 Changed user_id to str
-    conn = connect_db()
-    cur = conn.cursor()
-    cur.execute('SELECT favourite_books FROM "user" WHERE id=%s', (user_id,))
-    row = cur.fetchone()
+    try:
+        conn = connect_db()
+        cur = conn.cursor()
+        cur.execute('SELECT favourite_books FROM "user" WHERE id=%s', (user_id,))
+        row = cur.fetchone()
 
-    books = row[0] if row and row[0] else []
-    if book_id in books:
-        books.remove(book_id)
-        action = False
-    else:
-        books.append(book_id)
-        action = True
+        books = row[0] if row and row[0] else []
+        if book_id in books:
+            books.remove(book_id)
+            action = False
+        else:
+            books.append(book_id)
+            action = True
 
-    cur.execute('UPDATE "user" SET favourite_books=%s WHERE id=%s', (books, user_id))
-    conn.commit()
-    conn.close()
+        cur.execute('UPDATE "user" SET favourite_books=%s WHERE id=%s', (books, user_id))
+        conn.commit()
+        conn.close()
 
-    redis_client.delete(f"bookmarks:books_data:{user_id}")
-    return {"bookmarked": action, "favourite_books": books}
+        redis_client.delete(f"bookmarks:books_data:{user_id}")
+        
+        # 🌟 Track what users are actually saving
+        event_name = 'book_bookmarked' if action else 'book_unbookmarked'
+        posthog.capture(user_id, event_name, {
+            'book_id': book_id,
+            'total_bookmarked_books': len(books)
+        })
+
+        return {"bookmarked": action, "favourite_books": books}
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        raise HTTPException(status_code=500, detail="Failed to toggle book bookmark")
+
 
 def toggle_bookmark_insight_logic(user_id: str, insight_id: int) -> Dict[str, Any]:
-    # 🌟 Changed user_id to str
-    conn = connect_db()
-    cur = conn.cursor()
-    cur.execute('SELECT favourite_insights FROM "user" WHERE id=%s', (user_id,))
-    row = cur.fetchone()
+    try:
+        conn = connect_db()
+        cur = conn.cursor()
+        cur.execute('SELECT favourite_insights FROM "user" WHERE id=%s', (user_id,))
+        row = cur.fetchone()
 
-    insights = row[0] if row and row[0] else []
-    if insight_id in insights:
-        insights.remove(insight_id)
-        action = False
-    else:
-        insights.append(insight_id)
-        action = True
+        insights = row[0] if row and row[0] else []
+        if insight_id in insights:
+            insights.remove(insight_id)
+            action = False
+        else:
+            insights.append(insight_id)
+            action = True
 
-    cur.execute('UPDATE "user" SET favourite_insights=%s WHERE id=%s', (Json(insights), user_id))
-    conn.commit()
-    conn.close()
+        cur.execute('UPDATE "user" SET favourite_insights=%s WHERE id=%s', (Json(insights), user_id))
+        conn.commit()
+        conn.close()
 
-    redis_client.delete(f"bookmarks:insights_data:{user_id}")
-    redis_client.delete(f"recommend:{user_id}")
-    for key in redis_client.scan_iter(f"session_recommend:{user_id}:*"):
-        redis_client.delete(key)
+        redis_client.delete(f"bookmarks:insights_data:{user_id}")
+        redis_client.delete(f"recommend:{user_id}")
+        for key in redis_client.scan_iter(f"session_recommend:{user_id}:*"):
+            redis_client.delete(key)
 
-    return {"bookmarked": action, "favourite_insights": insights}
+        # 🌟 Track insight saves
+        event_name = 'insight_bookmarked' if action else 'insight_unbookmarked'
+        posthog.capture(user_id, event_name, {
+            'insight_id': insight_id,
+            'total_bookmarked_insights': len(insights)
+        })
+
+        return {"bookmarked": action, "favourite_insights": insights}
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        raise HTTPException(status_code=500, detail="Failed to toggle insight bookmark")
+
 
 def recommend_logic(user_id: str):
-    # 🌟 Changed user_id to str
+    start_time = time.time()
     cache_key = f"recommend:{user_id}"
     cached_data = redis_client.get(cache_key)
+    
     if cached_data:
-        return json.loads(cached_data)
+        data = json.loads(cached_data)
+        latency = time.time() - start_time
+        posthog.capture(user_id, 'recommendations_fetched', {
+            'source': 'redis_cache',
+            'latency_seconds': round(latency, 2),
+            'recommendations_count': len(data.get('recommendations', []))
+        })
+        return data
 
-    conn = connect_db()
-    cur = conn.cursor()
-    cur.execute('SELECT favourite_insights FROM "user" WHERE id=%s', (user_id,))
-    row = cur.fetchone()
-    conn.close()
+    try:
+        conn = connect_db()
+        cur = conn.cursor()
+        cur.execute('SELECT favourite_insights FROM "user" WHERE id=%s', (user_id,))
+        row = cur.fetchone()
+        conn.close()
 
-    insight_ids = row[0] or []
-    recommendations = recommend_for_user(insight_ids)
-    result = {"recommendations": recommendations}
+        insight_ids = row[0] or []
+        recommendations = recommend_for_user(insight_ids)
+        result = {"recommendations": recommendations}
 
-    redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-    return result
+        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+        
+        latency = time.time() - start_time
+        posthog.capture(user_id, 'recommendations_fetched', {
+            'source': 'vector_db',
+            'latency_seconds': round(latency, 2),
+            'recommendations_count': len(recommendations),
+            'user_bookmark_count': len(insight_ids)
+        })
+        
+        return result
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        posthog.capture(user_id, 'recommendations_failed', {'error': str(e)})
+        raise HTTPException(status_code=500, detail="Failed to generate recommendations")
+
 
 def session_recommend_logic(user_id: str, insight_id: int):
-    # 🌟 Changed user_id to str
+    start_time = time.time()
     cache_key = f"session_recommend:{user_id}:{insight_id}"
     cached_data = redis_client.get(cache_key)
+    
     if cached_data:
-        return json.loads(cached_data)
+        data = json.loads(cached_data)
+        latency = time.time() - start_time
+        posthog.capture(user_id, 'session_recommendations_fetched', {
+            'source': 'redis_cache',
+            'current_insight_id': insight_id,
+            'latency_seconds': round(latency, 2)
+        })
+        return data
 
-    conn = connect_db()
-    cur = conn.cursor()
-    cur.execute("SELECT title, description FROM insights WHERE id=%s", (insight_id,))
-    insight_row = cur.fetchone()
+    try:
+        conn = connect_db()
+        cur = conn.cursor()
+        cur.execute("SELECT title, description FROM insights WHERE id=%s", (insight_id,))
+        insight_row = cur.fetchone()
 
-    if not insight_row:
+        if not insight_row:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Insight not found")
+
+        title, description = insight_row
+        cur.execute('SELECT favourite_insights FROM "user" WHERE id=%s', (user_id,))
+        user_row = cur.fetchone()
         conn.close()
-        raise HTTPException(status_code=404, detail="Insight not found")
 
-    title, description = insight_row
-    cur.execute('SELECT favourite_insights FROM "user" WHERE id=%s', (user_id,))
-    user_row = cur.fetchone()
-    conn.close()
+        bookmarked_ids = user_row[0] if user_row and user_row[0] else []
+        recommendations = recommend_next_insights(
+            current_insight_title=title,
+            current_insight_description=description,
+            user_bookmarked_ids=bookmarked_ids,
+            current_insight_id=insight_id,
+            top_k=3
+        )
 
-    bookmarked_ids = user_row[0] if user_row and user_row[0] else []
-    recommendations = recommend_next_insights(
-        current_insight_title=title,
-        current_insight_description=description,
-        user_bookmarked_ids=bookmarked_ids,
-        current_insight_id=insight_id,
-        top_k=3
-    )
+        result = {"recommendations": recommendations}
+        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+        
+        latency = time.time() - start_time
+        posthog.capture(user_id, 'session_recommendations_fetched', {
+            'source': 'vector_db',
+            'current_insight_id': insight_id,
+            'latency_seconds': round(latency, 2)
+        })
+        
+        return result
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        posthog.capture(user_id, 'session_recommendations_failed', {'error': str(e), 'insight_id': insight_id})
+        raise HTTPException(status_code=500, detail="Failed to fetch session recommendations")
 
-    result = {"recommendations": recommendations}
-    redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-    return result
 
 def get_bookmarked_books_with_categories_logic(user_id: str) -> Dict[str, Any]:
-    # 🌟 Changed user_id to str
     cache_key = f"bookmarks:books_data:{user_id}"
     cached_data = redis_client.get(cache_key)
     if cached_data:
-        return json.loads(cached_data)
+        data = json.loads(cached_data)
+        posthog.capture(user_id, 'viewed_bookmarked_books', {'source': 'redis_cache', 'count': len(data.get('books', []))})
+        return data
 
     conn = connect_db()
     if not conn:
@@ -154,6 +234,7 @@ def get_bookmarked_books_with_categories_logic(user_id: str) -> Dict[str, Any]:
         if not book_ids:
             result = {"bookmarked_books": [], "favourite_categories": []}
             redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+            posthog.capture(user_id, 'viewed_bookmarked_books', {'source': 'database', 'count': 0})
             return result
 
         cur.execute('''
@@ -201,13 +282,16 @@ def get_bookmarked_books_with_categories_logic(user_id: str) -> Dict[str, Any]:
         }
 
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+        posthog.capture(user_id, 'viewed_bookmarked_books', {'source': 'database', 'count': len(result_books)})
         return result
         
     except Exception as e:
+        sentry_sdk.capture_exception(e)
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cur.close()
         conn.close()
+
 
 def get_category_details_from_json(category_name: str, categories_data: dict) -> Dict[str, str]:
     for main_cat, main_data in categories_data.items():
@@ -232,12 +316,14 @@ def get_category_details_from_json(category_name: str, categories_data: dict) ->
         "description": "Explore insights from this category."
     }
 
+
 def get_bookmarked_insights_with_categories_logic(user_id: str) -> Dict[str, Any]:
-    # 🌟 Changed user_id to str
     cache_key = f"bookmarks:insights_data:{user_id}"
     cached_data = redis_client.get(cache_key)
     if cached_data:
-        return json.loads(cached_data)
+        data = json.loads(cached_data)
+        posthog.capture(user_id, 'viewed_bookmarked_insights', {'source': 'redis_cache', 'count': len(data.get('insights', []))})
+        return data
 
     conn = connect_db()
     if not conn:
@@ -252,6 +338,7 @@ def get_bookmarked_insights_with_categories_logic(user_id: str) -> Dict[str, Any
         if not insight_ids:
             result = {"bookmarked_insights": [], "favourite_categories": []}
             redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+            posthog.capture(user_id, 'viewed_bookmarked_insights', {'source': 'database', 'count': 0})
             return result
 
         cur.execute('''
@@ -299,9 +386,11 @@ def get_bookmarked_insights_with_categories_logic(user_id: str) -> Dict[str, Any
         }
 
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+        posthog.capture(user_id, 'viewed_bookmarked_insights', {'source': 'database', 'count': len(result_insights)})
         return result
         
     except Exception as e:
+        sentry_sdk.capture_exception(e)
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cur.close()

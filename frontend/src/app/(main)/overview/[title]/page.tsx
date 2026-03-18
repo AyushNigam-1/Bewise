@@ -1,9 +1,10 @@
 "use client"
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Book, Bookmark, Share2, ShoppingBag, Tag, User } from "lucide-react";
+import posthog from "posthog-js";
 import { ToastContainer } from "react-toastify";
 import { motion } from "framer-motion";
 import { getBookInfoByTitle } from "@/app/services/bookService";
@@ -44,6 +45,16 @@ const Overview = () => {
         queryFn: () => getBookInfoByTitle(params.title as string),
         enabled: !!params.title,
     });
+
+    useEffect(() => {
+        if (book) {
+            posthog.capture('book_overview_viewed', {
+                book_title: book.title,
+                book_author: book.author,
+                total_insights: book.total_insights,
+            });
+        }
+    }, [book?.id]);
 
     // ✅ Absolute Stable Loading Gate
     if (!params.title || isLoading || !book) {
@@ -118,6 +129,7 @@ const Overview = () => {
                     <motion.div variants={itemVariants} className="flex flex-col md:flex-row gap-3 justify-between w-full">
                         <Link
                             href={`/insights/${book.title}`}
+                            onClick={() => posthog.capture('get_insights_clicked', { book_title: book.title, book_author: book.author })}
                             className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 justify-center flex gap-2 items-center focus:outline-none rounded-lg py-2 px-4 md:text-lg font-semibold transition-colors "
                         >
                             <ArrowUpRight size={20} />
