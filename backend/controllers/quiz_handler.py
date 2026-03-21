@@ -2,7 +2,7 @@ import json
 import hashlib
 import time
 import traceback
-from typing import List, TypedDict, Optional
+from typing import List, TypedDict
 from pydantic import BaseModel
 from langgraph.graph import StateGraph, START, END
 from langchain_core.runnables import RunnableLambda
@@ -35,7 +35,6 @@ def generate_quiz_node(state: GraphState):
         ("human", f"Generate a quiz based on this text:\n\n{text}")
     ]
     
-    # We let the orchestrator (generate_quiz_with_cache) catch the errors
     result = structured_llm.invoke(messages)
     return {"generated_quiz": result.model_dump()}
 
@@ -50,56 +49,64 @@ def generate_quiz_with_cache(input_data: dict):
     start_time = time.time()
     text = input_data.get("source_text", "")
     
-    # 🌟 Get the user_id (fallback to anonymous if not provided)
     user_id = input_data.get("session_id", "anonymous")
 
-    posthog.capture(user_id, 'quiz_generation_requested', {
-        'text_length': len(text)
-    })
+    posthog.capture(
+        distinct_id=user_id, 
+        event='quiz_generation_requested', 
+        properties={'text_length': len(text)}
+    )
 
     text_hash = hashlib.md5(text.encode("utf-8")).hexdigest()
     cache_key = f"quiz:{text_hash}"
 
     try:
-        # --- 1. CHECK CACHE ---
         cached = redis_client.get(cache_key)
         if cached:
             latency = time.time() - start_time
-            posthog.capture(user_id, 'quiz_generated', {
-                'source': 'redis_cache',
-                'latency_seconds': round(latency, 2),
-                'text_length': len(text)
-            })
+            posthog.capture(
+                distinct_id=user_id, 
+                event='quiz_generated', 
+                properties={
+                    'source': 'redis_cache',
+                    'latency_seconds': round(latency, 2),
+                    'text_length': len(text)
+                }
+            )
             return json.loads(cached)
 
-        # --- 2. GENERATE VIA AI ---
         final_state = quiz_graph.invoke({"source_text": text})
         result = final_state["generated_quiz"]
 
-        # Cache the new result
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
         
         latency = time.time() - start_time
-        posthog.capture(user_id, 'quiz_generated', {
-            'source': 'llm_generation',
-            'latency_seconds': round(latency, 2),
-            'questions_count': len(result.get("quiz", [])),
-            'text_length': len(text)
-        })
+        posthog.capture(
+            distinct_id=user_id, 
+            event='quiz_generated', 
+            properties={
+                'source': 'llm_generation',
+                'latency_seconds': round(latency, 2),
+                'questions_count': len(result.get("quiz", [])),
+                'text_length': len(text)
+            }
+        )
         
         return result
 
     except Exception as e:
         latency = time.time() - start_time
         
-        # 🚨 SENTRY: Capture the exact crash details
         sentry_sdk.capture_exception(e)
         
-        # 🌟 POSTHOG: Track the failure rate for your users
-        posthog.capture(user_id, 'quiz_generation_failed', {
-            'error': str(e),
-            'latency_seconds': round(latency, 2)
-        })
+        posthog.capture(
+            distinct_id=user_id, 
+            event='quiz_generation_failed', 
+            properties={
+                'error': str(e),
+                'latency_seconds': round(latency, 2)
+            }
+        )
         
         traceback.print_exc()
         raise Exception("Failed to generate quiz.")

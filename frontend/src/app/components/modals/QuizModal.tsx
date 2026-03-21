@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
-import { BrainCircuit, X, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { X, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "react-toastify";
 import posthog from "posthog-js";
-import axios from "axios";
+import { generateQuizFromText } from "@/app/services/aiService";
 
 export type QuizQuestion = {
     question: string;
@@ -37,22 +37,9 @@ export default function QuizModal({ isOpen, setIsOpen, textData }: QuizModalProp
     const generateQuiz = async () => {
         setLoading(true);
         try {
-            const response = await axios.post(
-                "http://10.126.224.43:8000/ai/quiz/invoke",
-                {
-                    input: {
-                        source_text: textData.substring(0, 3000),
-                    },
-                },
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-
-            if (!response.data) throw new Error("Failed to generate quiz");
-            setQuiz(response.data.output.quiz);
+            // 🌟 Use the clean service call here
+            const quizData = await generateQuizFromText(textData);
+            setQuiz(quizData);
         } catch (error) {
             console.error(error);
             toast.error("Failed to generate quiz. Please try again.");

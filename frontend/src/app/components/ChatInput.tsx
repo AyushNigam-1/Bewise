@@ -3,20 +3,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
 import { Plus, Search, X, Check, ChevronRight, ChevronLeft, SendHorizontal, Square } from "lucide-react";
-import { ContextItem } from "./modals/ChatbotModal";
 import { motion, AnimatePresence } from "framer-motion";
-
-type ChatInputProps = {
-    book?: string;
-    loading: boolean;
-    contextItems: ContextItem[];
-    selectedContexts: ContextItem[];
-    toggleContext: (item: ContextItem) => void;
-    removeContext: (id: string | number) => void;
-    onSendMessage: (message: string) => void;
-    clearContexts: () => void;
-    onStop: () => void; // 🌟 Add this
-};
+import { ChatInputProps } from "../types";
 
 export default function ChatInput({
     book,

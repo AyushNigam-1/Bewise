@@ -16,7 +16,7 @@ def get_all_books_logic(user_id: str = "anonymous") -> List[Dict[str, Any]]:
     
     if cached_data:
         books = json.loads(cached_data)
-        posthog.capture(user_id, 'fetched_all_books', {'source': 'redis_cache', 'count': len(books)})
+        posthog.capture(distinct_id=user_id, event='fetched_all_books', properties={'source': 'redis_cache', 'count': len(books)})
         return books
 
     conn = connect_db()
@@ -39,7 +39,7 @@ def get_all_books_logic(user_id: str = "anonymous") -> List[Dict[str, Any]]:
 
     redis_client.setex(cache_key, CACHE_TTL, json.dumps(book_list))
     
-    posthog.capture(user_id, 'fetched_all_books', {'source': 'database', 'count': len(book_list)})
+    posthog.capture(distinct_id=user_id, event='fetched_all_books', properties={'source': 'database', 'count': len(book_list)})
     return book_list
 
 
@@ -49,7 +49,7 @@ def find_books_by_categories_logic(categories: List[str], user_id: str = "anonym
     
     if cached_data:
         books = json.loads(cached_data)
-        posthog.capture(user_id, 'searched_books_by_category', {'categories': categories, 'source': 'redis_cache', 'results_count': len(books)})
+        posthog.capture(distinct_id=user_id, event='searched_books_by_category', properties={'categories': categories, 'source': 'redis_cache', 'results_count': len(books)})
         return books
 
     conn = connect_db()
@@ -76,11 +76,11 @@ def find_books_by_categories_logic(categories: List[str], user_id: str = "anonym
 
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(books))
         
-        posthog.capture(user_id, 'searched_books_by_category', {'categories': categories, 'source': 'database', 'results_count': len(books)})
+        posthog.capture(distinct_id=user_id, event='searched_books_by_category', properties={'categories': categories, 'source': 'database', 'results_count': len(books)})
         return books
         
     except Exception as e:
-        posthog.capture(user_id, 'error_searching_categories', {'error': str(e), 'categories': categories})
+        posthog.capture(distinct_id=user_id, event='error_searching_categories', properties={'error': str(e), 'categories': categories})
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
@@ -92,7 +92,7 @@ def get_book_info_logic(title: str, user_id: str = "anonymous") -> Dict[str, Any
     
     if cached_data:
         data = json.loads(cached_data)
-        posthog.capture(user_id, 'viewed_book_details', {'book_title': title, 'source': 'redis_cache'})
+        posthog.capture(distinct_id=user_id, event='viewed_book_details', properties={'book_title': title, 'source': 'redis_cache'})
         return data
 
     conn = connect_db()
@@ -106,7 +106,7 @@ def get_book_info_logic(title: str, user_id: str = "anonymous") -> Dict[str, Any
     conn.close()
 
     if not result:
-        posthog.capture(user_id, 'book_not_found', {'book_title': title})
+        posthog.capture(distinct_id=user_id, event='book_not_found', properties={'book_title': title})
         raise HTTPException(status_code=404, detail="Book not found")
 
     id, content, description, author, thumbnail, category = result
@@ -123,7 +123,7 @@ def get_book_info_logic(title: str, user_id: str = "anonymous") -> Dict[str, Any
 
     redis_client.setex(cache_key, CACHE_TTL, json.dumps(response_data))
     
-    posthog.capture(user_id, 'viewed_book_details', {'book_title': title, 'source': 'database', 'total_insights': total_steps})
+    posthog.capture(distinct_id=user_id, event='viewed_book_details', properties={'book_title': title, 'source': 'database', 'total_insights': total_steps})
     return response_data
 
 
@@ -156,7 +156,7 @@ def get_content_keys_logic(title: str, user_id: str = "anonymous") -> List[Dict[
     ]
 
     redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-    posthog.capture(user_id, 'viewed_content_keys', {'book_title': title, 'keys_count': len(result)})
+    posthog.capture(distinct_id=user_id, event='viewed_content_keys', properties={'book_title': title, 'keys_count': len(result)})
     return result
 
 
@@ -205,7 +205,7 @@ def get_content_values_logic(title: str, category: List[str], user_id: str = "an
             raise HTTPException(status_code=404, detail="No matching categories or steps found")
 
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(results))
-        posthog.capture(user_id, 'viewed_content_values', {'book_title': title, 'categories_requested': category, 'results_count': len(results)})
+        posthog.capture(distinct_id=user_id, event='viewed_content_values', properties={'book_title': title, 'categories_requested': category, 'results_count': len(results)})
         return results
 
     except Exception as e:
@@ -219,7 +219,7 @@ def get_step_details_logic(step_id: int, user_id: str = "anonymous") -> Dict[str
     
     if cached_data:
         data = json.loads(cached_data)
-        posthog.capture(user_id, 'read_insight_step', {'step_id': step_id, 'book_title': data.get('book_name')})
+        posthog.capture(distinct_id=user_id, event='read_insight_step', properties={'step_id': step_id, 'book_title': data.get('book_name')})
         return data
 
     conn = connect_db()
@@ -245,7 +245,7 @@ def get_step_details_logic(step_id: int, user_id: str = "anonymous") -> Dict[str
         }
 
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-        posthog.capture(user_id, 'read_insight_step', {'step_id': step_id, 'book_title': row[1]})
+        posthog.capture(distinct_id=user_id, event='read_insight_step', properties={'step_id': step_id, 'book_title': row[1]})
         return result
         
     except Exception as e:
@@ -299,7 +299,7 @@ def create_book_logic(book_data: Dict, user_id: str = "system") -> Dict[str, str
             redis_client.delete(key)
 
         latency = time.time() - start_time
-        posthog.capture(user_id, 'book_created_and_embedded', {
+        posthog.capture(distinct_id=user_id, event='book_created_and_embedded', properties={
             'book_title': book_title, 
             'insights_embedded': total_insights_embedded,
             'latency_seconds': round(latency, 2)
@@ -309,7 +309,7 @@ def create_book_logic(book_data: Dict, user_id: str = "system") -> Dict[str, str
     
     except Exception as e:
         conn.rollback()
-        posthog.capture(user_id, 'error_creating_book', {'book_title': book_data.get("Title"), 'error': str(e)})
+        posthog.capture(distinct_id=user_id, event='error_creating_book', properties={'book_title': book_data.get("Title"), 'error': str(e)})
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
     finally:
         cur.close()
@@ -317,7 +317,7 @@ def create_book_logic(book_data: Dict, user_id: str = "system") -> Dict[str, str
 
 
 def process_book_logic(pdf_path: str, book_title: str, author: str, description: str, cover_url: str, category_list: List[str], user_id: str = "system"):
-    posthog.capture(user_id, 'book_processing_started', {'book_title': book_title})
+    posthog.capture(distinct_id=user_id, event='book_processing_started', properties={'book_title': book_title})
     
     try:
         processor = BookistProcessor(pdf_path, book_title, author, description, cover_url, category_list)
@@ -326,7 +326,7 @@ def process_book_logic(pdf_path: str, book_title: str, author: str, description:
         # We pass the user_id down to create_book_logic so it tracks under the same user
         return create_book_logic(book_data, user_id=user_id)
     except Exception as e:
-        posthog.capture(user_id, 'book_processing_failed', {'book_title': book_title, 'error': str(e)})
+        posthog.capture(distinct_id=user_id, event='book_processing_failed', properties={'book_title': book_title, 'error': str(e)})
         raise e
 
 
@@ -344,7 +344,7 @@ def get_categories_logic(user_id: str = "anonymous") -> List[Dict[str, str]]:
         ]
         
         redis_client.setex(cache_key, CACHE_TTL * 2, json.dumps(result)) 
-        posthog.capture(user_id, 'fetched_categories_list', {'count': len(result)})
+        posthog.capture(distinct_id=user_id, event='fetched_categories_list', properties={'count': len(result)})
         return result
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON file")

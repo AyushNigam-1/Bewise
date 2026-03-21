@@ -17,6 +17,7 @@ import ShareModal from "@/app/components/modals/ShareModal";
 import QuizModal from "@/app/components/modals/QuizModal";
 import { Recommendation, User } from "@/app/types";
 import { InsightCard } from "@/app/components/InsightsCard";
+import { generateVoice } from "@/app/services/aiService";
 
 const pageVariants = {
     hidden: { opacity: 0, y: 10 },
@@ -115,18 +116,8 @@ export default function Page() {
 
         setIsAudioLoading(true);
         try {
-            const response = await fetch("http://localhost:8000/api/v1/generate-voice", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    text: stepDetails.description,
-                    voice: "troy"
-                }),
-            });
-
-            if (!response.ok) throw new Error("Failed to generate audio");
-
-            const blob = await response.blob();
+            // 🌟 Use your shiny new service function here!
+            const blob = await generateVoice(stepDetails.description);
             const audioUrl = URL.createObjectURL(blob);
 
             const audio = new Audio(audioUrl);
@@ -267,7 +258,6 @@ export default function Page() {
                     <h3 className="text-2xl font-bold my-2">Recommended Insights</h3>
 
                     <motion.div
-                        // 🌟 THE FIX: Changed whileInView to animate and added a key to force re-evaluation
                         key={recommendationsLoading ? "loading" : "loaded"}
                         variants={staggerContainer}
                         initial="hidden"

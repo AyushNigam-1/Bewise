@@ -3,7 +3,6 @@ from typing import Dict, List
 from pydantic import BaseModel, Field
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.output_parsers import PydanticOutputParser
 from dotenv import load_dotenv
@@ -31,11 +30,3 @@ prompt = ChatPromptTemplate.from_messages([
     ("system", "You are Bookist AI. You ONLY answer using provided insights."),
     ("human", "{input}\n\n{format}")
 ])
-
-chain = prompt | llm
-
-chat = RunnableWithMessageHistory(
-    chain,
-    get_session_history,
-    input_messages_key="input",
-)

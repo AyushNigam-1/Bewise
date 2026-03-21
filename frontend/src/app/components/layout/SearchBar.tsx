@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchBarProps } from '@/app/types';
 import { Search, X } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -15,12 +16,7 @@ const SearchBar = ({
     data,
     propertyToSearch,
     setFilteredData,
-}: {
-    responsive: boolean;
-    data: any[];
-    propertyToSearch: keyof any;
-    setFilteredData: React.Dispatch<React.SetStateAction<any[]>>;
-}) => {
+}: SearchBarProps) => {
 
     const [maximize, setMaximize] = useState(false);
     const [search, setSearch] = useState('');
@@ -37,7 +33,6 @@ const SearchBar = ({
             <form className={`${responsive ? maximize ? "" : "hidden md:flex" : "flex"} w-full`} >
                 <label htmlFor="simple-search" className="sr-only">Search</label>
 
-                {/* Search Bar Container: Switches to dark gray in dark mode */}
                 <div className="relative w-full flex items-center gap-2 border border-transparent dark:border-gray-700 bg-gray-100 dark:bg-gray-800 rounded-xl p-2 md:p-2.5 transition-colors duration-300">
                     <Search size={18} className='text-gray-400 dark:text-gray-500' />
 
@@ -46,21 +41,17 @@ const SearchBar = ({
                         id="simple-search"
                         value={search}
                         onChange={handleChange}
-                        // Added bg-transparent so the parent background shows through, and dark:text colors
                         className="bg-transparent placeholder:font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-gray-100 md:text-lg outline-none focus:ring-transparent block w-full"
                         placeholder="Search"
                     />
                 </div>
             </form>
 
-            {/* Mobile Toggle Button */}
             <button
-                // Button matches the search bar theme
                 className={`md:hidden p-2.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 transition-colors duration-300 ${responsive ? maximize ? "absolute right-0.5 top-0" : "" : "hidden"}`}
                 type="button"
                 onClick={() => setMaximize(!maximize)}
             >
-                {/* Replaced bulky raw SVGs with clean Lucide icons */}
                 {maximize ? <X size={20} /> : <Search size={20} />}
             </button>
         </div>

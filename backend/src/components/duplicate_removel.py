@@ -1,7 +1,6 @@
 import numpy as np
 from langchain_ollama import OllamaEmbeddings
 
-# Lightweight local embeddings via Ollama
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
 def cosine(a, b):

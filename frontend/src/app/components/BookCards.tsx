@@ -4,12 +4,7 @@ import React, { useState } from "react";
 import ShareModal from "./modals/ShareModal";
 import { Bookmark, Share } from "lucide-react";
 import { useMutations } from "@/app/hooks/useMutations";
-import { Book } from "../types";
-
-interface CardProps {
-    book: Book;
-    isBookmarked: boolean | undefined
-}
+import { CardProps } from "../types";
 
 const BookCard: React.FC<CardProps> = ({ book, isBookmarked }) => {
     const [isOpen, setIsOpen] = useState(false)

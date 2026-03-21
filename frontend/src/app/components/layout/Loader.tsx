@@ -1,7 +1,6 @@
 "use client";
 
 import useElementHeight from "@/app/hooks/useHeight";
-import React from "react";
 
 const Loader = () => {
     const height = useElementHeight("loader-container");
@@ -10,7 +9,7 @@ const Loader = () => {
         <div
             id="loader-container"
             className="w-full flex justify-center items-center"
-            style={{ height: height !== null ? `${height}px` : "auto" }} // Ensures valid CSS value
+            style={{ height: height !== null ? `${height}px` : "auto" }}
         >
             <div role="status">
                 <svg

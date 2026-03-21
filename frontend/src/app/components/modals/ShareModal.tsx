@@ -12,8 +12,9 @@ import {
 import { Slide, toast, ToastContainer } from "react-toastify"
 import Link from 'next/link'
 import { Copy, X } from 'lucide-react'
+import { ShareModalProps } from '@/app/types'
 
-export default function ShareModal({ isOpen, setIsOpen, shareUrl }: { isOpen: boolean, setIsOpen: (open: boolean) => void, shareUrl: string }) {
+export default function ShareModal({ isOpen, setIsOpen, shareUrl }: ShareModalProps) {
 
     const handleCopy = async () => {
         try {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Book, Lightbulb } from "lucide-react";
 import InsightsTab from "@/app/components/tabs/InsightsTab";
 import BooksTab from "@/app/components/tabs/BooksTab";

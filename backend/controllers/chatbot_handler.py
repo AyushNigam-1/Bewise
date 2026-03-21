@@ -96,12 +96,16 @@ def retrieve_node(state: RAGState):
 
     # 🌟 POSTHOG: Track the retrieval phase
     latency = time.time() - start_time
-    posthog.capture(session_id, 'rag_retrieval_completed', {
-        'explicit_db_hits': explicit_db_hits,
-        'vector_hits': vector_hits,
-        'total_context_items': len(combined_hits),
-        'latency_seconds': round(latency, 2)
-    })
+    posthog.capture(
+        distinct_id=session_id, 
+        event='rag_retrieval_completed', 
+        properties={
+            'explicit_db_hits': explicit_db_hits,
+            'vector_hits': vector_hits,
+            'total_context_items': len(combined_hits),
+            'latency_seconds': round(latency, 2)
+        }
+    )
 
     return {"pinecone_hits": list(combined_hits.values())}
 
@@ -155,20 +159,27 @@ def generate_node(state: RAGState):
         ])
     except Exception as e:
         llm_success = False
-        posthog.capture(session_id, 'rag_llm_parsing_failed', {'error': str(e)}) # 🌟 Track failures
+        posthog.capture(
+            distinct_id=session_id, 
+            event='rag_llm_parsing_failed', 
+            properties={'error': str(e)}
+        ) 
         logger.warning(f"LLM Parsing failed (likely conversational query): {e}")
         parsed = RAGResponse(
             answer="I am Wiser, your reading assistant! I'm doing great. How can I help you explore your books and insights today?",
             ids=[]
         )
 
-    # 🌟 POSTHOG: Track the AI generation phase
     latency = time.time() - start_time
-    posthog.capture(session_id, 'rag_generation_completed', {
-        'llm_success': llm_success,
-        'cited_sources_count': len(parsed.ids),
-        'latency_seconds': round(latency, 2)
-    })
+    posthog.capture(
+        distinct_id=session_id, 
+        event='rag_generation_completed', 
+        properties={
+            'llm_success': llm_success,
+            'cited_sources_count': len(parsed.ids),
+            'latency_seconds': round(latency, 2)
+        }
+    )
 
     if not parsed.ids and not parsed.answer:
         return {
@@ -223,36 +234,46 @@ def rag_entrypoint(input_data: dict):
     start_time = time.time()
     session_id = input_data.get("session_id", "anonymous")
     
-    # 🌟 POSTHOG: Track the start of the entire interaction
-    posthog.capture(session_id, 'rag_interaction_started', {
-        'query_length': len(input_data.get("message", ""))
-    })
+    posthog.capture(
+        distinct_id=session_id, 
+        event='rag_interaction_started', 
+        properties={
+            'query_length': len(input_data.get("message", ""))
+        }
+    )
 
     try:
         final_state = rag_graph.invoke(input_data)
         
-        # 🌟 POSTHOG: Track total end-to-end success
         total_latency = time.time() - start_time
-        posthog.capture(session_id, 'rag_interaction_success', {
-            'total_latency_seconds': round(total_latency, 2)
-        })
+        posthog.capture(
+            distinct_id=session_id, 
+            event='rag_interaction_success', 
+            properties={
+                'total_latency_seconds': round(total_latency, 2)
+            }
+        )
         
         return final_state["final_response"]
         
     except Exception as e:
         total_latency = time.time() - start_time
         
-        # 🚨 SENTRY: Catch the massive graph crash and send the stack trace
         sentry_sdk.capture_exception(e)
         
-        # 🌟 POSTHOG: Track the exact moment the user experience broke
-        posthog.capture(session_id, 'rag_interaction_failed', {
-            'error_message': str(e),
-            'failed_after_seconds': round(total_latency, 2)
-        })
+        posthog.capture(
+            distinct_id=session_id, 
+            event='rag_interaction_failed', 
+            properties={
+                'error_message': str(e),
+                'failed_after_seconds': round(total_latency, 2)
+            }
+        )
         
         logger.error(f"RAG agent failed: {e}")
         traceback.print_exc()
         raise Exception("RAG agent failed.")
 
 rag_runnable = RunnableLambda(rag_entrypoint)
+
+

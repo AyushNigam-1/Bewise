@@ -4,16 +4,10 @@ import React, { useState } from 'react'
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
 import SearchBar from '../layout/SearchBar'
 import { SlidersHorizontal, X, CheckCircle } from 'lucide-react'
+import { CategoryProps } from '@/app/types'
 
-interface categoryProps {
-    filteredCategories: any[],
-    setFilteredCategories: React.Dispatch<React.SetStateAction<any[]>>
-    categories: any[],
-    toggleCategory: (category: any) => void,
-    selectedCategory: any[]
-}
 
-const CategoryDialog: React.FC<categoryProps> = ({
+const CategoryDialog: React.FC<CategoryProps> = ({
     filteredCategories,
     setFilteredCategories,
     categories,

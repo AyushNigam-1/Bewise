@@ -2,7 +2,7 @@
 
 import * as z from 'zod';
 import Link from 'next/link';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,14 +54,13 @@ const CreateAccount = () => {
         defaultValues: { username: "", email: "", password: "" }
     });
 
-    // 🌟 1. Handle Email/Password Registration
     const onSubmit = async (data: RegisterFormValues) => {
         setIsPending(true);
 
         const { error } = await signUp.email({
             email: data.email,
             password: data.password,
-            name: data.username, // Better Auth uses 'name' by default in the DB
+            name: data.username,
         });
 
         setIsPending(false);
@@ -73,11 +72,10 @@ const CreateAccount = () => {
             posthog.identify(data.email, { email: data.email, name: data.username });
             posthog.capture('user_signed_up', { method: 'email' });
             toast.success("Account created successfully!");
-            router.push("/"); // Redirect to home or onboarding
+            router.push("/");
         }
     };
 
-    // 🌟 2. Handle Social Registration/Login
     const handleSocialLogin = async (provider: "google" | "github") => {
         setSocialLoading(provider);
         posthog.capture('social_login_clicked', { provider, page: 'signup' });

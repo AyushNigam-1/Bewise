@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, Bookmark } from 'lucide-react'
 import { useUserStore } from '@/app/stores/useUserStores'
 import { useMutations } from '@/app/hooks/useMutations'
+import { SliderProps } from '@/app/types'
 
-export default function Slider({ steps, title }: { steps: any[], title: string }) {
+export default function Slider({ steps, title }: SliderProps) {
     const wrapperRef = useRef<HTMLDivElement>(null)
     const [remainingHeight, setRemainingHeight] = useState('100vh')
 

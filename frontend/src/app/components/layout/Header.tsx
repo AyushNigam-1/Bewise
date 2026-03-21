@@ -1,34 +1,12 @@
 "use client";
 
-import React from "react";
 import { motion } from "framer-motion";
 import SearchBar from "@/app/components/layout/SearchBar";
 import CategoryDialog from "@/app/components/modals/CategoryModal";
 import ChatbotModal from "@/app/components/modals/ChatbotModal";
-import { Categories } from "@/app/types";
+import { ExploreHeaderProps } from "@/app/types";
 
-interface ExploreHeaderProps<T> {
-    title: string;
-
-    // 🔥 Generic data
-    items: T[];
-    filteredItems: T[];
-    setFilteredItems: React.Dispatch<React.SetStateAction<T[]>>;
-    searchKey: keyof T;
-
-    // 🔥 Category props
-    categories: Categories[];
-    filteredCategories: Categories[];
-    setFilteredCategories: React.Dispatch<React.SetStateAction<Categories[]>>;
-    selectedCategory: Categories[];
-    toggleCategory: (category: Categories) => void;
-
-    // 🔥 How to map items for chatbot
-    getItemId: (item: T) => number | string;
-    getItemLabel: (item: T) => string;
-}
-
-function ExploreHeader<T>({
+function Header<T>({
     title,
     items,
     filteredItems,
@@ -87,4 +65,4 @@ function ExploreHeader<T>({
     );
 }
 
-export default ExploreHeader;
+export default Header;

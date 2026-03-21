@@ -1,7 +1,7 @@
 "use client"
 
 import Link from 'next/link'
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -104,7 +104,6 @@ const Login = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-2">Welcome back! Please enter your credentials.</p>
             </motion.div>
 
-            {/* 🌟 Social Providers */}
             <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-between gap-3">
                 <button
                     type="button"
@@ -145,7 +144,6 @@ const Login = () => {
                 <hr className="w-full border-gray-300 dark:border-gray-700" />
             </motion.div>
 
-            {/* 🌟 Email / Password Form */}
             <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-4'>
                 <motion.div variants={itemVariants}>
                     <input

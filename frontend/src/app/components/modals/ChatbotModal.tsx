@@ -11,34 +11,8 @@ import { toast } from "react-toastify";
 import ChatInput from "../ChatInput";
 import { invokeChatbot, generateVoice } from "@/app/services/aiService";
 import posthog from "posthog-js";
-// 🌟 Import Framer Motion for the smooth icon swap
 import { motion, AnimatePresence } from "framer-motion";
-
-type Insight = {
-    id: number;
-    title: string;
-    book: string;
-    category: string;
-    category_icon: string;
-    description: string;
-    link: string;
-};
-
-type Message = {
-    role: "user" | "ai";
-    content?: string;
-    insights?: Insight[];
-};
-
-export type ContextItem = {
-    id: string | number;
-    name: string;
-};
-
-type ChatbotModalProps = {
-    book?: string;
-    contextItems?: ContextItem[];
-};
+import { ChatbotModalProps, ContextItem, Message } from "@/app/types";
 
 const stripMarkdown = (md: string): string => {
     if (!md) return "";
@@ -59,7 +33,6 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
     const abortControllerRef = useRef<AbortController | null>(null);
     const [selectedContexts, setSelectedContexts] = useState<ContextItem[]>([]);
 
-    // INLINE EDIT STATE
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [editText, setEditText] = useState("");
     const editRef = useRef<HTMLDivElement>(null);

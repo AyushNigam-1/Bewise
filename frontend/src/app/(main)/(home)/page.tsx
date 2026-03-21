@@ -1,11 +1,9 @@
 "use client";
-import React, { useEffect, useState } from "react";
+
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import SearchBar from "../../components/layout/SearchBar";
 import { findBooksByCategories, getAllCategories } from "@/app/services/bookService";
-import CategoryDialog from "../../components/modals/CategoryModal";
-import ChatbotModal from "../../components/modals/ChatbotModal";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { Categories, User } from "@/app/types";
 import BookCard from "../../components/BookCards";
@@ -54,7 +52,6 @@ const Page = () => {
         );
     };
 
-    // ✅ Absolute stable loading gate
     if (booksLoading || categoriesLoading) {
         return (
             <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
