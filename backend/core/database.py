@@ -1,13 +1,13 @@
 import os
-import psycopg2
+from sqlmodel import create_engine, Session
+from dotenv import load_dotenv
+load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-def connect_db():
-    """Connects to the PostgreSQL database."""
-    try:
-        conn = psycopg2.connect(DATABASE_URL)
-        return conn
-    except psycopg2.DatabaseError as e:
-        print(f"Database connection error: {e}")
-        return None
+engine = create_engine(DATABASE_URL, echo=False)
+
+# We use this to grab a quick session whenever a route needs one
+def get_session():
+    with Session(engine) as session:
+        yield session

@@ -1,8 +1,8 @@
 import axios from "axios";
 import { Recommendation } from "../types";
 
-const API = "http://localhost:8000";
-// const API = "http://10.126.224.43:8000"
+// const API = "http://localhost:8000";
+const API = "http://10.98.145.43:8000"
 
 const apiClient = axios.create({
     baseURL: API,

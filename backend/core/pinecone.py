@@ -1,9 +1,16 @@
 import os
-from pinecone import Pinecone
-from sentence_transformers import SentenceTransformer, CrossEncoder
+import warnings
 from dotenv import load_dotenv
 
 load_dotenv()
+
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+from pinecone import Pinecone
+from sentence_transformers import SentenceTransformer, CrossEncoder
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 INDEX_NAME = os.getenv("PINECONE_INDEX")

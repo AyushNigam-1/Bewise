@@ -1,7 +1,8 @@
 import axios from "axios";
 import { QuizQuestion } from "../types";
 
-const API_BASE_URL = "http://localhost:8000";
+// const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = "http://10.98.145.43:8000"
 
 export const invokeChatbot = async ({ payload, signal }: { payload: any, signal?: AbortSignal }) => {
     const { data } = await axios.post(`${API_BASE_URL}/ai/rag/invoke`,

@@ -1,18 +1,20 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request, Depends
 from pydantic import BaseModel
 from typing import List, Union
 from enum import Enum
+from fastapi_limiter.depends import RateLimiter
+from pyrate_limiter import Limiter, Rate, Duration
 from controllers.user_handler import (
-    get_me_logic,
-    toggle_bookmark_book_logic,
-    toggle_bookmark_insight_logic,
-    recommend_logic,
-    session_recommend_logic,
-    get_bookmarked_books_with_categories_logic,
-    get_bookmarked_insights_with_categories_logic
+    toggle_bookmark_book,
+    toggle_bookmark_insight,
+    recommend,
+    session_recommend,
+    get_bookmarked_books_with_categories,
+    get_bookmarked_insights_with_categories
 )
 
-router = APIRouter()
+shared_limiter = Limiter(Rate(60, Duration.SECOND * 60))
+router = APIRouter(dependencies=[Depends(RateLimiter(limiter=shared_limiter))])
 
 class UserProfile(BaseModel):
     name: str
@@ -27,38 +29,30 @@ class BookmarkType(str, Enum):
     books = "books"
     insights = "insights"
 
-def get_secure_user_id(request: Request) -> str:
-    """Helper to grab the verified user ID from the middleware state."""
-    user = getattr(request.state, "user", None)
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return user["id"]
+def get_user_id(request: Request) -> str:
+    return request.state.user["id"]
 
 @router.post("/bookmark/book/{book_id}")
-def toggle_bookmark_book(book_id: int, request: Request):
-    user_id = get_secure_user_id(request)
-    return toggle_bookmark_book_logic(user_id, book_id)
+def toggle_bookmark_book_route(book_id: int, request: Request):
+    return toggle_bookmark_book(get_user_id(request), book_id)
 
 @router.post("/bookmark/insight/{insight_id}")
-def toggle_bookmark_insight(insight_id: int, request: Request):
-    user_id = get_secure_user_id(request)
-    return toggle_bookmark_insight_logic(user_id, insight_id)
+def toggle_bookmark_insight_route(insight_id: int, request: Request):
+    return toggle_bookmark_insight(get_user_id(request), insight_id)
 
 @router.get("/recommend")
-def recommend(request: Request):
-    user_id = get_secure_user_id(request)
-    return recommend_logic(user_id)
+def recommend_route(request: Request):
+    return recommend(get_user_id(request))
 
 @router.post("/insights/session-recommend")
-def session_recommend(payload: SessionRecommendRequest, request: Request):
-    user_id = get_secure_user_id(request)
-    return session_recommend_logic(user_id, payload.insight_id)
+def session_recommend_route(payload: SessionRecommendRequest, request: Request):
+    return session_recommend(get_user_id(request), payload.insight_id)
 
 @router.get("/bookmarks/{item_type}")
-def get_bookmarks(item_type: BookmarkType, request: Request):
-    user_id = get_secure_user_id(request)
+def get_bookmarks_route(item_type: BookmarkType, request: Request):
+    user_id = get_user_id(request)
     
     if item_type == BookmarkType.books:
-        return get_bookmarked_books_with_categories_logic(user_id)
+        return get_bookmarked_books_with_categories(user_id)
     elif item_type == BookmarkType.insights:
-        return get_bookmarked_insights_with_categories_logic(user_id)
+        return get_bookmarked_insights_with_categories(user_id)

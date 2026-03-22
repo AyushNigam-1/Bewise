@@ -17,3 +17,4 @@ redis
 langchain_ollama
 fastapi_limiter
 langserve
+sqlmodel

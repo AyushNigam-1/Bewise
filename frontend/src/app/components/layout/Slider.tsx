@@ -1,100 +1,89 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
-import { ArrowUp, Bookmark } from 'lucide-react'
+import { Bookmark, Share2 } from 'lucide-react'
 import { useUserStore } from '@/app/stores/useUserStores'
 import { useMutations } from '@/app/hooks/useMutations'
 import { SliderProps } from '@/app/types'
 
-export default function Slider({ steps, title }: SliderProps) {
-    const wrapperRef = useRef<HTMLDivElement>(null)
-    const [remainingHeight, setRemainingHeight] = useState('100vh')
-
-    // 1. Bring in the User Store and Mutations
+// We extend the props here so TypeScript knows about our new onShare function
+export default function Slider({ steps, title, onShare }: SliderProps & { onShare?: (title: string) => void }) {
     const user = useUserStore((state: any) => state.user);
     const { bookmarkInsight } = useMutations();
 
-    useEffect(() => {
-        const updateHeight = () => {
-            const top = wrapperRef.current?.getBoundingClientRect().top || 0
-            setRemainingHeight(`${window.innerHeight - top - 12}px`)
-        }
-
-        updateHeight()
-        window.addEventListener('resize', updateHeight)
-        return () => window.removeEventListener('resize', updateHeight)
-    }, [])
-
     return (
-        <div ref={wrapperRef} className='overflow-hidden absolute md:relative top-2 md:top-0 w-full'>
+        <div className='overflow-hidden w-full h-[calc(100dvh-50px)]'>
             <div
-                className="overflow-y-scroll snap-y snap-mandatory rounded-2xl custom-scroll-hide"
-                style={{ height: remainingHeight, scrollbarWidth: "none" }}
+                className="overflow-y-scroll snap-y snap-mandatory rounded-2xl custom-scroll-hide h-full"
+                style={{ scrollbarWidth: "none" }}
             >
                 {steps?.map((step, index) => (
                     <div
                         key={index}
-                        className="snap-start flex justify-center items-center px-4 bg-white dark:bg-gray-900 transition-colors duration-300 relative"
-                        style={{ height: remainingHeight }}
+                        className="snap-start flex justify-center items-center px-4 bg-white dark:bg-gray-900 transition-colors duration-300 relative h-full w-full"
                     >
                         {/* Slide Counter */}
-                        <p className="text-gray-400 dark:text-gray-500 font-medium text-sm absolute top-4 tracking-widest">
+                        <p className="text-gray-400 dark:text-gray-500 transition-colors duration-300 font-medium text-sm absolute top-4 tracking-widest z-10">
                             {index + 1} / {steps?.length}
                         </p>
 
                         {/* Main Content Wrapper */}
-                        <div className="flex flex-col justify-center w-full max-w-lg">
-                            <div className="rounded-2xl h-full col-span-1 flex-col flex gap-4">
+                        <div className="flex flex-col justify-center w-full max-w-lg h-full pb-10">
+
+                            {/* 🌟 Swapped gap/margin for space-y-8 */}
+                            <div className="rounded-2xl col-span-1 flex-col flex space-y-8">
+
+                                {/* 🌟 Swapped gap for space-y-4 */}
                                 <Link
                                     href={`/step/${title}/${step.category?.name || step.category}/${step.step}`}
-                                    className='flex flex-col gap-3'
+                                    className='flex flex-col space-y-4 group'
                                 >
                                     <div className='flex justify-between items-center'>
-                                        <span className='text-gray-500 dark:text-gray-400 font-medium text-sm flex gap-1.5 items-center w-min text-nowrap flex-nowrap rounded-lg'>
+                                        {/* 🌟 Swapped gap for space-x-2 */}
+                                        <span className='text-gray-500 dark:text-gray-400 transition-colors duration-300 font-medium text-sm flex space-x-2 items-center w-min text-nowrap flex-nowrap rounded-lg'>
                                             <span>{step.icon}</span>
                                             <span>{step.category?.name || step.category}</span>
                                         </span>
                                     </div>
 
-                                    {/* Title */}
-                                    <h4 className='text-gray-900 dark:text-gray-100 font-bold text-2xl md:text-3xl line-clamp-2 leading-tight'>
-                                        {step.step}
-                                    </h4>
-
-                                    {/* Description */}
-                                    <h6 className='text-gray-600 dark:text-gray-300 mt-2 text-lg md:text-xl leading-relaxed'>
-                                        {step.description}
-                                    </h6>
+                                    {/* 🌟 Grouped Text with space-y-3 instead of mt-2 */}
+                                    <div className="flex flex-col space-y-3">
+                                        <h4 className='text-gray-900 dark:text-gray-100 transition-colors duration-300 font-bold text-2xl md:text-3xl line-clamp-2 leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400'>
+                                            {step.step}
+                                        </h4>
+                                        <h6 className='text-gray-600 dark:text-gray-300 transition-colors duration-300 text-lg md:text-xl leading-relaxed'>
+                                            {step.description}
+                                        </h6>
+                                    </div>
                                 </Link>
 
-                                {/* Bottom Action Bar */}
-                                <div className="flex gap-2 justify-between mt-8 items-center border-t border-gray-100 dark:border-gray-800 pt-4">
+                                {/* Bottom Action Bar (Share & Bookmark only) */}
+                                <div className="flex justify-end items-center border-t border-gray-100 dark:border-gray-800 transition-colors duration-300 pt-4">
 
-                                    {/* Upvote Pill */}
-                                    <span className='bg-gray-100 dark:bg-gray-800 rounded-full p-1.5 pr-4 items-center gap-3 flex text-gray-700 dark:text-gray-200 transition-colors'>
+                                    {/* 🌟 Swapped gap for space-x-3 */}
+                                    <div className='flex space-x-3'>
+
+                                        {/* Share Button */}
                                         <button
+                                            onClick={() => onShare && onShare(title)}
                                             type="button"
-                                            className="bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none rounded-full p-2.5 font-semibold shadow-sm hover:scale-105 transition-transform"
+                                            className="text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-full p-3 w-min font-semibold transition-all duration-300 shadow-sm active:scale-95"
                                         >
-                                            <ArrowUp size={18} strokeWidth={2.5} />
+                                            <Share2 size={20} className="transition-all duration-300" />
                                         </button>
-                                        <h4 className='font-bold text-base'>0</h4>
-                                    </span>
 
-                                    {/* Action Buttons Right */}
-                                    <div className='flex gap-2'>
-                                        {/* 2. Added onClick mutation and dynamic fill class */}
+                                        {/* Bookmark Button */}
                                         <button
                                             onClick={() => bookmarkInsight.mutate(step.step_id || step.id)}
                                             type="button"
-                                            className="text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-full p-3 w-min font-semibold transition-colors shadow-sm"
+                                            className="text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-full p-3 w-min font-semibold transition-all duration-300 shadow-sm active:scale-95"
                                         >
                                             <Bookmark
                                                 size={20}
-                                                className={user?.favourite_insights?.includes(step.step_id || step.id) ? "fill-current" : ""}
+                                                className={`transition-all duration-300 ${user?.favourite_insights?.includes(step.step_id || step.id) ? "fill-current text-blue-600 dark:text-blue-400 scale-110" : ""}`}
                                             />
                                         </button>
+
                                     </div>
                                 </div>
                             </div>

@@ -5,7 +5,10 @@ from typing import Optional, Dict, List, TypedDict, Any
 from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, START, END
 from langchain_core.runnables import RunnableLambda
-from core.database import connect_db
+from sqlmodel import Session, select, or_
+from core.database import engine
+from core.models import Insight
+
 from services.vector import search_insights
 from core.llm import llm
 import sentry_sdk 
@@ -49,32 +52,32 @@ def retrieve_node(state: RAGState):
     explicit_db_hits = 0
     if insight_ids or all_text_names:
         try:
-            with connect_db() as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute("""
-                        SELECT id, book_name, category_name, title, description, detailed_breakdown 
-                        FROM insights 
-                        WHERE id = ANY(%s) 
-                           OR title = ANY(%s) 
-                           OR book_name = ANY(%s)
-                        LIMIT 15
-                    """, (insight_ids, all_text_names, all_text_names))
+            with Session(engine) as db:
+                conditions = []
+                if insight_ids:
+                    conditions.append(Insight.id.in_(insight_ids))
+                if all_text_names:
+                    conditions.append(Insight.title.in_(all_text_names))
+                    conditions.append(Insight.book_name.in_(all_text_names))
+                
+                if conditions:
+                    statement = select(Insight).where(or_(*conditions)).limit(15)
+                    rows = db.exec(statement).all()
                     
-                    rows = cursor.fetchall()
                     for r in rows:
-                        combined_hits[r[0]] = {
-                            "insight_id": r[0],
-                            "book": r[1],
-                            "category": r[2],
-                            "title": r[3],
-                            "description": r[4],
-                            "detailed_breakdown": r[5],
+                        combined_hits[r.id] = {
+                            "insight_id": r.id,
+                            "book": r.book_name,
+                            "category": r.category_name,
+                            "title": r.title,
+                            "description": r.description,
+                            "detailed_breakdown": r.detailed_breakdown,
                             "category_icon": "📌",
                             "source": "explicit" 
                         }
                     explicit_db_hits = len(rows)
         except Exception as e:
-            sentry_sdk.capture_exception(e) # 🚨 SENTRY: Catch DB failures silently
+            sentry_sdk.capture_exception(e) 
             logger.error(f"DB Fetch Error in RAG: {e}")
 
     pinecone_results = search_insights(
@@ -94,7 +97,6 @@ def retrieve_node(state: RAGState):
             combined_hits[i_id] = h
             vector_hits += 1
 
-    # 🌟 POSTHOG: Track the retrieval phase
     latency = time.time() - start_time
     posthog.capture(
         distinct_id=session_id, 
@@ -275,5 +277,3 @@ def rag_entrypoint(input_data: dict):
         raise Exception("RAG agent failed.")
 
 rag_runnable = RunnableLambda(rag_entrypoint)
-
-

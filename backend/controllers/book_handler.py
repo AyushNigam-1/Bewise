@@ -3,14 +3,16 @@ import time
 import traceback
 from typing import List, Dict, Any
 from fastapi import HTTPException
-from core.database import connect_db
+from sqlmodel import Session, select
+from core.database import engine
+from core.models import Book, Insight
 from services.vector import embed_and_upsert_insight
 from src.processor import BookistProcessor
 from src.utils.file_operations import load_json_file
 from core.redis import redis_client, CACHE_TTL
 from core.analytics import posthog
 
-def get_all_books_logic(user_id: str = "anonymous") -> List[Dict[str, Any]]:
+def get_all_books(user_id: str = "anonymous") -> List[Dict[str, Any]]:
     cache_key = "books:all"
     cached_data = redis_client.get(cache_key)
     
@@ -19,31 +21,26 @@ def get_all_books_logic(user_id: str = "anonymous") -> List[Dict[str, Any]]:
         posthog.capture(distinct_id=user_id, event='fetched_all_books', properties={'source': 'redis_cache', 'count': len(books)})
         return books
 
-    conn = connect_db()
-    if not conn:
+    try:
+        with Session(engine) as session:
+            books_data = session.exec(select(Book)).all()
+
+            book_list = [
+                {
+                    "id": b.id, "title": b.title, "author": b.author,
+                    "thumbnail": b.thumbnail, "description": b.description, "category": b.category
+                }
+                for b in books_data
+            ]
+
+        redis_client.setex(cache_key, CACHE_TTL, json.dumps(book_list))
+        posthog.capture(distinct_id=user_id, event='fetched_all_books', properties={'source': 'database', 'count': len(book_list)})
+        return book_list
+    except Exception as e:
         raise HTTPException(status_code=500, detail="Database connection failed")
-        
-    cur = conn.cursor()
-    cur.execute("SELECT id, title, author, thumbnail, description, category FROM book")
-    books = cur.fetchall()
-    cur.close()
-    conn.close()
-
-    book_list = [
-        {
-            "id": id, "title": title, "author": author,
-            "thumbnail": thumbnail, "description": description, "category": category
-        }
-        for id, title, author, thumbnail, description, category in books
-    ]
-
-    redis_client.setex(cache_key, CACHE_TTL, json.dumps(book_list))
-    
-    posthog.capture(distinct_id=user_id, event='fetched_all_books', properties={'source': 'database', 'count': len(book_list)})
-    return book_list
 
 
-def find_books_by_categories_logic(categories: List[str], user_id: str = "anonymous") -> List[Dict[str, Any]]:
+def find_books_by_categories(categories: List[str], user_id: str = "anonymous") -> List[Dict[str, Any]]:
     cache_key = "books:all" if not categories else f"books:categories:{','.join(sorted(categories))}"
     cached_data = redis_client.get(cache_key)
     
@@ -52,41 +49,33 @@ def find_books_by_categories_logic(categories: List[str], user_id: str = "anonym
         posthog.capture(distinct_id=user_id, event='searched_books_by_category', properties={'categories': categories, 'source': 'redis_cache', 'results_count': len(books)})
         return books
 
-    conn = connect_db()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-
     try:
-        cur = conn.cursor()
-        if not categories:
-            cur.execute('SELECT * FROM book;')
-        else:
-            placeholders = ','.join(['%s'] * len(categories))
-            query = f"""
-                SELECT * FROM book
-                WHERE EXISTS (
-                    SELECT 1 FROM unnest(category) AS cat WHERE cat IN ({placeholders})
-                );
-            """
-            cur.execute(query, tuple(categories))
+        with Session(engine) as session:
+            if not categories:
+                books_data = session.exec(select(Book)).all()
+            else:
+                statement = select(Book).where(Book.category.overlap(categories))
+                books_data = session.exec(statement).all()
 
-        rows = cur.fetchall()
-        columns = [desc[0] for desc in cur.description]
-        books = [dict(zip(columns, row)) for row in rows]
+            books = [
+                {
+                    "id": b.id, "title": b.title, "author": b.author,
+                    "thumbnail": b.thumbnail, "description": b.description, 
+                    "category": b.category, "content": b.content
+                }
+                for b in books_data
+            ]
 
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(books))
-        
         posthog.capture(distinct_id=user_id, event='searched_books_by_category', properties={'categories': categories, 'source': 'database', 'results_count': len(books)})
         return books
         
     except Exception as e:
         posthog.capture(distinct_id=user_id, event='error_searching_categories', properties={'error': str(e), 'categories': categories})
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        conn.close()
 
 
-def get_book_info_logic(title: str, user_id: str = "anonymous") -> Dict[str, Any]:
+def get_book_info(title: str, user_id: str = "anonymous") -> Dict[str, Any]:
     cache_key = f"book:info:{title}"
     cached_data = redis_client.get(cache_key)
     
@@ -95,125 +84,113 @@ def get_book_info_logic(title: str, user_id: str = "anonymous") -> Dict[str, Any
         posthog.capture(distinct_id=user_id, event='viewed_book_details', properties={'book_title': title, 'source': 'redis_cache'})
         return data
 
-    conn = connect_db()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+    try:
+        with Session(engine) as session:
+            book = session.exec(select(Book).where(Book.title == title)).first()
 
-    cur = conn.cursor()
-    cur.execute("SELECT id, content, description, author, thumbnail, category FROM book WHERE title = %s;", (title,))
-    result = cur.fetchone()
-    cur.close()
-    conn.close()
+            if not book:
+                posthog.capture(distinct_id=user_id, event='book_not_found', properties={'book_title': title})
+                raise HTTPException(status_code=404, detail="Book not found")
 
-    if not result:
-        posthog.capture(distinct_id=user_id, event='book_not_found', properties={'book_title': title})
-        raise HTTPException(status_code=404, detail="Book not found")
+        categories_str = ", ".join(book.category) if book.category else ""
 
-    id, content, description, author, thumbnail, category = result
-    categories_str = ", ".join(category) if isinstance(category, list) else str(category).replace("{", "").replace("}", "").replace('"', "")
+        num_keys = len(book.content or {})
+        total_steps = sum(len((book.content or {}).get(key, {}).get("steps", [])) for key in (book.content or {}).keys())
 
-    num_keys = len(content)
-    total_steps = sum(len(content[key].get("steps", [])) for key in content.keys())
+        response_data = {
+            "id": book.id, "title": book.title, "thumbnail": book.thumbnail, "author": book.author,
+            "description": book.description, "sub_categories_count": num_keys,
+            "total_insights": total_steps, "categories": categories_str 
+        }
 
-    response_data = {
-        "id": id, "title": title, "thumbnail": thumbnail, "author": author,
-        "description": description, "sub_categories_count": num_keys,
-        "total_insights": total_steps, "categories": categories_str 
-    }
-
-    redis_client.setex(cache_key, CACHE_TTL, json.dumps(response_data))
-    
-    posthog.capture(distinct_id=user_id, event='viewed_book_details', properties={'book_title': title, 'source': 'database', 'total_insights': total_steps})
-    return response_data
+        redis_client.setex(cache_key, CACHE_TTL, json.dumps(response_data))
+        posthog.capture(distinct_id=user_id, event='viewed_book_details', properties={'book_title': title, 'source': 'database', 'total_insights': total_steps})
+        return response_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Database error")
 
 
-def get_content_keys_logic(title: str, user_id: str = "anonymous") -> List[Dict[str, str]]:
+def get_content_keys(title: str, user_id: str = "anonymous") -> List[Dict[str, str]]:
     cache_key = f"book:content_keys:{title}"
     cached_data = redis_client.get(cache_key)
     if cached_data:
         return json.loads(cached_data)
 
-    conn = connect_db()
-    if not conn:
+    try:
+        with Session(engine) as session:
+            book = session.exec(select(Book).where(Book.title == title)).first()
+            
+            if not book:
+                raise HTTPException(status_code=404, detail="Book not found")
+
+        content = book.content or {}
+        result = [
+            {
+                "name": key, "icon": value.get("icon", ""),
+                "description": value.get("description", ""), "steps_count": str(len(value.get("steps", [])))
+            }
+            for key, value in content.items()
+        ]
+
+        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+        posthog.capture(distinct_id=user_id, event='viewed_content_keys', properties={'book_title': title, 'keys_count': len(result)})
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(status_code=500, detail="Database connection failed")
 
-    cur = conn.cursor()
-    cur.execute("SELECT content FROM book WHERE title = %s;", (title,))
-    book_data = cur.fetchone()
-    cur.close()
-    conn.close()
-    
-    if not book_data:
-        raise HTTPException(status_code=404, detail="Book not found")
 
-    content = book_data[0] 
-    result = [
-        {
-            "name": key, "icon": value.get("icon", ""),
-            "description": value.get("description", ""), "steps_count": str(len(value.get("steps")))
-        }
-        for key, value in content.items()
-    ]
-
-    redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-    posthog.capture(distinct_id=user_id, event='viewed_content_keys', properties={'book_title': title, 'keys_count': len(result)})
-    return result
-
-
-def get_content_values_logic(title: str, category: List[str], user_id: str = "anonymous") -> List[Dict[str, Any]]:
+def get_content_values(title: str, category: List[str], user_id: str = "anonymous") -> List[Dict[str, Any]]:
     cache_key = f"book:content_values:{title}:{'all' if not category else ','.join(sorted(category))}"
     cached_data = redis_client.get(cache_key)
     if cached_data:
         return json.loads(cached_data)
 
-    conn = connect_db()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-    
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT content FROM book WHERE title = %s;", (title,))
-        row = cur.fetchone()
-        
-        if not row:
-            raise HTTPException(status_code=404, detail="Book not found")
-        
-        content = json.loads(row[0]) if isinstance(row[0], str) else row[0]
-        results = []
-        keys_to_use = category if category else list(content.keys())
+        with Session(engine) as session:
+            book = session.exec(select(Book).where(Book.title == title)).first()
+            
+            if not book:
+                raise HTTPException(status_code=404, detail="Book not found")
+            
+            content = book.content or {}
+            results = []
+            keys_to_use = category if category else list(content.keys())
 
-        for key in keys_to_use:
-            if key in content:
-                icon = content[key].get("icon", "")
-                step_ids = content[key].get("steps", [])
+            for key in keys_to_use:
+                if key in content:
+                    step_ids = content[key].get("steps", [])
 
-                if not step_ids: continue
+                    if not step_ids: continue
 
-                cur.execute("SELECT id, title, description FROM insights WHERE id = ANY(%s);", (step_ids,))
-                steps_data = cur.fetchall()
+                    steps_data = session.exec(select(Insight).where(Insight.id.in_(step_ids))).all()
 
-                for step_id, step_title, step_description in steps_data:
-                    results.append({
-                        "icon": icon, "category": key, "step_id": step_id,
-                        "step": step_title, "description": step_description
-                    })
+                    for step in steps_data:
+                        results.append({
+                            "icon": step.category_icon, 
+                            "category": key, 
+                            "step_id": step.id,
+                            "step": step.title, 
+                            "description": step.description
+                        })
 
-        cur.close()
-        conn.close()
+            if not results:
+                raise HTTPException(status_code=404, detail="No matching categories or steps found")
 
-        if not results:
-            raise HTTPException(status_code=404, detail="No matching categories or steps found")
-
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(results))
-        posthog.capture(distinct_id=user_id, event='viewed_content_values', properties={'book_title': title, 'categories_requested': category, 'results_count': len(results)})
-        return results
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(results))
+            posthog.capture(distinct_id=user_id, event='viewed_content_values', properties={'book_title': title, 'categories_requested': category, 'results_count': len(results)})
+            return results
 
     except Exception as e:
         traceback.print_exc() 
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def get_step_details_logic(step_id: int, user_id: str = "anonymous") -> Dict[str, Any]:
+def get_step_details(step_id: int, user_id: str = "anonymous") -> Dict[str, Any]:
     cache_key = f"insight:{step_id}"
     cached_data = redis_client.get(cache_key)
     
@@ -222,79 +199,81 @@ def get_step_details_logic(step_id: int, user_id: str = "anonymous") -> Dict[str
         posthog.capture(distinct_id=user_id, event='read_insight_step', properties={'step_id': step_id, 'book_title': data.get('book_name')})
         return data
 
-    conn = connect_db()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-
     try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, book_name, category_name, title, description, detailed_breakdown FROM insights WHERE id = %s;",
-            (step_id,)
-        )
-        row = cur.fetchone()
-        cur.close()
-        conn.close()
+        with Session(engine) as session:
+            insight = session.get(Insight, step_id)
 
-        if not row:
-            raise HTTPException(status_code=404, detail="Step not found")
+            if not insight:
+                raise HTTPException(status_code=404, detail="Step not found")
 
-        result = {
-            "step_id": row[0], "book_name": row[1], "category": row[2],
-            "title": row[3], "description": row[4], "detailed_breakdown": row[5]
-        }
+            result = {
+                "step_id": insight.id, "book_name": insight.book_name, "category": insight.category_name,
+                "title": insight.title, "description": insight.description, "detailed_breakdown": insight.detailed_breakdown,
+                "category_icon": insight.category_icon 
+            }
 
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-        posthog.capture(distinct_id=user_id, event='read_insight_step', properties={'step_id': step_id, 'book_title': row[1]})
+        posthog.capture(distinct_id=user_id, event='read_insight_step', properties={'step_id': step_id, 'book_title': insight.book_name})
         return result
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def create_book_logic(book_data: Dict, user_id: str = "system") -> Dict[str, str]:
+def create_book(book_data: Dict, user_id: str = "system") -> Dict[str, str]:
     start_time = time.time()
-    conn = connect_db()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-        
-    cur = conn.cursor()
+    
     try:            
-        book_title = book_data["Title"]
-        content_with_step_ids = {}
-        total_insights_embedded = 0
+        with Session(engine) as session:
+            book_title = book_data["Title"]
+            content_with_step_ids = {}
+            total_insights_embedded = 0
 
-        if "Content" in book_data and isinstance(book_data["Content"], dict):
-            for category_name, category_data in book_data["Content"].items():
-                content_with_step_ids[category_name] = {
-                    "icon": category_data.get("icon"),
-                    "description": category_data.get("description"),
-                    "steps": []
-                }
-                
-                for step in category_data.get("steps", []):
-                    cur.execute(
-                        "INSERT INTO insights (book_name, category_name, title, description, detailed_breakdown) VALUES (%s, %s, %s, %s, %s) RETURNING id;",
-                        (book_title, category_name, step["step"], step["description"], step["detailed_breakdown"]),
-                    )
-                    step_id = cur.fetchone()[0]
-                    content_with_step_ids[category_name]["steps"].append(step_id)
+            if "Content" in book_data and isinstance(book_data["Content"], dict):
+                for category_name, category_data in book_data["Content"].items():
+                    category_icon = category_data.get("icon", "📌")
                     
-                    # Embedding logic
-                    embed_and_upsert_insight(
-                        insight_id=step_id, book_name=book_title, category=category_name,
-                        category_icon=category_data.get("icon"), title=step["step"], description=step["description"],
-                    )
-                    total_insights_embedded += 1
+                    content_with_step_ids[category_name] = {
+                        "icon": category_icon,
+                        "description": category_data.get("description"),
+                        "steps": []
+                    }
                     
-            cur.execute(
-                "INSERT INTO book (title, author, description, thumbnail, category, content) VALUES (%s, %s, %s, %s, %s, %s);",
-                (book_data["Title"], book_data["Author"], book_data["Description"], book_data["Thumbnail"], book_data["Category"], json.dumps(content_with_step_ids)),
-            )
+                    for step in category_data.get("steps", []):
+                        new_insight = Insight(
+                            book_name=book_title,
+                            category_name=category_name,
+                            category_icon=category_icon,
+                            title=step["step"],
+                            description=step["description"],
+                            detailed_breakdown=step["detailed_breakdown"]
+                        )
+                        session.add(new_insight)
+                        session.flush() 
+                        
+                        step_id = new_insight.id
+                        content_with_step_ids[category_name]["steps"].append(step_id)
+                        
+                        embed_and_upsert_insight(
+                            insight_id=step_id, book_name=book_title, category=category_name,
+                            category_icon=category_icon, title=step["step"], description=step["description"],
+                        )
+                        total_insights_embedded += 1
+                        
+                new_book = Book(
+                    title=book_data["Title"],
+                    author=book_data["Author"],
+                    description=book_data["Description"],
+                    thumbnail=book_data["Thumbnail"],
+                    category=book_data["Category"],
+                    content=content_with_step_ids
+                )
+                session.add(new_book)
 
-        conn.commit()
+            session.commit()
 
-        # 🔥 CACHE INVALIDATION
         for key in redis_client.scan_iter("books:*"):
             redis_client.delete(key)
 
@@ -308,29 +287,23 @@ def create_book_logic(book_data: Dict, user_id: str = "system") -> Dict[str, str
         return {"message": "Book and associated steps created successfully"}
     
     except Exception as e:
-        conn.rollback()
         posthog.capture(distinct_id=user_id, event='error_creating_book', properties={'book_title': book_data.get("Title"), 'error': str(e)})
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
-    finally:
-        cur.close()
-        conn.close()
 
 
-def process_book_logic(pdf_path: str, book_title: str, author: str, description: str, cover_url: str, category_list: List[str], user_id: str = "system"):
+def process_book(pdf_path: str, book_title: str, author: str, description: str, cover_url: str, category_list: List[str], user_id: str = "system"):
     posthog.capture(distinct_id=user_id, event='book_processing_started', properties={'book_title': book_title})
     
     try:
         processor = BookistProcessor(pdf_path, book_title, author, description, cover_url, category_list)
         book_data = processor.process()
         
-        # We pass the user_id down to create_book_logic so it tracks under the same user
-        return create_book_logic(book_data, user_id=user_id)
+        return create_book(book_data, user_id=user_id)
     except Exception as e:
         posthog.capture(distinct_id=user_id, event='book_processing_failed', properties={'book_title': book_title, 'error': str(e)})
         raise e
 
-
-def get_categories_logic(user_id: str = "anonymous") -> List[Dict[str, str]]:
+def get_categories(user_id: str = "anonymous") -> List[Dict[str, str]]:
     cache_key = "categories:all"
     cached_data = redis_client.get(cache_key)
     if cached_data:
