@@ -74,24 +74,38 @@ export default function Page() {
     return (
         <div className="flex flex-col relative flex-grow bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
 
-            <Header
-                title="Insights"
-                items={steps}
-                filteredItems={filteredInsights}
-                setFilteredItems={setFilteredInsights}
-                searchKey="step"
-                categories={categories}
-                filteredCategories={filteredCategories}
-                setFilteredCategories={setFilteredCategories}
-                selectedCategory={selectedCategory}
-                toggleCategory={toggleCategory}
-                getItemId={(step: StepData) => step.step_id}
-                getItemLabel={(step: StepData) => step.step}
-                setMode={setMode}
-                mode={mode}
-            />
+            {/* 🌟 Parent now controls the Header animation with smooth slide-up! */}
+            <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                    type: "spring",
+                    stiffness: 100,
+                    damping: 15,
+                    mass: 1,
+                }}
+                className="sticky top-0 z-30" // Keeps it pinned to the top
+            >
+                <Header
+                    title="Insights"
+                    items={steps}
+                    filteredItems={filteredInsights}
+                    setFilteredItems={setFilteredInsights}
+                    searchKey="step"
+                    categories={categories}
+                    filteredCategories={filteredCategories}
+                    setFilteredCategories={setFilteredCategories}
+                    selectedCategory={selectedCategory}
+                    toggleCategory={toggleCategory}
+                    getItemId={(step: StepData) => step.step_id}
+                    getItemLabel={(step: StepData) => step.step}
+                    setMode={setMode}
+                    mode={mode}
+                />
+            </motion.div>
 
-            <div className="relative w-full flex-grow">
+            {/* 🌟 Re-added the conditional margin so the list view isn't cramped against the header */}
+            <div className={`relative w-full flex-grow transition-all duration-300 `}>
                 <AnimatePresence mode="wait">
                     {mode === 'Swipe' ? (
                         <motion.div

@@ -62,20 +62,34 @@ const Page = () => {
 
     return (
         <div className="flex flex-col w-full">
-            <Header
-                title="Explore"
-                items={books}
-                filteredItems={filteredBooks}
-                setFilteredItems={setFilteredBooks}
-                searchKey="title"
-                categories={categories}
-                filteredCategories={filteredCategories}
-                setFilteredCategories={setFilteredCategories}
-                selectedCategory={selectedCategory}
-                toggleCategory={toggleCategory}
-                getItemId={(book: any) => book.id}
-                getItemLabel={(book: any) => book.title}
-            />
+
+            {/* 🌟 Parent now controls the Header animation! */}
+            <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                    type: "spring",
+                    stiffness: 100,
+                    damping: 15,
+                    mass: 1,
+                }}
+                className="sticky top-0 z-30" // Moved sticky properties to the wrapper to ensure it stays at the top
+            >
+                <Header
+                    title="Explore"
+                    items={books}
+                    filteredItems={filteredBooks}
+                    setFilteredItems={setFilteredBooks}
+                    searchKey="title"
+                    categories={categories}
+                    filteredCategories={filteredCategories}
+                    setFilteredCategories={setFilteredCategories}
+                    selectedCategory={selectedCategory}
+                    toggleCategory={toggleCategory}
+                    getItemId={(book: any) => book.id}
+                    getItemLabel={(book: any) => book.title}
+                />
+            </motion.div>
 
             <motion.div layout className="columns-2 gap-4 lg:columns-5 space-y-4">
                 <AnimatePresence mode="popLayout">

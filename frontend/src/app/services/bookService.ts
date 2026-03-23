@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://10.98.145.43:8000" // Update based on your FastAPI server
-// const API_BASE_URL = "http://localhost:8000"
+// const API_BASE_URL = "http://10.98.145.43:8000" // Update based on your FastAPI server
+const API_BASE_URL = "http://localhost:8000"
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,

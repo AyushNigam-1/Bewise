@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Layers, List as ListIcon } from "lucide-react";
 import SearchBar from "@/app/components/layout/SearchBar";
 import CategoryDialog from "@/app/components/modals/CategoryModal";
@@ -24,17 +23,9 @@ function Header<T>({
     mode
 }: ExploreHeaderProps<T> & { setMode?: any, mode?: string }) {
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-                type: "spring",
-                stiffness: 100,
-                damping: 15,
-                mass: 1,
-            }}
-            // 🌟 FIX: Collapses height to h-0 and disables pointer events on the invisible wrapper in Swipe mode
-            className={`flex justify-between items-center sticky top-0 z-30 transition-all duration-300 ${mode === 'Swipe'
+        // 🌟 Stripped down to a standard div. No framer-motion logic here!
+        <div
+            className={`flex justify-between items-center transition-all duration-300 ${mode === 'Swipe'
                 ? 'h-0 bg-transparent pointer-events-none'
                 : 'h-14 md:h-18 bg-white dark:bg-gray-900 pointer-events-auto'
                 }`}
@@ -57,13 +48,12 @@ function Header<T>({
                     />
                 )}
 
-                {/* 🌟 FIX: Added 'pointer-events-auto' here so the buttons stay clickable even when the header is collapsed! */}
-                <div className="flex flex-col md:flex-row gap-2 md:relative fixed right-0 bottom-0 m-4 md:m-0 pointer-events-auto z-50">
+                <div className="flex flex-col md:flex-row gap-2 md:relative fixed right-0 bottom-0 m-4 md:m-0 pointer-events-auto z-50 ">
 
                     {setMode && (
                         <button
                             onClick={() => setMode((prev: any) => prev === 'List' ? 'Swipe' : 'List')}
-                            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-all duration-300 rounded-full p-2.5 shadow-sm active:scale-95 flex items-center justify-center"
+                            className="p-3 md:hidden font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow cursor-pointer rounded-full flex gap-2 items-center transition-all duration-300 hover:scale-105"
                             aria-label="Toggle Mode"
                         >
                             {mode === 'Swipe' ? (
@@ -90,7 +80,7 @@ function Header<T>({
                     />
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 }
 

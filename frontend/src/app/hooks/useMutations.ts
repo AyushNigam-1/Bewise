@@ -11,6 +11,7 @@ export const useMutations = () => {
     const bookmarkInsight = useMutation({
         mutationFn: (insightId: number) => {
             if (!user) throw new Error("Not authenticated");
+            console.log("us")
             return toggleBookmarkInsight(user.user_id, insightId);
         },
 
@@ -37,6 +38,7 @@ export const useMutations = () => {
     const bookmarkBook = useMutation({
         mutationFn: (bookId: number) => {
             if (!user) throw new Error("Not authenticated");
+            console.log(user.user_id, bookId)
             return toggleFavouriteBook(user.user_id, bookId);
         },
 

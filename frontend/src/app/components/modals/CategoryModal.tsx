@@ -70,8 +70,8 @@ const CategoryDialog: React.FC<CategoryProps> = ({
                                             }}
                                             className={`relative flex flex-col gap-2 rounded-xl select-none cursor-pointer w-full p-3 transition-colors duration-200 text-left border-2
                                                 ${isSelected
-                                                    ? 'bg-gray-100 dark:bg-gray-800 border-gray-400 dark:border-gray-500 shadow-sm'
-                                                    : 'bg-gray-50 dark:bg-gray-800/50 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
+                                                    ? 'bg-gray-200 dark:bg-gray-800 border-gray-400 dark:border-gray-500 shadow-sm'
+                                                    : 'bg-gray-100 dark:bg-gray-800/50 border-transparent hover:bg-gray-200 dark:hover:bg-gray-700'
                                                 }
                                             `}
                                         >

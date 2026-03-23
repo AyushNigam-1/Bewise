@@ -3,45 +3,62 @@ import Link from "next/link";
 import React, { useState } from "react";
 import ShareModal from "./modals/ShareModal";
 import { Bookmark, Share } from "lucide-react";
-import { useMutations } from "@/app/hooks/useMutations";
 import { CardProps } from "../types";
+import { useBookmarkInsight } from "../hooks/mutations/useBookmark";
 
 const BookCard: React.FC<CardProps> = ({ book, isBookmarked }) => {
-    const [isOpen, setIsOpen] = useState(false)
-    const { bookmarkBook } = useMutations()
+
+    const [isOpen, setIsOpen] = useState(false);
+    const { mutate: bookmarkBook } = useBookmarkInsight();
 
     return (
-        <Link className=" rounded-2xl cursor-pointer overflow-clip gap-2 break-inside-avoid flex flex-col" href={`/overview/${book.title}`} >
-            <div className="flex flex-col gap-4 w-full">
-                <div className="group relative w-full flex items-end overflow-clip rounded-xl  ">
+        <div className="relative flex flex-col gap-4 w-full break-inside-avoid">
+
+            <div className="group relative w-full flex overflow-clip rounded-2xl">
+
+                <Link href={`/overview/${book.title}`} className="w-full outline-none block">
                     <img
                         src={book.thumbnail}
-                        className="z-10 shadow-lg rounded-2xl  object-contain"
+                        className="z-10 shadow-lg rounded-2xl w-full object-contain transition-transform duration-300 group-hover:scale-[1.02]"
                         alt={book.title}
                     />
-                    <div className="absolute flex flex-col items-end group-hover:opacity-100 opacity-0 transition-opacity gap-4 w-full z-20 p-2 ">
-                        <button
-                            className={`text-gray-600 bg-gray-100  focus:outline-none rounded-full p-2 w-min  font-semibold cursor-pointer ${isBookmarked ? 'outline-gray-800 outline-1 text-gray-500' : ''}`}
-                            onClick={(e) => { e.stopPropagation(); bookmarkBook.mutate(book.id) }}
-                            type="button"
-                        >
-                            <Bookmark
-                                size={18}
-                                className={isBookmarked ? "fill-current" : ""}
-                            />
-                        </button>
-                        <button
-                            type="button"
-                            className="text-gray-600 bg-gray-100  focus:outline-none rounded-full p-2 w-min  font-semibold cursor-pointer"
-                            onClick={(e) => { e.stopPropagation(); setIsOpen(true) }}
-                        >
-                            <Share size={20} />
-                        </button>
-                    </div>
+                </Link>
+
+                <div className="absolute bottom-2 right-2 flex flex-col items-end gap-3 z-20 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            bookmarkBook(book.id);
+                        }}
+                        className="p-3 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none rounded-full font-semibold cursor-pointer shadow-md transition-all active:scale-95 flex items-center justify-center border border-gray-200/50 dark:border-gray-700/50"
+                        aria-label="Bookmark"
+                    >
+                        <Bookmark
+                            size={22}
+                            className={`transition-colors duration-200 ${isBookmarked ? "fill-current text-gray-800 dark:text-blue-400" : ""}`}
+                        />
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsOpen(true);
+                        }}
+                        className="p-3 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none rounded-full font-semibold cursor-pointer shadow-md transition-all active:scale-95 flex items-center justify-center border border-gray-200/50 dark:border-gray-700/50"
+                        aria-label="Share"
+                    >
+                        <Share size={22} />
+                    </button>
                 </div>
-                <ShareModal isOpen={isOpen} setIsOpen={setIsOpen} shareUrl="https://www.example.com" />
             </div>
-        </Link >
+
+            <ShareModal isOpen={isOpen} setIsOpen={setIsOpen} shareUrl={`https://www.bookist.com/overview/${book.title}`} />
+        </div>
     );
 };
 

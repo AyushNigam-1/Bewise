@@ -7,8 +7,11 @@ import { Bookmark, LogOut, User, UserPlus, Sun, Moon } from "lucide-react";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { signOut } from "@/app/lib/auth-client";
 import posthog from "posthog-js";
+import { useRouter } from "next/navigation";
+
 
 const Navbar = () => {
+  const nav = useRouter()
   const user = useUserStore((state) => state.user);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -130,7 +133,8 @@ const Navbar = () => {
                         onClick={() => {
                           posthog.capture("user_logged_out");
                           posthog.reset();
-                          signOut();
+                          signOut().then(() => nav.push("/login"));
+
                         }}
                         className="group cursor-pointer flex items-center gap-2 p-2 rounded-lg w-full font-semibold text-left transition-colors data-[focus]:bg-red-50 dark:data-[focus]:bg-red-900/20 data-[focus]:text-red-600 dark:data-[focus]:text-red-400 text-gray-700 dark:text-gray-300"
                       >
