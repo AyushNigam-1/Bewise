@@ -9,12 +9,10 @@ from controllers.book_handler import (
     get_all_books,
     find_books_by_categories,
     get_book_info,
-    get_content_keys,
-    get_content_values,
+    get_book_content, 
     get_step_details,
     create_book,
     process_book,
-    get_categories
 )
 
 shared_limiter = Limiter(Rate(60, Duration.SECOND * 60))
@@ -24,7 +22,7 @@ router = APIRouter(dependencies=[Depends(RateLimiter(limiter=shared_limiter))])
 def get_all_books_route():
     return get_all_books()
 
-@router.post("/books/find-by-categories")
+@router.post("/books/find-by-categories", response_model=Dict[str, Any])
 def find_books_by_categories_route(categories: List[str] = Body(...)):
     return find_books_by_categories(categories)
 
@@ -32,13 +30,10 @@ def find_books_by_categories_route(categories: List[str] = Body(...)):
 def get_book_info_route(title: str):
     return get_book_info(title)
 
-@router.get("/book/{title}/content_keys", response_model=List[Dict[str, str]])
-def get_content_keys_route(title: str):
-    return get_content_keys(title)
-    
-@router.post("/book/{title}")
-def get_content_values_route(title: str, category: List[str] = Body(...)):
-    return get_content_values(title, category)
+# 🌟 THE NEW COMBINED ROUTE
+@router.post("/book/{title}/content", response_model=Dict[str, Any])
+def get_book_content_route(title: str, category: List[str] = Body(default=[])):
+    return get_book_content(title, category)
 
 @router.get("/insights/{step_id}")
 def get_step_details_route(step_id: int):
@@ -68,7 +63,3 @@ def process_book_route(
     result = process_book(pdf_path, book_title, author, description, cover_url, category_list)
     
     return JSONResponse(content=result, status_code=201)
-
-@router.get("/get-categories")
-def get_categories_route():
-    return get_categories()

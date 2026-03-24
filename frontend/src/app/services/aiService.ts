@@ -1,11 +1,8 @@
-import axios from "axios";
+import { api } from "../lib/api";
 import { QuizQuestion } from "../types";
 
-// const API_BASE_URL = "http://localhost:8000";
-const API_BASE_URL = "http://10.98.145.43:8000"
-
 export const invokeChatbot = async ({ payload, signal }: { payload: any, signal?: AbortSignal }) => {
-    const { data } = await axios.post(`${API_BASE_URL}/ai/rag/invoke`,
+    const { data } = await api.post("/ai/rag/invoke",
         {
             input: payload
         },
@@ -17,27 +14,25 @@ export const invokeChatbot = async ({ payload, signal }: { payload: any, signal?
 };
 
 export const generateVoice = async (text: string) => {
-    const response = await fetch(`${API_BASE_URL}/generate-voice`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice: "troy" }),
-    });
+    const response = await api.post("/generate-voice",
+        {
+            text,
+            voice: "troy"
+        },
+        {
+            responseType: "blob"
+        }
+    );
 
-    if (!response.ok) throw new Error("Failed to generate voice");
-    return await response.blob();
+    if (!response.data) throw new Error("Failed to generate voice");
+    return response.data;
 };
 
 export const generateQuizFromText = async (textData: string): Promise<QuizQuestion[]> => {
-    const response = await axios.post(
-        "http://localhost:8000/ai/quiz/invoke",
+    const response = await api.post("/ai/quiz/invoke",
         {
             input: {
                 source_text: textData.substring(0, 3000),
-            },
-        },
-        {
-            headers: {
-                "Content-Type": "application/json",
             },
         }
     );

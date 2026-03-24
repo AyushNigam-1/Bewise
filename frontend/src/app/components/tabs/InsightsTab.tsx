@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ToastContainer } from "react-toastify";
-import { Loader2, Bookmark } from "lucide-react";
+import { Loader2, Bookmark, SearchX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getBookmarkedInsights } from "@/app/services/userService";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { User, Categories, StepData } from "@/app/types";
 import ShareModal from "@/app/components/modals/ShareModal";
 import { useBookmarkInsight } from "@/app/hooks/mutations/useBookmark";
-import { InsightCard } from "../InsightsCard";
+import { InsightCard } from "../cards/InsightsCard";
 import Header from "../layout/Header";
 
 const EMPTY_INSIGHTS: StepData[] = [];
@@ -38,12 +38,17 @@ const InsightsTab = () => {
         enabled: !!user?.id,
     });
 
-    const insights = insightsData?.insights ?? EMPTY_INSIGHTS;
-    const categories = insightsData?.categories ?? EMPTY_CATEGORIES;
+    const insights: StepData[] = insightsData?.data?.insights ?? insightsData?.insights ?? EMPTY_INSIGHTS;
+    const categories = insightsData?.data?.categories ?? insightsData?.categories ?? EMPTY_CATEGORIES;
 
     useEffect(() => {
         setFilteredCategories(categories);
     }, [categories]);
+
+    const hasAnyBookmarks = useMemo(() => {
+        const favoriteIds = user?.favourite_insights || [];
+        return insights.some(i => favoriteIds.includes(i.step_id));
+    }, [insights, user?.favourite_insights]);
 
     const categoryFilteredInsights = useMemo(() => {
         const favoriteIds = user?.favourite_insights || [];
@@ -71,9 +76,8 @@ const InsightsTab = () => {
         );
     }, []);
 
-
     return (
-        <div className="flex flex-col ">
+        <div className="flex flex-col">
 
             <motion.div
                 initial={{ opacity: 0, y: 40 }}
@@ -125,7 +129,48 @@ const InsightsTab = () => {
                         >
                             Something went wrong loading your bookmarks.
                         </motion.div>
-                    ) : filteredInsights.length > 0 ? (
+
+                    ) : !hasAnyBookmarks ? (
+                        <motion.div
+                            key="no-bookmarks-state"
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            className="flex-grow flex flex-col items-center justify-center h-[70vh] text-center px-4"
+                        >
+                            <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+                                <Bookmark size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                                No insights saved
+                            </h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
+                                You haven't bookmarked any insights yet. Start exploring to save your favorites!
+                            </p>
+                        </motion.div>
+
+                    ) : filteredInsights.length === 0 ? (
+                        <motion.div
+                            key="no-matches-state"
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            className="flex-grow flex flex-col items-center justify-center h-[70vh] text-center px-4"
+                        >
+                            <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+                                <SearchX size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                                No matches found
+                            </h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
+                                None of your saved insights match the current filters. Try clearing your search or categories.
+                            </p>
+                        </motion.div>
+
+                    ) : (
                         <motion.div
                             key="grid-state"
                             initial={{ opacity: 0 }}
@@ -172,27 +217,7 @@ const InsightsTab = () => {
                                 </AnimatePresence>
                             </motion.div>
                         </motion.div>
-                    ) : (
-                        <motion.div
-                            key="empty-state"
-                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="flex-grow flex flex-col items-center justify-center h-[85vh] text-center px-4"
-                        >
-                            <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
-                                <Bookmark size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
-                            </div>
-                            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
-                                No insights saved
-                            </h3>
-                            <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
-                                You haven't bookmarked any insights yet, or none match your current filters.
-                            </p>
-                        </motion.div>
                     )}
-
                 </AnimatePresence>
             </div>
 

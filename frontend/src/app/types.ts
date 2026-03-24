@@ -137,8 +137,8 @@ export interface ExploreHeaderProps<T> {
     toggleCategory: (category: Categories) => void;
     getItemId: (item: T) => number | string;
     getItemLabel: (item: T) => string;
-    setMode: React.Dispatch<React.SetStateAction<string>>
-    mode: string
+    setMode?: React.Dispatch<React.SetStateAction<string>>
+    mode?: string
 }
 
 export type SearchBarProps = {

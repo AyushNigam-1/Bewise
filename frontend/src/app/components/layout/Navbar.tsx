@@ -44,7 +44,7 @@ const Navbar = () => {
     <nav className="border-b border-gray-200 dark:border-gray-800 pb-3 z-50 container mx-auto transition-colors duration-300">
       <div className="flex flex-wrap items-center justify-between">
         <h4 className="justify-between flex lg:text-3xl font-bold text-gray-900 dark:text-gray-100 text-3xl text-center md:text-left gap-2 italic transition-colors">
-          Bewise
+          <img src="/logo.png" className="w-28 md:w-36 invert dark:invert-0" />
         </h4>
 
         <div className="flex items-center gap-2 md:gap-3">
@@ -59,7 +59,6 @@ const Navbar = () => {
             >
               <div className="flex flex-col gap-1">
 
-                {/* 🌟 The Animated Theme Toggle with Dynamic Text */}
                 <MenuItem>
                   <button
                     onClick={(e) => {
@@ -86,7 +85,6 @@ const Navbar = () => {
                         />
                       </div>
 
-                      {/* 🌟 Dynamic Text added here */}
                       <div className="relative w-24 h-5 flex items-center">
                         <span className={`absolute transition-all duration-300 ease-in-out text-gray-700 dark:text-gray-300 ${isDarkMode ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"}`}>
                           Light
@@ -97,7 +95,6 @@ const Navbar = () => {
                       </div>
                     </div>
 
-                    {/* iOS Style Pill Toggle */}
                     <div
                       className={`w-9 h-5 rounded-full flex items-center p-0.5 transition-colors duration-300 ease-in-out ${isDarkMode ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"
                         }`}
@@ -110,7 +107,6 @@ const Navbar = () => {
                   </button>
                 </MenuItem>
 
-                {/* Subtle Divider */}
                 <div className="h-px bg-gray-100 dark:bg-gray-800 my-1 transition-colors" />
 
                 {user ? (

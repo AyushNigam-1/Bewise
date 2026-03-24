@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, BookOpen } from "lucide-react";
+import { Loader2, BookOpen, SearchX } from "lucide-react";
 import { getBookmarkedBooks } from "@/app/services/userService";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { User, Categories, BookData, Book } from "@/app/types";
-import BookCard from "@/app/components/BookCards";
 import { AnimatePresence, motion } from "framer-motion";
 import Header from "../layout/Header";
+import BookCard from "../cards/BookCards";
 
 const EMPTY_BOOKS: Book[] = [];
 const EMPTY_CATEGORIES: Categories[] = [];
@@ -25,12 +25,17 @@ const BooksTab = () => {
         enabled: !!user?.id,
     });
 
-    const books = booksData?.data?.books ?? booksData?.books ?? EMPTY_BOOKS;
+    const books: Book[] = booksData?.data?.books ?? booksData?.books ?? EMPTY_BOOKS;
     const categories = booksData?.data?.categories ?? booksData?.categories ?? EMPTY_CATEGORIES;
 
     useEffect(() => {
         setFilteredCategories(categories);
     }, [categories]);
+
+    const hasAnyBookmarks = useMemo(() => {
+        const favoriteIds = user?.favourite_books || [];
+        return books.some(b => favoriteIds.includes(b.id));
+    }, [books, user?.favourite_books]);
 
     const categoryFilteredBooks = useMemo(() => {
         const favoriteIds = user?.favourite_books || [];
@@ -63,7 +68,7 @@ const BooksTab = () => {
     }, []);
 
     return (
-        <div className="flex flex-col min-h-screen">
+        <div className="flex flex-col">
 
             <motion.div
                 initial={{ opacity: 0, y: 40 }}
@@ -115,7 +120,48 @@ const BooksTab = () => {
                         >
                             Something went wrong loading your bookmarked books.
                         </motion.div>
-                    ) : filteredBooks.length > 0 ? (
+
+                    ) : !hasAnyBookmarks ? (
+                        <motion.div
+                            key="no-bookmarks-state"
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            className="flex-grow flex flex-col items-center justify-center h-[70vh] text-center px-4"
+                        >
+                            <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+                                <BookOpen size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                                No books saved
+                            </h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
+                                You haven't bookmarked any books yet. Start exploring to build your library!
+                            </p>
+                        </motion.div>
+
+                    ) : filteredBooks.length === 0 ? (
+                        <motion.div
+                            key="no-matches-state"
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            className="flex-grow flex flex-col items-center justify-center h-[70vh] text-center px-4"
+                        >
+                            <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+                                <SearchX size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                                No matches found
+                            </h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
+                                None of your saved books match the current filters. Try clearing your search or categories.
+                            </p>
+                        </motion.div>
+
+                    ) : (
                         <motion.div
                             key="grid-state"
                             initial={{ opacity: 0 }}
@@ -157,26 +203,6 @@ const BooksTab = () => {
                                     ))}
                                 </AnimatePresence>
                             </motion.div>
-                        </motion.div>
-                    ) : (
-                        /* 🌟 POLISHED EMPTY STATE WITH ANIMATION */
-                        <motion.div
-                            key="empty-state"
-                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="flex-grow flex flex-col items-center justify-center py-20 text-center px-4 min-h-[50vh]"
-                        >
-                            <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
-                                <BookOpen size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
-                            </div>
-                            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
-                                No books saved
-                            </h3>
-                            <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
-                                You haven't bookmarked any books yet, or none match your current filters.
-                            </p>
                         </motion.div>
                     )}
                 </AnimatePresence>

@@ -137,13 +137,11 @@ def recommend(user_id: str):
 
 
 def session_recommend(user_id: str, insight_id: int):
-    start_time = time.time()
     cache_key = f"session_recommend:{user_id}:{insight_id}"
     cached_data = redis_client.get(cache_key)
     
     if cached_data:
         data = json.loads(cached_data)
-        latency = time.time() - start_time
         posthog.capture(distinct_id=user_id, event='session_recommendations_fetched', properties={'source': 'redis_cache'})
         return data
 

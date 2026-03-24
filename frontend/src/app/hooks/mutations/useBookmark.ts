@@ -1,9 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
 import { Slide, toast } from "react-toastify";
-import posthog from "posthog-js";
-
-import { toggleBookmarkInsight, toggleBookmarkBook } from "@/app/services/bookService"; // Adjust paths as needed
+import { toggleBookmarkInsight, toggleBookmarkBook } from "@/app/services/bookService";
 import { useUserStore } from "@/app/stores/useUserStores";
+import posthog from "posthog-js";
 
 export const useBookmarkInsight = () => {
     const toggleInsight = useUserStore(state => state.toggleFavouriteInsight);

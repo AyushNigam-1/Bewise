@@ -25,6 +25,8 @@ sentry_sdk.init(
 
 app = FastAPI(lifespan=lifespan)
 
+app.add_middleware(SessionAuthenticationMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000","http://10.98.145.43:3000"],
@@ -32,7 +34,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(SessionAuthenticationMiddleware)
 
 app.include_router(books_router)
 app.include_router(users_router)

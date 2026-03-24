@@ -5,15 +5,19 @@ import { useParams } from 'next/navigation';
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from 'framer-motion';
 import { ToastContainer } from 'react-toastify';
-import { getBookContentKeys, getBookContentValue } from '@/app/services/bookService';
+import { getBookContent } from '@/app/services/bookService'; // 🌟 Updated to your combined service call
 import ShareModal from '../../../components/modals/ShareModal';
 import Slider from '../../../components/layout/Slider';
 import { useUserStore } from '@/app/stores/useUserStores';
 import { useBookmarkInsight } from '@/app/hooks/mutations/useBookmark';
-import { InsightCard } from '@/app/components/InsightsCard';
-import Loader from '@/app/components/layout/Loader';
+import { InsightCard } from '@/app/components/cards/InsightsCard';
 import { Categories, StepData } from '@/app/types';
 import Header from '@/app/components/layout/Header';
+import { Loader2 } from 'lucide-react';
+
+// 🌟 FIX: Define empty arrays outside the component to prevent infinite re-renders!
+const EMPTY_STEPS: StepData[] = [];
+const EMPTY_CATEGORIES: Categories[] = [];
 
 export default function Page() {
     const params = useParams<{ title?: string }>()
@@ -26,20 +30,15 @@ export default function Page() {
     const user = useUserStore((state: any) => state.user);
     const { mutate: bookmarkInsight } = useBookmarkInsight();
 
-    const { data: categories = [], isLoading: categoriesLoading } = useQuery({
-        queryKey: ["categories", params?.title],
-        queryFn: () => getBookContentKeys(params!.title!),
-        enabled: !!params?.title,
-    });
-
-    const { data: steps = [], isLoading: insightsLoading } = useQuery({
+    // 🌟 ONE QUERY TO RULE THEM ALL
+    const { data: responseData, isLoading } = useQuery({
         queryKey: [
-            "insights",
+            "book-content",
             params?.title,
             selectedCategory.map(cat => cat.name)
         ],
         queryFn: () =>
-            getBookContentValue(
+            getBookContent(
                 params!.title!,
                 selectedCategory.length
                     ? selectedCategory.map(cat => cat.name)
@@ -47,6 +46,10 @@ export default function Page() {
             ),
         enabled: !!params?.title,
     });
+
+    // 🌟 Safely extract keys (categories) and values (steps) from the payload
+    const categories = responseData?.data?.keys ?? responseData?.keys ?? EMPTY_CATEGORIES;
+    const steps = responseData?.data?.values ?? responseData?.values ?? EMPTY_STEPS;
 
     useEffect(() => {
         if (steps.length && categories.length) {
@@ -63,10 +66,10 @@ export default function Page() {
         )
     }
 
-    if (!params?.title || insightsLoading || categoriesLoading) {
+    if (!params?.title || isLoading) {
         return (
-            <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900 transition-colors duration-300">
-                <Loader />
+            <div className="fixed inset-0 flex items-center justify-center transition-colors duration-300">
+                <Loader2 size={40} className="animate-spin text-gray-400" />
             </div>
         );
     }
@@ -74,7 +77,6 @@ export default function Page() {
     return (
         <div className="flex flex-col relative flex-grow bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
 
-            {/* 🌟 Parent now controls the Header animation with smooth slide-up! */}
             <motion.div
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -84,7 +86,7 @@ export default function Page() {
                     damping: 15,
                     mass: 1,
                 }}
-                className="sticky top-0 z-30" // Keeps it pinned to the top
+                className="sticky top-0 z-30"
             >
                 <Header
                     title="Insights"
@@ -104,7 +106,6 @@ export default function Page() {
                 />
             </motion.div>
 
-            {/* 🌟 Re-added the conditional margin so the list view isn't cramped against the header */}
             <div className={`relative w-full flex-grow transition-all duration-300 `}>
                 <AnimatePresence mode="wait">
                     {mode === 'Swipe' ? (
@@ -131,37 +132,36 @@ export default function Page() {
                             className="w-full"
                         >
                             {filteredInsights.length ? (
-                                <motion.div layout className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
-                                    <AnimatePresence mode="popLayout">
-                                        {filteredInsights.map((step) => (
-                                            <motion.div
-                                                key={step.step_id}
-                                                layout
-                                                initial={{ opacity: 0, y: 40 }}
-                                                whileInView={{ opacity: 1, y: 0 }}
-                                                viewport={{ once: true, amount: 0.1 }}
-                                                transition={{
-                                                    type: "spring",
-                                                    stiffness: 100,
-                                                    damping: 15,
-                                                    mass: 1
+                                <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">                                    <AnimatePresence mode="popLayout">
+                                    {filteredInsights.map((step) => (
+                                        <motion.div
+                                            key={step.step_id}
+                                            layout
+                                            initial={{ opacity: 0, y: 40 }}
+                                            whileInView={{ opacity: 1, y: 0 }}
+                                            viewport={{ once: true, amount: 0.1 }}
+                                            transition={{
+                                                type: "spring",
+                                                stiffness: 100,
+                                                damping: 15,
+                                                mass: 1
+                                            }}
+                                            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                                            className="break-inside-avoid"
+                                        >
+                                            <InsightCard
+                                                step={step}
+                                                bookTitle={params.title!}
+                                                isBookmarked={user?.favourite_insights?.includes(step.step_id)}
+                                                onBookmark={bookmarkInsight}
+                                                onShare={(title) => {
+                                                    setShareUrl(title);
+                                                    setShareModal(true);
                                                 }}
-                                                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                                                className="break-inside-avoid"
-                                            >
-                                                <InsightCard
-                                                    step={step}
-                                                    bookTitle={params.title!}
-                                                    isBookmarked={user?.favourite_insights?.includes(step.step_id)}
-                                                    onBookmark={bookmarkInsight}
-                                                    onShare={(title) => {
-                                                        setShareUrl(title);
-                                                        setShareModal(true);
-                                                    }}
-                                                />
-                                            </motion.div>
-                                        ))}
-                                    </AnimatePresence>
+                                            />
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
                                 </motion.div>
                             ) : null}
                         </motion.div>

@@ -1,15 +1,15 @@
 "use client"
 import Link from "next/link";
 import React, { useState } from "react";
-import ShareModal from "./modals/ShareModal";
-import { Bookmark, Share } from "lucide-react";
-import { CardProps } from "../types";
-import { useBookmarkInsight } from "../hooks/mutations/useBookmark";
+import { Bookmark, Share2 } from "lucide-react";
+import { useBookmarkBook } from "@/app/hooks/mutations/useBookmark";
+import { CardProps } from "@/app/types";
+import ShareModal from "../modals/ShareModal";
 
 const BookCard: React.FC<CardProps> = ({ book, isBookmarked }) => {
 
     const [isOpen, setIsOpen] = useState(false);
-    const { mutate: bookmarkBook } = useBookmarkInsight();
+    const { mutate: bookmarkBook } = useBookmarkBook();
 
     return (
         <div className="relative flex flex-col gap-4 w-full break-inside-avoid">
@@ -33,12 +33,12 @@ const BookCard: React.FC<CardProps> = ({ book, isBookmarked }) => {
                             e.stopPropagation();
                             bookmarkBook(book.id);
                         }}
-                        className="p-3 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none rounded-full font-semibold cursor-pointer shadow-md transition-all active:scale-95 flex items-center justify-center border border-gray-200/50 dark:border-gray-700/50"
+                        className="p-3 bg-white/90 dark:bg-gray-900 backdrop-blur-md text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none rounded-full font-semibold cursor-pointer shadow-md transition-all active:scale-95 flex items-center justify-center border border-gray-200/50 dark:border-gray-700/50"
                         aria-label="Bookmark"
                     >
                         <Bookmark
-                            size={22}
-                            className={`transition-colors duration-200 ${isBookmarked ? "fill-current text-gray-800 dark:text-blue-400" : ""}`}
+                            // size={20}
+                            className={`size-4 md:size-6 transition-colors duration-200 ${isBookmarked ? "fill-current text-gray-800 dark:text-gray-200" : ""}`}
                         />
                     </button>
 
@@ -52,7 +52,7 @@ const BookCard: React.FC<CardProps> = ({ book, isBookmarked }) => {
                         className="p-3 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none rounded-full font-semibold cursor-pointer shadow-md transition-all active:scale-95 flex items-center justify-center border border-gray-200/50 dark:border-gray-700/50"
                         aria-label="Share"
                     >
-                        <Share size={22} />
+                        <Share2 className="size-4 md:size-6" />
                     </button>
                 </div>
             </div>

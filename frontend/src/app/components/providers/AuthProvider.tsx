@@ -19,7 +19,5 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         }
     }, [session, isPending, setUser]);
 
-    if (isPending) return <div className="min-h-screen flex items-center justify-center" > Loading...</div>;
-
     return <>{children} </>;
 }

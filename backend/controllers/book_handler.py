@@ -11,6 +11,8 @@ from src.processor import BookistProcessor
 from src.utils.file_operations import load_json_file
 from core.redis import redis_client, CACHE_TTL
 from core.analytics import posthog
+from sqlalchemy import cast, Text
+from sqlalchemy.dialects.postgresql import ARRAY
 
 def get_all_books(user_id: str = "anonymous") -> List[Dict[str, Any]]:
     cache_key = "books:all"
@@ -39,24 +41,27 @@ def get_all_books(user_id: str = "anonymous") -> List[Dict[str, Any]]:
     except Exception as e:
         raise HTTPException(status_code=500, detail="Database connection failed")
 
-
-def find_books_by_categories(categories: List[str], user_id: str = "anonymous") -> List[Dict[str, Any]]:
-    cache_key = "books:all" if not categories else f"books:categories:{','.join(sorted(categories))}"
+def find_books_by_categories(categories: List[str], user_id: str = "anonymous") -> Dict[str, Any]:
+    cache_key = "books_with_cats:all" if not categories else f"books_with_cats:{','.join(sorted(categories))}"
     cached_data = redis_client.get(cache_key)
     
     if cached_data:
-        books = json.loads(cached_data)
-        posthog.capture(distinct_id=user_id, event='searched_books_by_category', properties={'categories': categories, 'source': 'redis_cache', 'results_count': len(books)})
-        return books
+        data = json.loads(cached_data)
+        posthog.capture(distinct_id=user_id, event='searched_books_by_category', properties={'categories': categories, 'source': 'redis_cache', 'books_count': len(data.get("books", []))})
+        return data
 
     try:
         with Session(engine) as session:
+            # 1. Fetch Books (All or Filtered)
             if not categories:
                 books_data = session.exec(select(Book)).all()
             else:
-                statement = select(Book).where(Book.category.overlap(categories))
+                statement = select(Book).where(
+                    Book.category.overlap(cast(categories, ARRAY(Text)))
+                )
                 books_data = session.exec(statement).all()
 
+            # Format Books
             books = [
                 {
                     "id": b.id, "title": b.title, "author": b.author,
@@ -66,9 +71,33 @@ def find_books_by_categories(categories: List[str], user_id: str = "anonymous") 
                 for b in books_data
             ]
 
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(books))
-        posthog.capture(distinct_id=user_id, event='searched_books_by_category', properties={'categories': categories, 'source': 'database', 'results_count': len(books)})
-        return books
+            unique_category_names = set()
+            for b in books_data:
+                if b.category:
+                    unique_category_names.update(b.category)
+
+            all_categories_metadata = load_json_file("", "categories.json", {})
+            
+            filtered_categories = []
+            for cat_name in unique_category_names:
+                cat_meta = all_categories_metadata.get(cat_name, {})
+                filtered_categories.append({
+                    "name": cat_name,
+                    "icon": cat_meta.get("icon", "📌"),
+                    "description": cat_meta.get("description", f"Explore insights from {cat_name}.")
+                })
+
+            filtered_categories = sorted(filtered_categories, key=lambda x: x["name"])
+
+            result = {
+                "books": books,
+                "categories": filtered_categories
+            }
+
+        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+        posthog.capture(distinct_id=user_id, event='searched_books_by_category', properties={'categories': categories, 'source': 'database', 'books_count': len(books), 'cats_count': len(filtered_categories)})
+        
+        return result
         
     except Exception as e:
         posthog.capture(distinct_id=user_id, event='error_searching_categories', properties={'error': str(e), 'categories': categories})
@@ -113,78 +142,84 @@ def get_book_info(title: str, user_id: str = "anonymous") -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail="Database error")
 
 
-def get_content_keys(title: str, user_id: str = "anonymous") -> List[Dict[str, str]]:
-    cache_key = f"book:content_keys:{title}"
+def get_book_content(title: str, category: List[str] = None, user_id: str = "anonymous") -> Dict[str, Any]:
+    if category is None:
+        category = []
+        
+    # Unique cache key based on the title and selected categories
+    cache_key = f"book:content_combined:{title}:{'all' if not category else ','.join(sorted(category))}"
     cached_data = redis_client.get(cache_key)
+    
     if cached_data:
-        return json.loads(cached_data)
+        data = json.loads(cached_data)
+        posthog.capture(distinct_id=user_id, event='viewed_book_content', properties={'book_title': title, 'source': 'redis_cache', 'values_count': len(data.get("values", []))})
+        return data
 
     try:
         with Session(engine) as session:
-            book = session.exec(select(Book).where(Book.title == title)).first()
-            
-            if not book:
-                raise HTTPException(status_code=404, detail="Book not found")
-
-        content = book.content or {}
-        result = [
-            {
-                "name": key, "icon": value.get("icon", ""),
-                "description": value.get("description", ""), "steps_count": str(len(value.get("steps", [])))
-            }
-            for key, value in content.items()
-        ]
-
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-        posthog.capture(distinct_id=user_id, event='viewed_content_keys', properties={'book_title': title, 'keys_count': len(result)})
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-
-
-def get_content_values(title: str, category: List[str], user_id: str = "anonymous") -> List[Dict[str, Any]]:
-    cache_key = f"book:content_values:{title}:{'all' if not category else ','.join(sorted(category))}"
-    cached_data = redis_client.get(cache_key)
-    if cached_data:
-        return json.loads(cached_data)
-
-    try:
-        with Session(engine) as session:
+            # Fetch the book exactly ONCE
             book = session.exec(select(Book).where(Book.title == title)).first()
             
             if not book:
                 raise HTTPException(status_code=404, detail="Book not found")
             
             content = book.content or {}
-            results = []
-            keys_to_use = category if category else list(content.keys())
+            
+            # 1. Process Keys (Always return all keys so the UI can build the tabs)
+            keys_result = [
+                {
+                    "name": key, 
+                    "icon": value.get("icon", ""),
+                    "description": value.get("description", ""), 
+                    "steps_count": str(len(value.get("steps", [])))
+                }
+                for key, value in content.items()
+            ]
 
+            # 2. Process Values (Only return insights for the requested categories)
+            values_result = []
+            keys_to_use = category if category else list(content.keys())
+            
+            # Gather all step_ids in one batch to prevent N+1 query issues
+            all_step_ids = []
             for key in keys_to_use:
                 if key in content:
-                    step_ids = content[key].get("steps", [])
+                    all_step_ids.extend(content[key].get("steps", []))
 
-                    if not step_ids: continue
+            if all_step_ids:
+                # Fetch all relevant insights in a single SQL query
+                steps_data = session.exec(select(Insight).where(Insight.id.in_(all_step_ids))).all()
 
-                    steps_data = session.exec(select(Insight).where(Insight.id.in_(step_ids))).all()
-
-                    for step in steps_data:
-                        results.append({
+                for step in steps_data:
+                    # Sanity check to ensure we only return requested categories
+                    if step.category_name in keys_to_use:
+                        values_result.append({
                             "icon": step.category_icon, 
-                            "category": key, 
+                            "category": step.category_name, 
                             "step_id": step.id,
                             "step": step.title, 
                             "description": step.description
                         })
 
-            if not results:
-                raise HTTPException(status_code=404, detail="No matching categories or steps found")
+            # 3. Bundle them together
+            result = {
+                "keys": keys_result,
+                "values": values_result
+            }
 
-            redis_client.setex(cache_key, CACHE_TTL, json.dumps(results))
-            posthog.capture(distinct_id=user_id, event='viewed_content_values', properties={'book_title': title, 'categories_requested': category, 'results_count': len(results)})
-            return results
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+            posthog.capture(distinct_id=user_id, event='viewed_book_content', properties={
+                'book_title': title, 
+                'categories_requested': category, 
+                'source': 'database',
+                'keys_count': len(keys_result),
+                'values_count': len(values_result)
+            })
+            
+            return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         traceback.print_exc() 
         raise HTTPException(status_code=500, detail=str(e))
@@ -303,21 +338,3 @@ def process_book(pdf_path: str, book_title: str, author: str, description: str, 
         posthog.capture(distinct_id=user_id, event='book_processing_failed', properties={'book_title': book_title, 'error': str(e)})
         raise e
 
-def get_categories(user_id: str = "anonymous") -> List[Dict[str, str]]:
-    cache_key = "categories:all"
-    cached_data = redis_client.get(cache_key)
-    if cached_data:
-        return json.loads(cached_data)
-
-    try:
-        content = load_json_file("", "categories.json", {})
-        result = [
-            {"name": key, "icon": value.get("icon", ""), "description": value.get("description", "")}
-            for key, value in content.items()
-        ]
-        
-        redis_client.setex(cache_key, CACHE_TTL * 2, json.dumps(result)) 
-        posthog.capture(distinct_id=user_id, event='fetched_categories_list', properties={'count': len(result)})
-        return result
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON file")

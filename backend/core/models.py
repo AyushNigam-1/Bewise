@@ -1,6 +1,6 @@
 from typing import List, Optional, Any , Dict
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime , Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from datetime import datetime
 
@@ -21,7 +21,7 @@ class Book(SQLModel, table=True):
     author: str
     thumbnail: Optional[str] = None
     description: Optional[str] = None
-    category: List[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
+    category: List[str] = Field(default_factory=list, sa_column=Column(ARRAY(Text)))
     content: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB))
 
 class Insight(SQLModel, table=True):

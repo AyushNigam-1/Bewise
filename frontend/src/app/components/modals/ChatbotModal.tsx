@@ -242,7 +242,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                             {messages.map((m, i) => (
                                 <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                                     {m.role === "ai" && (
-                                        <div className="size-8 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center flex-shrink-0 text-gray-600 dark:text-gray-300 shadow-sm">
+                                        <div className="size-8 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center flex-shrink-0 text-gray-600 dark:text-gray-300 shadow-sm">
                                             <Bot size={18} />
                                         </div>
                                     )}
@@ -250,13 +250,12 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                     <div className={`flex flex-col gap-1 max-w-[85%] md:max-w-[75%] ${m.role === "user" ? "items-end" : "items-start"}`}>
 
                                         {/* BUBBLE CONTAINER */}
-                                        <div className={`flex flex-col p-3 sm:p-4 text-sm leading-relaxed shadow-sm w-full transition-all duration-300 ${m.role === "user"
+                                        <div className={`flex border border-gray-200 dark:border-gray-600 flex-col p-3 sm:p-4 text-sm leading-relaxed w-full transition-all duration-300 ${m.role === "user"
                                             ? `bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-2xl rounded-tr-sm `
                                             : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm"
                                             }`}>
 
                                             {m.role === "user" ? (
-                                                /* 🌟 ZERO-SHIFT: Exact same div for both read and edit modes */
                                                 <div
                                                     ref={editingIndex === i ? editRef : null}
                                                     contentEditable={editingIndex === i}
@@ -268,7 +267,6 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                                             handleEditSubmit(i);
                                                         } else if (e.key === "Escape") {
                                                             setEditingIndex(null);
-                                                            // Revert text visually if cancelled
                                                             if (editRef.current) editRef.current.textContent = m.content || "";
                                                         }
                                                     }}
@@ -277,7 +275,6 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                                     {m.content}
                                                 </div>
                                             ) : (
-                                                /* AI Markdown Rendering */
                                                 <div className="space-y-2">
                                                     <ReactMarkdown
                                                         remarkPlugins={[remarkGfm]}
@@ -387,14 +384,13 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                             </div>
                                         )}
 
-                                        {/* Existing AI Actions */}
                                         {m.role === "ai" && m.content && (
                                             <div className="pl-1 flex items-center gap-1 mt-0.5">
                                                 <button
                                                     onClick={() => handleCopy(m.content, i)}
                                                     className={`p-1.5 transition-colors rounded-full disabled:opacity-50 ${copiedIndex === i
                                                         ? "text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30"
-                                                        : "text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800"
+                                                        : "text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                                                         }`}
                                                 >
                                                     {copiedIndex === i ? <Check size={16} /> : <Copy size={16} />}
@@ -403,7 +399,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                                 <button
                                                     onClick={() => handleReadAloud(m.content, i)}
                                                     disabled={voiceMutation.isPending}
-                                                    className="p-1.5 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 disabled:opacity-50"
+                                                    className="p-1.5 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"
                                                 >
                                                     {voiceMutation.isPending && voiceMutation.variables === stripMarkdown(m.content ?? "").substring(0, 200) ? (
                                                         <Loader2 size={16} className="animate-spin" />
@@ -418,7 +414,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                     </div>
 
                                     {m.role === "user" && (
-                                        <div className="size-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0 text-gray-500 dark:text-gray-300">
+                                        <div className="size-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 ">
                                             <User size={18} />
                                         </div>
                                     )}

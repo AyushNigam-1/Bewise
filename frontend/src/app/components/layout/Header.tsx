@@ -1,6 +1,6 @@
 "use client";
 
-import { Layers, List as ListIcon } from "lucide-react";
+import { GalleryVerticalEnd, Layers, List as ListIcon } from "lucide-react";
 import SearchBar from "@/app/components/layout/SearchBar";
 import CategoryDialog from "@/app/components/modals/CategoryModal";
 import ChatbotModal from "@/app/components/modals/ChatbotModal";
@@ -21,18 +21,17 @@ function Header<T>({
     getItemLabel,
     setMode,
     mode
-}: ExploreHeaderProps<T> & { setMode?: any, mode?: string }) {
+}: ExploreHeaderProps<T>) {
     return (
-        // 🌟 Stripped down to a standard div. No framer-motion logic here!
         <div
-            className={`flex justify-between items-center transition-all duration-300 ${mode === 'Swipe'
+            className={`flex justify-between p items-center transition-all duration-300 ${mode === 'Swipe'
                 ? 'h-0 bg-transparent pointer-events-none'
-                : 'h-14 md:h-18 bg-white dark:bg-gray-900 pointer-events-auto'
+                : 'h-16 md:h-20 bg-white dark:bg-gray-900 pointer-events-auto'
                 }`}
         >
             <div className="flex-1">
                 {mode !== 'Swipe' && (
-                    <h4 className="flex lg:text-3xl font-bold text-gray-700 dark:text-gray-200 text-3xl text-center md:text-left gap-2 transition-colors duration-300">
+                    <h4 className="flex lg:text-3xl font-bold text-gray-700 dark:text-gray-200 text-2xl text-center md:text-left gap-2 transition-colors duration-300">
                         {title}
                     </h4>
                 )}
@@ -59,7 +58,7 @@ function Header<T>({
                             {mode === 'Swipe' ? (
                                 <ListIcon size={22} className="transition-colors duration-300" />
                             ) : (
-                                <Layers size={22} className="transition-colors duration-300" />
+                                <GalleryVerticalEnd size={22} className="transition-colors duration-300" />
                             )}
                         </button>
                     )}

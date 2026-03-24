@@ -16,7 +16,7 @@ import { useBookmarkInsight } from "@/app/hooks/mutations/useBookmark";
 import ShareModal from "@/app/components/modals/ShareModal";
 import QuizModal from "@/app/components/modals/QuizModal";
 import { Recommendation, User } from "@/app/types";
-import { InsightCard } from "@/app/components/InsightsCard";
+import { InsightCard } from "@/app/components/cards/InsightsCard";
 import { generateVoice } from "@/app/services/aiService";
 
 const pageVariants = {
@@ -262,7 +262,7 @@ export default function Page() {
                         variants={staggerContainer}
                         initial="hidden"
                         animate="show"
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8"
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 my-2"
                     >
                         {!recommendationsLoading
                             ? recommendations.map((recommendation: Recommendation) => (
@@ -275,8 +275,8 @@ export default function Page() {
                                             step_id: recommendation.insight_id,
                                             description: recommendation.description,
                                         }}
+                                        isBookmarked={user?.favourite_insights?.includes(recommendation.insight_id)}
                                         bookTitle={recommendation.title}
-                                        showActions={false}
                                     />
                                 </motion.div>
                             ))

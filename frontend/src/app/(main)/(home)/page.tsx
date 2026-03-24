@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { findBooksByCategories, getAllCategories } from "@/app/services/bookService";
+import { findBooksByCategories } from "@/app/services/bookService";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { Categories, User } from "@/app/types";
-import BookCard from "../../components/BookCards";
-import Loader from "@/app/components/layout/Loader";
 import Header from "@/app/components/layout/Header";
+import { Loader2 } from "lucide-react";
+import BookCard from "@/app/components/cards/BookCards";
+
+const EMPTY_BOOKS: any[] = [];
+const EMPTY_CATEGORIES: Categories[] = [];
 
 const Page = () => {
     const [filteredCategories, setFilteredCategories] = useState<Categories[]>([]);
@@ -17,8 +20,8 @@ const Page = () => {
     const user = useUserStore((state: any) => state.user as User | null);
 
     const {
-        data: books = [],
-        isLoading: booksLoading,
+        data: responseData,
+        isLoading,
     } = useQuery({
         queryKey: ["books-by-category", selectedCategory],
         queryFn: () =>
@@ -28,20 +31,13 @@ const Page = () => {
                     : []
             ),
     });
-
-    const {
-        data: categories = [],
-        isLoading: categoriesLoading,
-    } = useQuery({
-        queryKey: ["categories"],
-        queryFn: getAllCategories,
-    });
-
+    console.log(responseData)
+    const books = responseData?.data?.books ?? responseData?.books ?? EMPTY_BOOKS;
+    const categories = responseData?.data?.categories ?? responseData?.categories ?? EMPTY_CATEGORIES;
+    console.log(books, categories)
     useEffect(() => {
-        if (books.length && categories.length) {
-            setFilteredBooks(books);
-            setFilteredCategories(categories);
-        }
+        setFilteredBooks(books);
+        setFilteredCategories(categories);
     }, [books, categories]);
 
     const toggleCategory = (category: Categories) => {
@@ -52,10 +48,10 @@ const Page = () => {
         );
     };
 
-    if (booksLoading || categoriesLoading) {
+    if (isLoading) {
         return (
-            <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
-                <Loader />
+            <div className="fixed inset-0 flex items-center justify-center transition-colors duration-300">
+                <Loader2 size={40} className="animate-spin text-gray-400" />
             </div>
         );
     }
@@ -63,7 +59,6 @@ const Page = () => {
     return (
         <div className="flex flex-col w-full">
 
-            {/* 🌟 Parent now controls the Header animation! */}
             <motion.div
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -73,7 +68,7 @@ const Page = () => {
                     damping: 15,
                     mass: 1,
                 }}
-                className="sticky top-0 z-30" // Moved sticky properties to the wrapper to ensure it stays at the top
+                className="sticky top-0 z-30"
             >
                 <Header
                     title="Explore"
@@ -95,7 +90,7 @@ const Page = () => {
                 <AnimatePresence mode="popLayout">
                     {filteredBooks?.map((book: any, index: number) => (
                         <motion.div
-                            key={index}
+                            key={book.id || index}
                             layout
                             initial={{ opacity: 0, y: 40 }}
                             whileInView={{ opacity: 1, y: 0 }}

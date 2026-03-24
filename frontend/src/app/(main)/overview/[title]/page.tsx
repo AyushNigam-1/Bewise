@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, Book, Bookmark, Share2, ShoppingBag, Tag, User } from "lucide-react";
+import { ArrowUpRight, Book, Bookmark, Loader2, Share2, ShoppingBag, Tag, User } from "lucide-react";
 import posthog from "posthog-js";
 import { ToastContainer } from "react-toastify";
 import { motion } from "framer-motion";
@@ -11,7 +11,6 @@ import { getBookInfoByTitle } from "@/app/services/bookService";
 import ShareModal from "../../../components/modals/ShareModal";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { useBookmarkBook } from "@/app/hooks/mutations/useBookmark";
-import Loader from "@/app/components/layout/Loader";
 import { BookInfo } from "@/app/types";
 
 const containerVariants = {
@@ -56,11 +55,10 @@ const Overview = () => {
         }
     }, [book?.id]);
 
-    // ✅ Absolute Stable Loading Gate
     if (!params.title || isLoading || !book) {
         return (
-            <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
-                <Loader />
+            <div className="fixed inset-0 flex items-center justify-center transition-colors duration-300">
+                <Loader2 size={40} className="animate-spin text-gray-400" />
             </div>
         );
     }
