@@ -1,6 +1,6 @@
-import AuthProvider from "./components/providers/AuthProvider";
-import QueryProvider from "./components/providers/QueryProvider";
-import { ThemeProvider } from "./components/providers/ThemeProvider";
+import AuthProvider from "./providers/AuthProvider";
+import QueryProvider from "./providers/QueryProvider";
+import { ThemeProvider } from "./providers/ThemeProvider";
 import "./globals.css";
 import { Montserrat } from 'next/font/google';
 

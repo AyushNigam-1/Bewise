@@ -7,7 +7,7 @@ export interface Recommendation {
 }
 
 export type User = {
-    id: number;
+    id: string;
     name: string;
     email: string;
     favourite_books: number[]

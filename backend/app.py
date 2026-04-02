@@ -4,6 +4,7 @@ import sentry_sdk
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from core.database import create_db_and_tables
 from middleware.auth import SessionAuthenticationMiddleware
 from routes.books import router as books_router
 from routes.users import router as users_router
@@ -14,8 +15,8 @@ from core.analytics import posthog
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    create_db_and_tables()
     yield
-    print("Flushing PostHog analytics...")
     posthog.flush()
 
 sentry_sdk.init(
@@ -29,7 +30,7 @@ app.add_middleware(SessionAuthenticationMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000","http://10.98.145.43:3000"],
+    allow_origins=["http://localhost:3000","https://bewise-puce.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
