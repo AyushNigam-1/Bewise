@@ -22,12 +22,14 @@ class SessionAuthenticationMiddleware(BaseHTTPMiddleware):
         should_authenticate = any(path.startswith(prefix) for prefix in PROTECTED_PREFIXES)
 
         if should_authenticate:
-            cookie = request.cookies.get("better-auth.session_token")
+            auth_header = request.headers.get("Authorization")
+            session_token = None
+
+            if auth_header and auth_header.startswith("Bearer "):
+                session_token = auth_header.split(" ")[1]
             
-            if cookie:
+            if session_token:
                 try:
-                    session_token = cookie.split(".")[0]
-                    
                     with Session(engine) as db:
                         statement = (
                             select(User)

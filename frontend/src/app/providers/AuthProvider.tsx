@@ -8,19 +8,15 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const setUser = useUserStore((state) => state.setUser);
 
     useEffect(() => {
-        // If still loading, do nothing. Let the Navbar skeleton handle the UI.
         if (isPending) return;
 
-        // If we have a user, format it cleanly and push to Zustand
         if (session?.user) {
             setUser({
                 ...session.user,
-                // Ensure these arrays always exist to prevent .includes() crashes in your UI
                 favourite_books: session.user.favourite_books ?? [],
                 favourite_insights: session.user.favourite_insights ?? []
             });
         } else {
-            // If finished loading and no user, wipe the Zustand store
             setUser(null);
         }
     }, [session, isPending, setUser]);
