@@ -167,7 +167,6 @@ const Overview = () => {
                 </motion.div>
             </div>
 
-            <ToastContainer />
         </motion.div>
     );
 };

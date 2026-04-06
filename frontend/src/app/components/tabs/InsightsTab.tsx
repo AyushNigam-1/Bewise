@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ToastContainer } from "react-toastify";
 import { Loader2, Bookmark, SearchX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getBookmarkedInsights } from "@/app/services/userService";
@@ -41,6 +40,8 @@ const InsightsTab = () => {
     const insights: StepData[] = insightsData?.data?.insights ?? insightsData?.insights ?? EMPTY_INSIGHTS;
     const categories = insightsData?.data?.categories ?? insightsData?.categories ?? EMPTY_CATEGORIES;
 
+    const isDataLoading = !user || isLoading;
+
     useEffect(() => {
         setFilteredCategories(categories);
     }, [categories]);
@@ -76,46 +77,56 @@ const InsightsTab = () => {
         );
     }, []);
 
+    // Explicit condition: Not loading AND has items to show
+    const shouldShowHeader = !isDataLoading && hasAnyBookmarks;
+
     return (
-        <div className="flex flex-col">
+        <div className="flex flex-col min-h-[85vh]">
 
-            <motion.div
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                    type: "spring",
-                    stiffness: 100,
-                    damping: 15,
-                    mass: 1,
-                }}
-                className="sticky top-0 z-30"
-            >
-                <Header
-                    title="Insights"
-                    items={insights}
-                    filteredItems={filteredInsights}
-                    setFilteredItems={setFilteredInsights}
-                    searchKey="title"
-                    categories={categories}
-                    filteredCategories={filteredCategories}
-                    setFilteredCategories={setFilteredCategories}
-                    selectedCategory={selectedCategory}
-                    toggleCategory={toggleCategory}
-                    getItemId={(step: StepData) => step.step_id}
-                    getItemLabel={(step: StepData) => step.title}
-                />
-            </motion.div>
+            <AnimatePresence>
+                {shouldShowHeader && (
+                    <motion.div
+                        key="header"
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20, transition: { duration: 0.15 } }}
+                        transition={{
+                            type: "spring",
+                            stiffness: 100,
+                            damping: 15,
+                            mass: 1,
+                        }}
+                        className="sticky top-0 z-30 pb-4"
+                    >
+                        <Header
+                            title="Insights"
+                            items={insights}
+                            filteredItems={filteredInsights}
+                            setFilteredItems={setFilteredInsights}
+                            searchKey="title"
+                            categories={categories}
+                            filteredCategories={filteredCategories}
+                            setFilteredCategories={setFilteredCategories}
+                            selectedCategory={selectedCategory}
+                            toggleCategory={toggleCategory}
+                            getItemId={(step: StepData) => step.step_id}
+                            getItemLabel={(step: StepData) => step.title}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-            <div className="flex-grow flex flex-col relative">
-                <AnimatePresence mode="wait">
+            {/* CSS Grid layout maintains structure without collapsing */}
+            <div className="flex-grow w-full grid grid-cols-1 grid-rows-1">
+                <AnimatePresence>
 
-                    {!user || isLoading ? (
+                    {isDataLoading ? (
                         <motion.div
                             key="loader-state"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                            className="flex-grow flex items-center justify-center min-h-[50vh]"
+                            className="col-start-1 row-start-1 w-full h-[90vh] flex items-center justify-center"
                         >
                             <Loader2 className="animate-spin text-gray-400" size={36} />
                         </motion.div>
@@ -125,7 +136,7 @@ const InsightsTab = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="flex-grow flex items-center justify-center text-red-500 min-h-[50vh]"
+                            className="col-start-1 row-start-1 w-full h-[80vh] flex items-center justify-center text-red-500"
                         >
                             Something went wrong loading your bookmarks.
                         </motion.div>
@@ -137,7 +148,7 @@ const InsightsTab = () => {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }}
                             transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="flex-grow flex flex-col items-center justify-center h-[70vh] text-center px-4"
+                            className="col-start-1 row-start-1 w-full h-[80vh] flex flex-col items-center justify-center text-center px-4"
                         >
                             <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
                                 <Bookmark size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
@@ -157,7 +168,7 @@ const InsightsTab = () => {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }}
                             transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="flex-grow flex flex-col items-center justify-center h-[70vh] text-center px-4"
+                            className="col-start-1 row-start-1 w-full h-[70vh] flex flex-col items-center justify-center text-center px-4"
                         >
                             <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
                                 <SearchX size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
@@ -176,7 +187,7 @@ const InsightsTab = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                            className="w-full"
+                            className="col-start-1 row-start-1 w-full"
                         >
                             <motion.div layout className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
                                 <AnimatePresence mode="popLayout">
@@ -226,7 +237,6 @@ const InsightsTab = () => {
                 setIsOpen={setShareModal}
                 shareUrl={`https://www.bookist.com/insight/${shareUrl}`}
             />
-            <ToastContainer />
         </div>
     );
 };

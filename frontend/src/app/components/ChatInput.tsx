@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
 import { Plus, X, Check, ChevronRight, ChevronLeft, SendHorizontal, Square } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";

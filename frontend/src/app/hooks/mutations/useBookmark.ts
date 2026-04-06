@@ -14,12 +14,11 @@ export const useBookmarkInsight = () => {
             return toggleBookmarkInsight(insightId);
         },
         onMutate: async (insightId: number) => {
+            const isBookmarked = !user?.favourite_insights?.includes(insightId);
             toggleInsight(insightId);
-        },
-        onSuccess: (res, insightId) => {
-            posthog.capture('insight_bookmarked', { insight_id: insightId, bookmarked: res.bookmarked });
+            posthog.capture('insight_bookmarked', { insight_id: insightId, bookmarked: isBookmarked });
             toast.success(
-                res.bookmarked ? "Insight Bookmarked" : "Insight Bookmark Removed",
+                isBookmarked ? "Bookmarked Added" : "Bookmark Removed",
                 { transition: Slide, autoClose: 2000, hideProgressBar: true }
             );
         },
@@ -40,12 +39,11 @@ export const useBookmarkBook = () => {
             return toggleBookmarkBook(bookId);
         },
         onMutate: async (bookId: number) => {
+            const isBookmarked = !user?.favourite_books?.includes(bookId);
             toggleBook(bookId);
-        },
-        onSuccess: (res, bookId) => {
-            posthog.capture('book_bookmarked', { book_id: bookId, bookmarked: res.bookmarked });
+            posthog.capture('book_bookmarked', { book_id: bookId, bookmarked: isBookmarked });
             toast.success(
-                res.bookmarked ? "Book Bookmarked" : "Book Bookmark Removed",
+                isBookmarked ? "Bookmarked Added" : "Bookmark Removed",
                 { transition: Slide, autoClose: 2000, hideProgressBar: true }
             );
         },

@@ -28,6 +28,8 @@ const BooksTab = () => {
     const books: Book[] = booksData?.data?.books ?? booksData?.books ?? EMPTY_BOOKS;
     const categories = booksData?.data?.categories ?? booksData?.categories ?? EMPTY_CATEGORIES;
 
+    const isDataLoading = !user || isLoading;
+
     useEffect(() => {
         setFilteredCategories(categories);
     }, [categories]);
@@ -67,46 +69,54 @@ const BooksTab = () => {
         );
     }, []);
 
+    const shouldShowHeader = !isDataLoading && hasAnyBookmarks;
+
     return (
-        <div className="flex flex-col">
+        <div className="flex flex-col flex-1 w-full min-h-[85vh]">
 
-            <motion.div
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                    type: "spring",
-                    stiffness: 100,
-                    damping: 15,
-                    mass: 1,
-                }}
-                className="sticky top-0 z-30"
-            >
-                <Header
-                    title="Books"
-                    items={books}
-                    filteredItems={filteredBooks}
-                    setFilteredItems={setFilteredBooks}
-                    searchKey="title"
-                    categories={categories}
-                    filteredCategories={filteredCategories}
-                    setFilteredCategories={setFilteredCategories}
-                    selectedCategory={selectedCategory}
-                    toggleCategory={toggleCategory}
-                    getItemId={(book: BookData) => book.id}
-                    getItemLabel={(book: BookData) => book.title}
-                />
-            </motion.div>
+            <AnimatePresence>
+                {shouldShowHeader && (
+                    <motion.div
+                        key="header"
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20, transition: { duration: 0.15 } }}
+                        transition={{
+                            type: "spring",
+                            stiffness: 100,
+                            damping: 15,
+                            mass: 1,
+                        }}
+                        className="sticky top-0 z-30 pb-4"
+                    >
+                        <Header
+                            title="Books"
+                            items={books}
+                            filteredItems={filteredBooks}
+                            setFilteredItems={setFilteredBooks}
+                            searchKey="title"
+                            categories={categories}
+                            filteredCategories={filteredCategories}
+                            setFilteredCategories={setFilteredCategories}
+                            selectedCategory={selectedCategory}
+                            toggleCategory={toggleCategory}
+                            getItemId={(book: BookData) => book.id}
+                            getItemLabel={(book: BookData) => book.title}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-            <div className="flex-grow flex flex-col relative">
-                <AnimatePresence mode="wait">
+            <div className="flex-grow w-full grid grid-cols-1 grid-rows-1">
+                <AnimatePresence>
 
-                    {!user || isLoading ? (
+                    {isDataLoading ? (
                         <motion.div
                             key="loader-state"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                            className="flex-grow flex items-center justify-center min-h-[50vh]"
+                            className="col-start-1 row-start-1 w-full h-[90vh] flex items-center justify-center"
                         >
                             <Loader2 className="animate-spin text-gray-400" size={36} />
                         </motion.div>
@@ -116,7 +126,7 @@ const BooksTab = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="flex-grow flex items-center justify-center text-red-500 font-medium min-h-[50vh]"
+                            className="col-start-1 row-start-1 w-full h-[70vh] flex items-center justify-center text-red-500 font-medium"
                         >
                             Something went wrong loading your bookmarked books.
                         </motion.div>
@@ -128,7 +138,7 @@ const BooksTab = () => {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }}
                             transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="flex-grow flex flex-col items-center justify-center h-[70vh] text-center px-4"
+                            className="col-start-1 row-start-1 w-full h-[80vh] flex flex-col items-center justify-center text-center px-4"
                         >
                             <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
                                 <BookOpen size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
@@ -148,7 +158,7 @@ const BooksTab = () => {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }}
                             transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="flex-grow flex flex-col items-center justify-center h-[70vh] text-center px-4"
+                            className="col-start-1 row-start-1 w-full h-[70vh] flex flex-col items-center justify-center text-center px-4"
                         >
                             <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
                                 <SearchX size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
@@ -167,7 +177,7 @@ const BooksTab = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                            className="w-full"
+                            className="col-start-1 row-start-1 w-full"
                         >
                             <motion.div
                                 layout

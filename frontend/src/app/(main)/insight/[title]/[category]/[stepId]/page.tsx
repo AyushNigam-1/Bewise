@@ -7,7 +7,7 @@ import ReactMarkdown, { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Bookmark, Share2, Volume2, Square, Loader2, BrainCircuit } from "lucide-react";
 import { motion } from "framer-motion";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import posthog from "posthog-js";
 import { getStepDetails } from "@/app/services/bookService";
 import { useUserStore } from "@/app/stores/useUserStores";
@@ -295,8 +295,6 @@ export default function Page() {
                                 </motion.div>
                             ))}
                     </motion.div>
-
-                    <ToastContainer />
                 </motion.div>
             )}
         </>

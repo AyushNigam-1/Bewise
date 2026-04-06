@@ -10,7 +10,7 @@ import {
     RedditIcon,
     FacebookMessengerIcon,
 } from 'next-share'
-import { Slide, toast, ToastContainer } from "react-toastify"
+import { toast } from "react-toastify"
 import Link from 'next/link'
 import { Copy, X, Check } from 'lucide-react'
 import { ShareModalProps } from '@/app/types'
@@ -21,21 +21,9 @@ export default function ShareModal({ isOpen, setIsOpen, shareUrl }: ShareModalPr
     const handleCopy = async () => {
         try {
             await navigator.clipboard.writeText(shareUrl)
-
             setIsCopied(true)
             setTimeout(() => setIsCopied(false), 2000)
-
-            toast.success('Link Copied!', {
-                position: "top-center",
-                autoClose: 2000,
-                hideProgressBar: true,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: "colored",
-                transition: Slide,
-            });
+            toast.success('Link Copied!');
         } catch (err) {
             toast.error('Failed to copy');
         }
@@ -151,7 +139,6 @@ export default function ShareModal({ isOpen, setIsOpen, shareUrl }: ShareModalPr
                     </DialogPanel>
                 </div>
             </div>
-            <ToastContainer />
         </Dialog>
     )
 }

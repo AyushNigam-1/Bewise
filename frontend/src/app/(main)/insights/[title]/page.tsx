@@ -14,6 +14,7 @@ import { InsightCard } from '@/app/components/cards/InsightsCard';
 import { Categories, StepData } from '@/app/types';
 import Header from '@/app/components/layout/Header';
 import { Loader2 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
 // 🌟 FIX: Define empty arrays outside the component to prevent infinite re-renders!
 const EMPTY_STEPS: StepData[] = [];
@@ -30,7 +31,6 @@ export default function Page() {
     const user = useUserStore((state: any) => state.user);
     const { mutate: bookmarkInsight } = useBookmarkInsight();
 
-    // 🌟 ONE QUERY TO RULE THEM ALL
     const { data: responseData, isLoading } = useQuery({
         queryKey: [
             "book-content",
@@ -170,7 +170,7 @@ export default function Page() {
             </div>
 
             <ShareModal isOpen={shareModal} setIsOpen={setShareModal} shareUrl={shareUrl} />
-            <ToastContainer />
+
         </div>
     );
 }
