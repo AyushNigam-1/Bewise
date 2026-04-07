@@ -12,6 +12,11 @@ from routes.voice import router as voice_router
 from routes.chatbot import rag_ai_router 
 from routes.quiz import quiz_ai_router
 from core.analytics import posthog
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,7 +35,7 @@ app.add_middleware(SessionAuthenticationMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000","https://bewise-puce.vercel.app"],
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

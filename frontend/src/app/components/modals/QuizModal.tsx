@@ -88,9 +88,9 @@ export default function QuizModal({ isOpen, setIsOpen, textData }: QuizModalProp
             <DialogBackdrop transition className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-out data-[closed]:opacity-0" />
 
             <div className="fixed inset-0 flex items-center justify-center p-2">
-                <DialogPanel transition className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-4 transition-all duration-300 ease-out data-[closed]:scale-95 data-[closed]:opacity-0 border border-gray-200 dark:border-gray-800">
+                <DialogPanel transition className="w-full max-w-lg space-y-4 bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-4 transition-all duration-300 ease-out data-[closed]:scale-95 data-[closed]:opacity-0 border border-gray-200 dark:border-gray-800">
 
-                    <div className="flex justify-between items-center mb-6">
+                    <div className="flex justify-between items-center">
                         <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                             Knowledge Check
                         </h3>
@@ -154,7 +154,7 @@ export default function QuizModal({ isOpen, setIsOpen, textData }: QuizModalProp
                             <button
                                 disabled={!selectedAnswer}
                                 onClick={nextQuestion}
-                                className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                                className="w-full  bg-gray-900 py-4 dark:bg-white text-white dark:text-gray-900 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
                             >
                                 {currentIndex < quiz.length - 1 ? "Next Question" : "See Results"}
                             </button>
@@ -162,14 +162,14 @@ export default function QuizModal({ isOpen, setIsOpen, textData }: QuizModalProp
                     )}
 
                     {isFinished && quiz && (
-                        <div className="flex flex-col items-center justify-center py-8 text-center animate-in zoom-in duration-300">
-                            <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-6">
+                        <div className="flex flex-col space-y-4 items-center justify-center text-center animate-in zoom-in duration-300">
+                            <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center ">
                                 <span className="text-4xl font-black text-blue-600 dark:text-blue-400">{score}/{quiz.length}</span>
                             </div>
-                            <h4 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                            <h4 className="text-2xl font-bold text-gray-900 dark:text-gray-100 ">
                                 {score === quiz.length ? "Perfect Score!" : score > 0 ? "Great Job!" : "Keep Learning!"}
                             </h4>
-                            <p className="text-gray-600 dark:text-gray-400 mb-8">
+                            <p className="text-gray-600 dark:text-gray-400 ">
                                 You have completed the knowledge check for this insight.
                             </p>
                             <button onClick={resetAndClose} className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors">

@@ -7,8 +7,10 @@ import { findBooksByCategories } from "@/app/services/bookService";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { Categories, User } from "@/app/types";
 import Header from "@/app/components/layout/Header";
-import { Loader2 } from "lucide-react";
+// 🌟 Added SearchX import
+import { Loader2, SearchX } from "lucide-react";
 import BookCard from "@/app/components/cards/BookCards";
+import ShareModal from "@/app/components/modals/ShareModal";
 
 const EMPTY_BOOKS: any[] = [];
 const EMPTY_CATEGORIES: Categories[] = [];
@@ -17,6 +19,8 @@ const Page = () => {
     const [filteredCategories, setFilteredCategories] = useState<Categories[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<Categories[]>([]);
     const [filteredBooks, setFilteredBooks] = useState<any[]>([]);
+    const [shareModal, setShareModal] = useState(false);
+    const [shareUrl, setShareUrl] = useState("");
     const user = useUserStore((state: any) => state.user as User | null);
 
     const {
@@ -31,10 +35,10 @@ const Page = () => {
                     : []
             ),
     });
-    console.log(responseData)
+
     const books = responseData?.data?.books ?? responseData?.books ?? EMPTY_BOOKS;
     const categories = responseData?.data?.categories ?? responseData?.categories ?? EMPTY_CATEGORIES;
-    console.log(books, categories)
+
     useEffect(() => {
         setFilteredBooks(books);
         setFilteredCategories(categories);
@@ -59,9 +63,10 @@ const Page = () => {
     return (
         <div className="flex flex-col w-full">
 
+            {/* Sticky Header */}
             <motion.div
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 transition={{
                     type: "spring",
                     stiffness: 100,
@@ -86,36 +91,80 @@ const Page = () => {
                 />
             </motion.div>
 
-            <motion.div layout className="columns-2 gap-4 lg:columns-5 space-y-4">
-                <AnimatePresence mode="popLayout">
-                    {filteredBooks?.map((book: any, index: number) => (
+            <div className="flex-grow w-full">
+                <AnimatePresence mode="wait">
+                    {filteredBooks?.length > 0 ? (
                         <motion.div
-                            key={book.id || index}
-                            layout
-                            initial={{ opacity: 0, y: 40 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, amount: 0.1 }}
-                            transition={{
-                                type: "spring",
-                                stiffness: 100,
-                                damping: 15,
-                                mass: 1,
-                            }}
-                            exit={{
-                                opacity: 0,
-                                scale: 0.9,
-                                transition: { duration: 0.2 },
-                            }}
-                            className="break-inside-avoid"
+                            key="grid-view"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="columns-2 gap-4 lg:columns-5 space-y-4"
                         >
-                            <BookCard
-                                book={book}
-                                isBookmarked={user?.favourite_books?.includes(book.id)}
-                            />
+                            {/* 🌟 Removed popLayout to stop CSS column glitching */}
+                            <AnimatePresence>
+                                {filteredBooks.map((book: any, index: number) => (
+                                    <motion.div
+                                        key={book.id || index}
+                                        layout="position"
+                                        // 🌟 Switched to animate with y:20 slide-up
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{
+                                            opacity: 0,
+                                            y: -20,
+                                            transition: { duration: 0.15 },
+                                        }}
+                                        transition={{
+                                            type: "spring",
+                                            stiffness: 100,
+                                            damping: 15,
+                                            mass: 1,
+                                        }}
+                                        className="break-inside-avoid"
+                                    >
+                                        <BookCard
+                                            book={book}
+                                            isBookmarked={user?.favourite_books?.includes(book.id)}
+                                            onShare={(url) => {
+                                                setShareUrl(url);
+                                                setShareModal(true);
+                                            }}
+                                        />
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
                         </motion.div>
-                    ))}
+                    ) : (
+                        // 🌟 The smooth slide-up empty state
+                        <motion.div
+                            key="empty-state"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            className="w-full h-[70vh] flex flex-col items-center justify-center text-center px-4"
+                        >
+                            <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+                                <SearchX size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                                No matches found
+                            </h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
+                                None of the books match the current filters. Try clearing your search or categories.
+                            </p>
+                        </motion.div>
+                    )}
                 </AnimatePresence>
-            </motion.div>
+            </div>
+
+            <ShareModal
+                isOpen={shareModal}
+                setIsOpen={setShareModal}
+                shareUrl={shareUrl}
+            />
         </div>
     );
 };

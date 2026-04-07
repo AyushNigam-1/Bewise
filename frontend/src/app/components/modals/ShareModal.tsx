@@ -76,7 +76,7 @@ export default function ShareModal({ isOpen, setIsOpen, shareUrl }: ShareModalPr
                         className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-4 text-left align-middle shadow-2xl transition-all duration-300 ease-out data-[closed]:translate-y-8 sm:data-[closed]:translate-y-0 data-[closed]:scale-95 data-[closed]:opacity-0 flex flex-col gap-6"
                     >
                         <div className='flex justify-between items-center'>
-                            <DialogTitle as="h3" className="font-bold text-2xl text-gray-900 dark:text-gray-100">
+                            <DialogTitle as="h3" className="font-bold text-xl text-gray-900 dark:text-gray-100">
                                 Share Link
                             </DialogTitle>
                             <button

@@ -1,14 +1,11 @@
 import os
 from typing import TypedDict, List, Dict, Any
-from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
-from dotenv import load_dotenv
+from core.llm import llm
 from src.utils.pdf_operations import extract_text_from_pdf 
 from src.components.step_extraction import extract_actionable_steps
 from src.components.categorization import categorize_steps
 from src.utils.file_operations import load_json_file, save_json_file
-
-load_dotenv()
 
 class GraphState(TypedDict):
     pdf_path: str
@@ -23,7 +20,7 @@ class BookistProcessor:
     def __init__(self, pdf_path, title, author, description, thumbnail, category, model_name="llama-3.3-70b-versatile", chunk_size=5):
         self.pdf_name = os.path.splitext(os.path.basename(pdf_path))[0]
         self.pdf_path = pdf_path
-        self.model = ChatGroq(model_name=model_name, api_key=os.getenv("GROQ_API_KEY"))
+        self.model = llm
         self.chunk_size = chunk_size
         self.folder_path = os.path.join(os.getcwd(), self.pdf_name)
         

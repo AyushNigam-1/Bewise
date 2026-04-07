@@ -57,13 +57,13 @@ export const InsightCard = ({
                 </button>
 
                 <button
-                    onClick={() => onShare?.(step.step)}
+                    onClick={() => onShare?.(`${window.location.origin}/insight/${step?.step}/${step?.category}/${step?.step_id}`)}
                     type="button"
                     className="text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none rounded-full p-2.5 w-min font-semibold cursor-pointer transition-colors shadow-sm"
                 >
                     <Share2 size={18} />
                 </button>
             </div>
-        </div>
+        </div >
     );
 };

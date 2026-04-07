@@ -28,6 +28,14 @@ const SearchBar = ({
         setFilteredData(filtered);
     };
 
+    const handleToggle = () => {
+        if (maximize) {
+            setSearch('');
+            setFilteredData(data);
+        }
+        setMaximize(!maximize);
+    };
+
     return (
         <div className={`${responsive ? maximize ? 'w-full absolute left-0 top-2 z-50' : '' : ""} items-center transition-all duration-300`} >
             <form className={`${responsive ? maximize ? "" : "hidden md:flex" : "flex"} w-full`} >
@@ -50,7 +58,7 @@ const SearchBar = ({
             <button
                 className={`md:hidden p-2.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 transition-colors duration-300 ${responsive ? maximize ? "absolute right-0.5 top-0" : "" : "hidden"}`}
                 type="button"
-                onClick={() => setMaximize(!maximize)}
+                onClick={handleToggle}
             >
                 {maximize ? <X size={20} /> : <Search size={20} />}
             </button>

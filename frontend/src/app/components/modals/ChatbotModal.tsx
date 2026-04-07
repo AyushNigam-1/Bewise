@@ -64,10 +64,8 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
     });
 
     useEffect(() => {
-        if (editingIndex === null) {
-            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-        }
-    }, [messages, chatMutation.isPending, editingIndex]);
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages.length, chatMutation.isPending]);
 
     useEffect(() => {
         if (!isOpen && audioRef.current) {
@@ -77,7 +75,6 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
         }
     }, [isOpen]);
 
-    // AUTO-FOCUS THE CONTENT-EDITABLE DIV
     useEffect(() => {
         if (editingIndex !== null && editRef.current) {
             editRef.current.focus();
@@ -219,7 +216,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                 <DialogBackdrop transition className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-out data-[closed]:opacity-0" />
 
                 <div className="fixed inset-0 flex items-center justify-center p-3 sm:p-6">
-                    <DialogPanel transition className="w-full max-w-5xl bg-gray-100 dark:bg-gray-900 rounded-2xl shadow-2xl flex flex-col h-[calc(100vh-24px)] sm:h-[calc(100vh-80px)] overflow-hidden border border-gray-300 dark:border-gray-700 transition-all duration-300 ease-out data-[closed]:scale-95 data-[closed]:translate-y-4 data-[closed]:opacity-0">
+                    <DialogPanel transition className="w-full max-w-5xl bg-gray-100 dark:bg-gray-900 rounded-2xl shadow-2xl flex flex-col h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] overflow-hidden border border-gray-300 dark:border-gray-700 transition-all duration-300 ease-out data-[closed]:scale-95 data-[closed]:translate-y-4 data-[closed]:opacity-0">
                         <div className="border-b border-gray-200 dark:border-gray-800 flex px-4 py-3 sm:py-4 justify-between items-center bg-white dark:bg-gray-800 sticky top-0 z-10 transition-colors duration-300">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-gray-900 dark:bg-white rounded-full text-white dark:text-gray-900">
@@ -241,11 +238,6 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                         <div className="flex-1 overflow-y-auto space-y-6 px-4 py-5 sm:px-6 bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
                             {messages.map((m, i) => (
                                 <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                                    {m.role === "ai" && (
-                                        <div className="size-8 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center flex-shrink-0 text-gray-600 dark:text-gray-300 shadow-sm">
-                                            <Bot size={18} />
-                                        </div>
-                                    )}
 
                                     <div className={`flex flex-col gap-1 max-w-[85%] md:max-w-[75%] ${m.role === "user" ? "items-end" : "items-start"}`}>
 
@@ -412,12 +404,6 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                                             </div>
                                         )}
                                     </div>
-
-                                    {m.role === "user" && (
-                                        <div className="size-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 ">
-                                            <User size={18} />
-                                        </div>
-                                    )}
                                 </div>
                             ))}
 
@@ -444,7 +430,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                             toggleContext={toggleContext}
                             removeContext={removeContext}
                             onSendMessage={handleSendMessage}
-                            clearContexts={() => setSelectedContexts([])}
+                            clearContexts={() => { }}
                             onStop={handleStopGeneration}
                         />
                     </DialogPanel>

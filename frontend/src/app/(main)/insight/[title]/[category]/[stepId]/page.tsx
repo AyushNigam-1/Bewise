@@ -49,6 +49,8 @@ export default function Page() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const { mutate: bookmarkInsight } = useBookmarkInsight();
+
+    // This user object from your store tracks the active session
     const user = useUserStore((state: any) => state.user as User | null);
 
     const {
@@ -116,7 +118,6 @@ export default function Page() {
 
         setIsAudioLoading(true);
         try {
-            // 🌟 Use your shiny new service function here!
             const blob = await generateVoice(stepDetails.description);
             const audioUrl = URL.createObjectURL(blob);
 
@@ -209,7 +210,7 @@ export default function Page() {
                     className="prose prose-lg w-full py-2 md:py-4 flex flex-col gap-2"
                 >
                     <div className="flex justify-between items-start md:items-center">
-                        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
                             {stepDetails.title}
                         </h1>
 
@@ -230,7 +231,7 @@ export default function Page() {
                             <ShareModal
                                 isOpen={isOpen}
                                 setIsOpen={setIsOpen}
-                                shareUrl={`https://www.bookist.com/overview/${stepDetails?.title}`}
+                                shareUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/insight/${stepDetails?.title}/${stepDetails?.category}/${stepDetails?.step_id}`}
                             />
 
                             <QuizModal
@@ -253,48 +254,54 @@ export default function Page() {
                             {formatMarkdown(stepDetails?.detailed_breakdown)}
                         </ReactMarkdown>
                     </div>
-                    <hr className="border-b border-gray-200 dark:border-gray-800 my-2 transition-colors" />
 
-                    <h3 className="text-2xl font-bold my-2">Recommended Insights</h3>
+                    {/* 🌟 FIX: Wrapped the entire recommendation block to only render if 'user' exists */}
+                    {user && (
+                        <>
+                            <hr className="border-b border-gray-200 dark:border-gray-800 my-2 transition-colors" />
 
-                    <motion.div
-                        key={recommendationsLoading ? "loading" : "loaded"}
-                        variants={staggerContainer}
-                        initial="hidden"
-                        animate="show"
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 my-2"
-                    >
-                        {!recommendationsLoading
-                            ? recommendations.map((recommendation: Recommendation) => (
-                                <motion.div variants={cardVariants} key={recommendation.insight_id} className="h-full">
-                                    <InsightCard
-                                        step={{
-                                            step: recommendation.title,
-                                            category: recommendation.category,
-                                            icon: recommendation.category_icon,
-                                            step_id: recommendation.insight_id,
-                                            description: recommendation.description,
-                                        }}
-                                        isBookmarked={user?.favourite_insights?.includes(recommendation.insight_id)}
-                                        bookTitle={recommendation.title}
-                                    />
-                                </motion.div>
-                            ))
-                            : Array.from({ length: 3 }).map((_, i) => (
-                                <motion.div
-                                    variants={cardVariants}
-                                    key={`skeleton-${i}`}
-                                    className="bg-gray-100 dark:bg-gray-800 border border-transparent dark:border-gray-700 rounded-2xl p-4 flex flex-col gap-4 animate-pulse h-full min-h-[160px]"
-                                >
-                                    <div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded" />
-                                    <div className="h-6 w-3/4 bg-gray-300 dark:bg-gray-600 rounded" />
-                                    <div className="space-y-2 mt-auto">
-                                        <div className="h-3 w-full bg-gray-200 dark:bg-gray-700 rounded" />
-                                        <div className="h-3 w-5/6 bg-gray-200 dark:bg-gray-700 rounded" />
-                                    </div>
-                                </motion.div>
-                            ))}
-                    </motion.div>
+                            <h3 className="text-2xl font-bold my-2">Recommended Insights</h3>
+
+                            <motion.div
+                                key={recommendationsLoading ? "loading" : "loaded"}
+                                variants={staggerContainer}
+                                initial="hidden"
+                                animate="show"
+                                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 my-2"
+                            >
+                                {!recommendationsLoading
+                                    ? recommendations.map((recommendation: Recommendation) => (
+                                        <motion.div variants={cardVariants} key={recommendation.insight_id} className="h-full">
+                                            <InsightCard
+                                                step={{
+                                                    step: recommendation.title,
+                                                    category: recommendation.category,
+                                                    icon: recommendation.category_icon,
+                                                    step_id: recommendation.insight_id,
+                                                    description: recommendation.description,
+                                                }}
+                                                isBookmarked={user?.favourite_insights?.includes(recommendation.insight_id)}
+                                                bookTitle={recommendation.title}
+                                            />
+                                        </motion.div>
+                                    ))
+                                    : Array.from({ length: 3 }).map((_, i) => (
+                                        <motion.div
+                                            variants={cardVariants}
+                                            key={`skeleton-${i}`}
+                                            className="bg-gray-100 dark:bg-gray-800 border border-transparent dark:border-gray-700 rounded-2xl p-4 flex flex-col gap-4 animate-pulse h-full min-h-[160px]"
+                                        >
+                                            <div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded" />
+                                            <div className="h-6 w-3/4 bg-gray-300 dark:bg-gray-600 rounded" />
+                                            <div className="space-y-2 mt-auto">
+                                                <div className="h-3 w-full bg-gray-200 dark:bg-gray-700 rounded" />
+                                                <div className="h-3 w-5/6 bg-gray-200 dark:bg-gray-700 rounded" />
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                            </motion.div>
+                        </>
+                    )}
                 </motion.div>
             )}
         </>

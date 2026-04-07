@@ -6,9 +6,10 @@ import { Loader2, BookOpen, SearchX } from "lucide-react";
 import { getBookmarkedBooks } from "@/app/services/userService";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { User, Categories, BookData, Book } from "@/app/types";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import Header from "../layout/Header";
 import BookCard from "../cards/BookCards";
+import ShareModal from "../modals/ShareModal";
 
 const EMPTY_BOOKS: Book[] = [];
 const EMPTY_CATEGORIES: Categories[] = [];
@@ -18,6 +19,8 @@ const BooksTab = () => {
     const [selectedCategory, setSelectedCategory] = useState<Categories[]>([]);
     const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
     const [filteredCategories, setFilteredCategories] = useState<Categories[]>([]);
+    const [shareModal, setShareModal] = useState(false);
+    const [shareUrl, setShareUrl] = useState("");
 
     const { data: booksData, isLoading, isError } = useQuery({
         queryKey: ["bookmarkedBooks", user?.id],
@@ -41,14 +44,11 @@ const BooksTab = () => {
 
     const categoryFilteredBooks = useMemo(() => {
         const favoriteIds = user?.favourite_books || [];
-        const activeBooks = books.filter((b: Book) =>
-            favoriteIds.includes(b.id)
-        );
+        const activeBooks = books.filter((b: Book) => favoriteIds.includes(b.id));
 
         if (!selectedCategory.length) return activeBooks;
 
         const selectedNames = selectedCategory.map((c) => c.name);
-
         return activeBooks.filter((b: Book) => {
             if (Array.isArray(b.category)) {
                 return b.category.some(cat => selectedNames.includes(cat));
@@ -71,152 +71,134 @@ const BooksTab = () => {
 
     const shouldShowHeader = !isDataLoading && hasAnyBookmarks;
 
+    type ViewState = "loading" | "error" | "empty" | "no-matches" | "grid";
+    const viewState: ViewState = isDataLoading
+        ? "loading"
+        : isError
+            ? "error"
+            : !hasAnyBookmarks
+                ? "empty"
+                : filteredBooks.length === 0
+                    ? "no-matches"
+                    : "grid";
+
     return (
         <div className="flex flex-col flex-1 w-full min-h-[85vh]">
 
-            <AnimatePresence>
-                {shouldShowHeader && (
+            {shouldShowHeader && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="sticky top-0 z-30"
+                >
+                    <Header
+                        title="Bookmarks"
+                        items={books}
+                        filteredItems={filteredBooks}
+                        setFilteredItems={setFilteredBooks}
+                        searchKey="title"
+                        categories={categories}
+                        filteredCategories={filteredCategories}
+                        setFilteredCategories={setFilteredCategories}
+                        selectedCategory={selectedCategory}
+                        toggleCategory={toggleCategory}
+                        getItemId={(book: BookData) => book.id}
+                        getItemLabel={(book: BookData) => book.title}
+                    />
+                </motion.div>
+            )}
+
+            <div className="flex-grow w-full">
+
+                {viewState === "loading" && (
+                    <div className="w-full h-[90vh] flex items-center justify-center">
+                        <Loader2 className="animate-spin text-gray-400" size={36} />
+                    </div>
+                )}
+
+                {viewState === "error" && (
+                    <div className="w-full h-[70vh] flex items-center justify-center text-red-500 font-medium">
+                        Something went wrong loading your bookmarked books.
+                    </div>
+                )}
+
+                {viewState === "empty" && (
                     <motion.div
-                        key="header"
-                        initial={{ opacity: 0, y: 40 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20, transition: { duration: 0.15 } }}
-                        transition={{
-                            type: "spring",
-                            stiffness: 100,
-                            damping: 15,
-                            mass: 1,
-                        }}
-                        className="sticky top-0 z-30 pb-4"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        className="w-full h-[80vh] flex flex-col items-center justify-center text-center px-4"
                     >
-                        <Header
-                            title="Books"
-                            items={books}
-                            filteredItems={filteredBooks}
-                            setFilteredItems={setFilteredBooks}
-                            searchKey="title"
-                            categories={categories}
-                            filteredCategories={filteredCategories}
-                            setFilteredCategories={setFilteredCategories}
-                            selectedCategory={selectedCategory}
-                            toggleCategory={toggleCategory}
-                            getItemId={(book: BookData) => book.id}
-                            getItemLabel={(book: BookData) => book.title}
-                        />
+                        <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+                            <BookOpen size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                            No books saved
+                        </h3>
+                        <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
+                            You haven't bookmarked any books yet. Start exploring to build your library!
+                        </p>
                     </motion.div>
                 )}
-            </AnimatePresence>
 
-            <div className="flex-grow w-full grid grid-cols-1 grid-rows-1">
-                <AnimatePresence>
+                {viewState === "no-matches" && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        className="w-full h-[70vh] flex flex-col items-center justify-center text-center px-4"
+                    >
+                        <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+                            <SearchX size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                            No matches found
+                        </h3>
+                        <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
+                            None of your saved books match the current filters. Try clearing your search or categories.
+                        </p>
+                    </motion.div>
+                )}
 
-                    {isDataLoading ? (
-                        <motion.div
-                            key="loader-state"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                            className="col-start-1 row-start-1 w-full h-[90vh] flex items-center justify-center"
-                        >
-                            <Loader2 className="animate-spin text-gray-400" size={36} />
-                        </motion.div>
-                    ) : isError ? (
-                        <motion.div
-                            key="error-state"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="col-start-1 row-start-1 w-full h-[70vh] flex items-center justify-center text-red-500 font-medium"
-                        >
-                            Something went wrong loading your bookmarked books.
-                        </motion.div>
+                {viewState === "grid" && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                        className="w-full"
+                    >
+                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                            {filteredBooks.map((book) => (
+                                <motion.div
+                                    key={book.id}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ duration: 0.2, ease: "easeOut" }}
+                                >
+                                    <BookCard
+                                        book={book}
+                                        isBookmarked={
+                                            user?.favourite_books?.includes(book.id) ?? false
+                                        }
+                                        onShare={(url) => {
+                                            setShareUrl(url);
+                                            setShareModal(true);
+                                        }}
+                                    />
+                                </motion.div>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
 
-                    ) : !hasAnyBookmarks ? (
-                        <motion.div
-                            key="no-bookmarks-state"
-                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="col-start-1 row-start-1 w-full h-[80vh] flex flex-col items-center justify-center text-center px-4"
-                        >
-                            <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
-                                <BookOpen size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
-                            </div>
-                            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
-                                No books saved
-                            </h3>
-                            <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
-                                You haven't bookmarked any books yet. Start exploring to build your library!
-                            </p>
-                        </motion.div>
-
-                    ) : filteredBooks.length === 0 ? (
-                        <motion.div
-                            key="no-matches-state"
-                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="col-start-1 row-start-1 w-full h-[70vh] flex flex-col items-center justify-center text-center px-4"
-                        >
-                            <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
-                                <SearchX size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
-                            </div>
-                            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
-                                No matches found
-                            </h3>
-                            <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
-                                None of your saved books match the current filters. Try clearing your search or categories.
-                            </p>
-                        </motion.div>
-
-                    ) : (
-                        <motion.div
-                            key="grid-state"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                            className="col-start-1 row-start-1 w-full"
-                        >
-                            <motion.div
-                                layout
-                                className="columns-2 gap-4 lg:columns-5 space-y-4"
-                            >
-                                <AnimatePresence mode="popLayout">
-                                    {filteredBooks.map((book) => (
-                                        <motion.div
-                                            key={book.id}
-                                            layout
-                                            initial={{ opacity: 0, y: 40 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{
-                                                opacity: 0,
-                                                scale: 0.9,
-                                                transition: { duration: 0.2 },
-                                            }}
-                                            transition={{
-                                                type: "spring",
-                                                stiffness: 100,
-                                                damping: 15,
-                                                mass: 1,
-                                            }}
-                                            className="break-inside-avoid"
-                                        >
-                                            <BookCard
-                                                book={book}
-                                                isBookmarked={
-                                                    user?.favourite_books?.includes(book.id) ?? false
-                                                }
-                                            />
-                                        </motion.div>
-                                    ))}
-                                </AnimatePresence>
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
             </div>
+
+            <ShareModal
+                isOpen={shareModal}
+                setIsOpen={setShareModal}
+                shareUrl={shareUrl}
+            />
         </div>
     );
 };

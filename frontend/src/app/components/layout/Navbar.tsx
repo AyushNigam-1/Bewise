@@ -158,7 +158,7 @@ const Navbar = () => {
                     </MenuItem>
                     <MenuItem>
                       <Link
-                        href="/create-account"
+                        href="/signup"
                         className="flex items-center font-semibold gap-2 p-2 rounded-lg transition-colors text-gray-700 dark:text-gray-300 data-[focus]:bg-gray-100 dark:data-[focus]:bg-gray-800"
                       >
                         <UserPlus

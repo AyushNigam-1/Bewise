@@ -12,7 +12,6 @@ import { toast } from 'react-toastify'
 import { signIn } from '@/app/lib/auth-client'
 import posthog from 'posthog-js'
 
-
 const loginSchema = z.object({
     email: z.email("Please enter a valid email address"),
     password: z.string().min(1, "Password is required"),
@@ -56,33 +55,48 @@ const Login = () => {
 
     const onSubmit = async (data: LoginFormValues) => {
         setIsPending(true);
-        const { error } = await signIn.email({
-            email: data.email,
-            password: data.password,
-        });
-        setIsPending(false);
 
-        if (error) {
-            toast.error(error.message || "Invalid credentials. Please try again.");
-            posthog.captureException(new Error(error.message || "Login failed"));
-        } else {
-            posthog.identify(data.email, { email: data.email });
-            posthog.capture('user_logged_in', { method: 'email' });
-            router.push("/");
+        try {
+            const response = await signIn.email({
+                email: data.email,
+                password: data.password,
+            });
+            if (response?.error) {
+                console.log("working")
+                toast.error("Invalid credentials. Try again.");
+                posthog.captureException(new Error(response.error.message || "Login failed"));
+            } else {
+                toast.success("Successfully logged in!");
+                posthog.identify(data.email, { email: data.email });
+                posthog.capture('user_logged_in', { method: 'email' });
+                router.push("/");
+            }
+        } catch (err: any) {
+            toast.error("Invalid credentials. Try again.");
+            posthog.captureException(err);
+        } finally {
+            setIsPending(false);
         }
     };
 
     const handleSocialLogin = async (provider: "google" | "github") => {
         setSocialLoading(provider);
         posthog.capture('social_login_clicked', { provider, page: 'login' });
-        const { error } = await signIn.social({
-            provider,
-            callbackURL: "/",
-        });
 
-        if (error) {
-            toast.error(`Failed to connect with ${provider}.`);
-            posthog.captureException(new Error(`Social login failed: ${provider}`));
+        try {
+            const { error } = await signIn.social({
+                provider,
+                callbackURL: "/",
+            });
+
+            if (error) {
+                toast.error(`Failed to connect with ${provider}. Please try again.`);
+                posthog.captureException(new Error(`Social login failed: ${provider}`));
+                setSocialLoading(null);
+            }
+        } catch (err: any) {
+            toast.error(`Failed to connect with ${provider}. Please try again.`);
+            posthog.captureException(err);
             setSocialLoading(null);
         }
     };
@@ -112,7 +126,7 @@ const Login = () => {
                     className="w-full flex justify-center items-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-300 p-3 font-semibold disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                     {socialLoading === "google" ? (
-                        <Loader2 className="animate-spin text-gray-500" size={20} />
+                        <Loader2 className="animate-spin text-gray-500" size={24} />
                     ) : (
                         <>
                             <img src="https://img.icons8.com/material-rounded/66/4D4D4D/google-logo.png" alt="Google" className="w-5 dark:invert" />
@@ -128,7 +142,7 @@ const Login = () => {
                     className="w-full flex justify-center items-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-300 p-3 font-semibold disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                     {socialLoading === "github" ? (
-                        <Loader2 className="animate-spin text-gray-500" size={20} />
+                        <Loader2 className="animate-spin text-gray-500" size={24} />
                     ) : (
                         <>
                             <Github size={20} />
@@ -182,7 +196,7 @@ const Login = () => {
 
             <motion.div variants={itemVariants} className="text-gray-600 dark:text-gray-400 text-center transition-colors">
                 <p>
-                    Don't have an account? <Link href="/signup" className="text-lg text-gray-800 dark:text-gray-200 hover:underline font-semibold">Create Account</Link>
+                    Don't have an account? <Link href="/signup" className=" text-gray-800 dark:text-gray-200 hover:underline font-semibold">Create Account</Link>
                 </p>
             </motion.div>
         </motion.div>

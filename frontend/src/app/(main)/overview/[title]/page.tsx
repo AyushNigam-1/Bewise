@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Book, Bookmark, Loader2, Share2, ShoppingBag, Tag, User } from "lucide-react";
 import posthog from "posthog-js";
-import { ToastContainer } from "react-toastify";
 import { motion } from "framer-motion";
 import { getBookInfoByTitle } from "@/app/services/bookService";
 import ShareModal from "../../../components/modals/ShareModal";
@@ -70,14 +69,30 @@ const Overview = () => {
             animate="show"
             className="flex flex-col gap-4 w-full py-2 md:py-4 transition-colors duration-300"
         >
-            <div className="flex flex-col md:flex-row relative gap-4 w-full">
+            <div className="flex flex-col md:flex-row relative gap-4 md:gap-8 w-full">
 
-                <motion.img
+                {/* 🌟 FIX: Responsive Wrapper. 
+                    Mobile = Blurred Box. 
+                    Desktop (md) = Transparent normal wrapper */}
+                <motion.div
                     variants={itemVariants}
-                    src={book.thumbnail}
-                    className="z-30 rounded-xl mx-auto md:h-72 shadow-md md:w-auto object-cover"
-                    alt={book.title || "Book Cover"}
-                />
+                    className="relative flex flex-shrink-0 items-center justify-center w-full md:w-auto h-[280px] md:h-auto overflow-hidden md:overflow-visible rounded-2xl md:rounded-none shadow-sm md:shadow-none border border-gray-100 dark:border-gray-800 md:border-none bg-gray-50 dark:bg-gray-900 md:bg-transparent dark:md:bg-transparent"
+                >
+                    {/* Background Blur - ONLY visible on mobile (md:hidden) */}
+                    <img
+                        src={book.thumbnail}
+                        alt=""
+                        aria-hidden="true"
+                        className="md:hidden absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 dark:opacity-30 scale-125 z-0"
+                    />
+
+                    {/* Foreground Crisp Image - Adapts shadow/corners for mobile vs desktop */}
+                    <img
+                        src={book.thumbnail}
+                        className="relative z-10 h-56 md:h-72 w-auto object-contain rounded-md md:rounded-xl shadow-2xl md:shadow-md"
+                        alt={book.title || "Book Cover"}
+                    />
+                </motion.div>
 
                 <div className="flex flex-col md:justify-between gap-4 w-full">
                     <div className="flex justify-between w-full items-start">
@@ -120,7 +135,7 @@ const Overview = () => {
                             >
                                 <Share2 size={20} />
                             </button>
-                            <ShareModal isOpen={isOpen} setIsOpen={setIsOpen} shareUrl={`https://www.bookist.com/overview/${book.title}`} />
+                            <ShareModal isOpen={isOpen} setIsOpen={setIsOpen} shareUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/overview/${book.title}`} />
                         </motion.div>
                     </div>
 
