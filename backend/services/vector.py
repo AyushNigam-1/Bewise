@@ -47,7 +47,6 @@ def search_insights(
     insight_titles: list[str] = None, 
     top_k: int = 5
 ):
-    # 1. Safe Caching - Do not crash if Redis is unavailable
     cache_key = "vector:" + hashlib.md5(
         f"{query}-{book_names}-{insight_ids}-{insight_titles}".encode()
     ).hexdigest()
@@ -61,7 +60,6 @@ def search_insights(
     
     q_embedding = embedder.encode(query).tolist()
 
-    # 2. Build Robust Pinecone Filters
     pinecone_filter = {}
 
     if book_names and len(book_names) > 0:
@@ -86,7 +84,6 @@ def search_insights(
     if not matches:
         return []
 
-    # 3. Reranking
     rerank_pairs = [
         (query, f'{m["metadata"].get("title","")} {m["metadata"].get("description","")}')
         for m in matches
@@ -109,7 +106,6 @@ def search_insights(
     reranked.sort(key=lambda x: x["rerank_score"], reverse=True)
     final_results = reranked[:top_k]
 
-    # 4. Save to Cache safely
     try:
         redis_client.setex(cache_key, 3600, json.dumps(final_results)) # 1 hour cache
     except Exception as e:
@@ -183,7 +179,6 @@ def recommend_next_insights(
         exclusions.append(current_insight_id)
         
     if exclusions:
-        # Pinecone requires unique values in $nin
         pinecone_filter["insight_id"] = {"$nin": list(set(exclusions))}
 
     res = index.query(

@@ -56,6 +56,7 @@ export interface BookInfo {
     sub_categories_count: number;
     total_insights: number;
     categories: string;
+    description: string
 }
 
 export type QuizQuestion = {

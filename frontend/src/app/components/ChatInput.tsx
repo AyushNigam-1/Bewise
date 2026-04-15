@@ -64,7 +64,6 @@ export default function ChatInput({
                         transition={{ duration: 0.3, ease: "easeInOut" }}
                         className="relative flex items-center overflow-hidden"
                     >
-                        {/* Left scroll button */}
                         <button
                             onClick={() => scroll("left")}
                             className={`
@@ -79,7 +78,6 @@ export default function ChatInput({
                             <ChevronLeft size={12} />
                         </button>
 
-                        {/* Scrollable pill strip */}
                         <div
                             ref={scrollRef}
                             onScroll={checkScroll}
@@ -108,7 +106,6 @@ export default function ChatInput({
                             </AnimatePresence>
                         </div>
 
-                        {/* Right scroll button */}
                         <button
                             onClick={() => scroll("right")}
                             className={`
@@ -126,7 +123,6 @@ export default function ChatInput({
                 )}
             </AnimatePresence>
 
-            {/* 🌟 GEMINI STYLE WRAPPER: Combines Input and Buttons into one unified rounded box */}
             <div className="flex flex-col w-full border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 rounded-2xl sm:rounded-3xl focus-within:ring-2 focus-within:ring-gray-300 dark:focus-within:ring-gray-500 transition-all">
 
                 <input
@@ -147,7 +143,7 @@ export default function ChatInput({
                         {({ open, close }) => (
                             <>
                                 <PopoverButton
-                                    className="rounded-full flex items-center justify-center transition-all flex-shrink-0 bg-transparent text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 outline-none"
+                                    className="rounded-full flex items-center p-2 justify-center transition-all flex-shrink-0 bg-transparent text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 outline-none"
                                     title="Select Context"
                                 >
                                     <Plus size={20} className={`sm:hidden ${open ? "rotate-45 transition-transform" : "transition-transform"}`} />
@@ -158,7 +154,6 @@ export default function ChatInput({
                                     transition
                                     className="absolute bottom-full mb-3 left-0 w-[calc(100vw-28px)] sm:w-80 max-w-[320px] h-[360px] sm:h-[400px] flex flex-col rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl z-50 overflow-hidden p-3 space-y-3 transition-all duration-200 ease-out data-[closed]:translate-y-2 data-[closed]:opacity-0"
                                 >
-                                    {/* Header */}
                                     <div className="flex items-center justify-between pb-1">
                                         <h3 className="font-bold text-sm sm:text-base text-gray-800 dark:text-gray-200">
                                             Select {book ? "Insights" : "Books"}
@@ -216,7 +211,7 @@ export default function ChatInput({
                                 ? "bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-pointer animate-pulse"
                                 : input.trim()
                                     ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:scale-105 shadow-md cursor-pointer"
-                                    : "bg-transparent text-gray-400 dark:text-gray-500 cursor-not-allowed" // Removed borders here to blend when empty
+                                    : "bg-transparent text-gray-400 dark:text-gray-500 cursor-not-allowed"
                             }`}
                     >
                         {loading ? (

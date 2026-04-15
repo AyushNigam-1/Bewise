@@ -56,9 +56,7 @@ Each step must include:
 
     **Return only the JSON output. No extra text.**
     """
-    
     return prompt
-
 
 
 def categorization_prompt(categories,steps_only):

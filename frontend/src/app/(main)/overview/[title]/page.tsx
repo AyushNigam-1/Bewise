@@ -43,7 +43,7 @@ const Overview = () => {
         queryFn: () => getBookInfoByTitle(params.title as string),
         enabled: !!params.title,
     });
-
+    console.log(book)
     useEffect(() => {
         if (book) {
             posthog.capture('book_overview_viewed', {
@@ -148,12 +148,12 @@ const Overview = () => {
                             <ArrowUpRight size={20} />
                             Get Insights
                         </Link>
-                        <button
+                        {/* <button
                             type="button"
                             className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 justify-center flex gap-2 items-center focus:outline-none rounded-lg py-2 px-4 md:text-lg font-semibold transition-colors"
                         >
                             <ShoppingBag size={20} /> Buy on Amazon
-                        </button>
+                        </button> */}
                     </motion.div>
                 </div>
             </div>
@@ -167,19 +167,10 @@ const Overview = () => {
                         About Book
                     </p>
                     <p className="text-lg font-medium text-gray-600 dark:text-gray-300 ">
-                        Lorem ipsum dolor sit amet consectetur, adipisicing elit...
+                        {book.description}
                     </p>
                 </motion.div>
 
-                <motion.div variants={itemVariants} className="space-y-2">
-                    <p className="text-md text-gray-800 dark:text-gray-200 flex gap-2 items-center font-semibold">
-                        <User size={20} className="text-gray-500 dark:text-gray-400" />
-                        About Author
-                    </p>
-                    <p className="text-lg font-medium text-gray-600 dark:text-gray-300 ">
-                        Lorem ipsum dolor sit amet consectetur, adipisicing elit...
-                    </p>
-                </motion.div>
             </div>
 
         </motion.div>
