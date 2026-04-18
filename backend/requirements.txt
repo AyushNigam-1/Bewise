@@ -18,3 +18,4 @@ langchain_ollama
 fastapi_limiter
 langserve
 sqlmodel
+rq

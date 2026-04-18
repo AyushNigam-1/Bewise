@@ -1,17 +1,33 @@
 import numpy as np
-from langchain_ollama import OllamaEmbeddings
+from sentence_transformers import SentenceTransformer
 
-embeddings = OllamaEmbeddings(model="nomic-embed-text")
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
 def cosine(a, b):
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return np.dot(a, b) / (norm_a * norm_b)
 
 
 def remove_duplicate_steps(steps, threshold=0.75):
     if not steps:
         return []
 
-    vectors = embeddings.embed_documents(steps)
+    threshold = float(threshold)
+
+    print(f"--- [DEDUPLICATION] Embedding {len(steps)} steps natively... ---", flush=True)
+    
+    texts_to_embed = []
+    for step in steps:
+        if isinstance(step, dict):
+            step_text = str(step.get("step", "")) + " " + str(step.get("description", ""))
+            texts_to_embed.append(step_text)
+        else:
+            texts_to_embed.append(str(step))
+
+    vectors = model.encode(texts_to_embed)
 
     kept_vectors = []
     kept_texts = []
@@ -26,6 +42,7 @@ def remove_duplicate_steps(steps, threshold=0.75):
 
         if not is_dup:
             kept_vectors.append(vec)
-            kept_texts.append(steps[i])
+            kept_texts.append(steps[i]) 
 
+    print(f"--- [DEDUPLICATION] Done. Kept {len(kept_texts)} unique steps out of {len(steps)}. ---", flush=True)
     return kept_texts

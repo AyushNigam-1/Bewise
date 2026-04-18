@@ -91,7 +91,7 @@ const Page = () => {
                 />
             </motion.div>
 
-            <div className="flex-grow w-full">
+            <div className="flex-grow w-full pb-4">
                 <AnimatePresence mode="wait">
                     {filteredBooks?.length > 0 ? (
                         <motion.div
@@ -102,13 +102,11 @@ const Page = () => {
                             transition={{ duration: 0.2 }}
                             className="columns-2 gap-4 lg:columns-5 space-y-4"
                         >
-                            {/* 🌟 Removed popLayout to stop CSS column glitching */}
                             <AnimatePresence>
                                 {filteredBooks.map((book: any, index: number) => (
                                     <motion.div
                                         key={book.id || index}
                                         layout="position"
-                                        // 🌟 Switched to animate with y:20 slide-up
                                         initial={{ opacity: 0, y: 20 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{
@@ -137,7 +135,6 @@ const Page = () => {
                             </AnimatePresence>
                         </motion.div>
                     ) : (
-                        // 🌟 The smooth slide-up empty state
                         <motion.div
                             key="empty-state"
                             initial={{ opacity: 0, y: 20 }}

@@ -18,11 +18,12 @@ def categorize_steps(folder_path, actionable_steps, categories, model, max_retri
 
             categorized_steps = load_json_file(folder_path, "categorized_steps.json", {})
 
-            if "steps" not in actionable_steps or not isinstance(actionable_steps["steps"], list):
-                raise ValueError("Invalid format: Expected a dictionary with a 'steps' key containing a list.")
+            if not isinstance(actionable_steps, list):
+                raise ValueError(f"Invalid format: Expected a list of steps, got {type(actionable_steps)}")
 
-            steps_data = actionable_steps["steps"]
-            steps_only = [item["step"] for item in steps_data]
+            steps_data = actionable_steps
+            
+            steps_only = [item["step"] for item in steps_data if "step" in item]
 
             prompt = categorization_prompt(subcategories.keys(), steps_only)
             response = model.invoke([HumanMessage(content=prompt)])
@@ -54,7 +55,7 @@ def categorize_steps(folder_path, actionable_steps, categories, model, max_retri
                                     "description": item.get("description", ""),
                                     "detailed_breakdown": item.get("detailed_breakdown", ""),
                                 }
-                                for item in steps_data if item["step"] == step
+                                for item in steps_data if item.get("step") == step
                             ),
                             {"description": "", "detailed_breakdown": ""},
                         )
@@ -63,12 +64,14 @@ def categorize_steps(folder_path, actionable_steps, categories, model, max_retri
                 )
 
             save_json_file(folder_path, "categorized_steps.json", categorized_steps)
-            return categorized_steps  # ✅ Success
+            
+            print(f"✅ Successfully categorized steps (Attempt {attempt+1})", flush=True)
+            return categorized_steps  
 
         except Exception as e:
             attempt += 1
-            print(f"[Attempt {attempt}] Error in categorization: {e}")
+            print(f"[Attempt {attempt}] Error in categorization: {e}", flush=True)
             time.sleep(base_delay * attempt)
 
-    print("❌ Categorization failed after max retries. Returning empty categories safely.")
+    print("❌ Categorization failed after max retries. Returning empty categories safely.", flush=True)
     return {}

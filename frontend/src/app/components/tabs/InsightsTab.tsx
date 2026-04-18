@@ -72,7 +72,6 @@ const InsightsTab = () => {
 
     const shouldShowHeader = !isDataLoading && hasAnyBookmarks;
 
-    // ─── Determine which state to render ────────────────────────────────────────
     type ViewState = "loading" | "error" | "empty" | "no-matches" | "grid";
     const viewState: ViewState = isDataLoading
         ? "loading"

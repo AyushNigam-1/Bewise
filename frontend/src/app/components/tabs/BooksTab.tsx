@@ -14,6 +14,25 @@ import ShareModal from "../modals/ShareModal";
 const EMPTY_BOOKS: Book[] = [];
 const EMPTY_CATEGORIES: Categories[] = [];
 
+const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.08,
+        },
+    },
+};
+
+const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    show: {
+        opacity: 1,
+        y: 0,
+        transition: { type: "spring", stiffness: 300, damping: 24 }
+    },
+};
+
 const BooksTab = () => {
     const user = useUserStore((state: { user: User | null }) => state.user);
     const [selectedCategory, setSelectedCategory] = useState<Categories[]>([]);
@@ -87,9 +106,9 @@ const BooksTab = () => {
 
             {shouldShowHeader && (
                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.2 }}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
                     className="sticky top-0 z-30"
                 >
                     <Header
@@ -109,34 +128,34 @@ const BooksTab = () => {
                 </motion.div>
             )}
 
-            <div className="flex-grow w-full">
+            <div className="flex-grow w-full px-2 sm:px-0">
 
                 {viewState === "loading" && (
-                    <div className="w-full h-[90vh] flex items-center justify-center">
+                    <div className="w-full h-[70vh] flex items-center justify-center">
                         <Loader2 className="animate-spin text-gray-400" size={36} />
                     </div>
                 )}
 
                 {viewState === "error" && (
-                    <div className="w-full h-[70vh] flex items-center justify-center text-red-500 font-medium">
+                    <div className="w-full h-[70vh] flex items-center justify-center text-red-500 font-medium text-sm sm:text-base text-center px-4">
                         Something went wrong loading your bookmarked books.
                     </div>
                 )}
 
                 {viewState === "empty" && (
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                        className="w-full h-[80vh] flex flex-col items-center justify-center text-center px-4"
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
+                        className="w-full h-[70vh] flex flex-col items-center justify-center text-center px-4"
                     >
-                        <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
-                            <BookOpen size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
+                        <div className="bg-gray-50 dark:bg-gray-800/50 p-5 sm:p-6 rounded-full mb-4 sm:mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+                            <BookOpen size={40} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500 sm:w-12 sm:h-12" />
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                        <h3 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
                             No books saved
                         </h3>
-                        <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
+                        <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 max-w-[280px] sm:max-w-sm leading-relaxed">
                             You haven't bookmarked any books yet. Start exploring to build your library!
                         </p>
                     </motion.div>
@@ -144,18 +163,18 @@ const BooksTab = () => {
 
                 {viewState === "no-matches" && (
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
                         className="w-full h-[70vh] flex flex-col items-center justify-center text-center px-4"
                     >
-                        <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
-                            <SearchX size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
+                        <div className="bg-gray-50 dark:bg-gray-800/50 p-5 sm:p-6 rounded-full mb-4 sm:mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+                            <SearchX size={40} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500 sm:w-12 sm:h-12" />
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+                        <h3 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
                             No matches found
                         </h3>
-                        <p className="text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed">
+                        <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 max-w-[280px] sm:max-w-sm leading-relaxed">
                             None of your saved books match the current filters. Try clearing your search or categories.
                         </p>
                     </motion.div>
@@ -163,18 +182,16 @@ const BooksTab = () => {
 
                 {viewState === "grid" && (
                     <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.2 }}
-                        className="w-full"
+                        variants={containerVariants}
+                        initial="hidden"
+                        animate="show"
+                        className="w-full py-4 sm:py-6"
                     >
-                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
                             {filteredBooks.map((book) => (
                                 <motion.div
                                     key={book.id}
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ duration: 0.2, ease: "easeOut" }}
+                                    variants={itemVariants}
                                 >
                                     <BookCard
                                         book={book}

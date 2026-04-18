@@ -2,7 +2,6 @@ import os
 from typing import TypedDict, List, Dict, Any
 from langgraph.graph import StateGraph, START, END
 from core.llm import llm
-
 from src.utils.pdf_operations import extract_text_from_pdf 
 from src.components.step_extraction import extract_actionable_steps
 from src.components.categorization import categorize_steps
@@ -42,55 +41,54 @@ class BookistProcessor:
 
     
     def extract_chunks_node(self, state: GraphState):
-        """Reads the PDF and extracts it into chunks."""
-        print("--- NODE: Extracting Text Chunks ---")
+        print(f"--- [PIPELINE] Started extracting chunks from {state['pdf_name']} ---", flush=True)
         chunks = extract_text_from_pdf(state["pdf_path"], state["chunk_size"])
+        print(f"--- [PIPELINE] Extracted {len(chunks)} chunks successfully ---", flush=True)
         return {"chunks": chunks}
 
     def extract_steps_node(self, state: GraphState):
-        """Extracts steps from all chunks and combines them into one giant list."""
-        print(f"--- NODE: Extracting Steps from {len(state['chunks'])} Chunks ---")
+        print(f"--- [PIPELINE] Commencing step extraction across {len(state['chunks'])} chunks ---", flush=True)
         all_steps = []
         
-        for chunk in state["chunks"]:
+        for i, chunk in enumerate(state["chunks"]):
+            print(f"    -> Extracting from chunk {i+1}/{len(state['chunks'])}...", flush=True)
             steps = extract_actionable_steps(state["folder_path"], self.model, chunk)
             if steps:
                 all_steps.extend(steps)
                 
+        print(f"--- [PIPELINE] Total steps extracted: {len(all_steps)} ---", flush=True)
         return {"extracted_steps": all_steps}
 
     def deduplicate_steps_node(self, state: GraphState):
-        """Runs the semantic deduplication against the entire book's extracted steps."""
-        print(f"--- NODE: Deduplicating {len(state['extracted_steps'])} Total Steps ---")
+        print(f"--- [PIPELINE] Running semantic deduplication on {len(state['extracted_steps'])} steps ---", flush=True)
         
         unique_steps = remove_duplicate_steps(state["extracted_steps"])
         
-        print(f"--- Result: Reduced to {len(unique_steps)} Unique Steps ---")
+        print(f"--- [PIPELINE] Deduplication complete. Remaining unique steps: {len(unique_steps)} ---", flush=True)
         return {"unique_steps": unique_steps}
 
     def categorize_steps_node(self, state: GraphState):
-        """Passes the final unique list to the LLM for categorization."""
-        print(f"--- NODE: Categorizing {len(state['unique_steps'])} Unique Steps ---")
+        print(f"--- [PIPELINE] Routing {len(state['unique_steps'])} steps to AI categorizer ---", flush=True)
         
         if state["unique_steps"]:
             categorize_steps(state["folder_path"], state["unique_steps"], state["category"], self.model)
             
+        print("--- [PIPELINE] Categorization complete ---", flush=True)
         return {}
 
     def finalize_node(self, state: GraphState):
-        """Compiles the final JSON output."""
-        print("--- NODE: Finalizing Output ---")
+        print("--- [PIPELINE] Assembling final JSON metadata ---", flush=True)
         file = load_json_file(state["pdf_name"], "categorized_steps.json", {})
         
         metadata = state["metadata"]
         metadata["Content"] = file
         
         save_json_file(state["pdf_name"], "final_result.json", metadata)
+        print("--- [PIPELINE] Finished successfully! ---", flush=True)
         return {"metadata": metadata}
 
 
     def _build_graph(self):
-        """Defines the workflow and compiles the StateGraph."""
         workflow = StateGraph(GraphState)
         
         workflow.add_node("extract_chunks", self.extract_chunks_node)
@@ -109,8 +107,9 @@ class BookistProcessor:
         return workflow.compile()
     
     def process(self):
-        """Triggers the LangGraph execution."""
-        print("Starting LangGraph processing...")
+        print(f"\n=============================================", flush=True)
+        print(f"🚀 INITIATING LANGGRAPH PIPELINE FOR: {self.pdf_name}", flush=True)
+        print(f"=============================================\n", flush=True)
         
         initial_state = {
             "pdf_path": self.pdf_path,
@@ -126,5 +125,5 @@ class BookistProcessor:
         
         final_state = self.graph.invoke(initial_state)
         
-        print("Processing complete!")
+        print("\n✅ PIPELINE EXECUTION FINISHED\n", flush=True)
         return final_state["metadata"]

@@ -4,8 +4,6 @@ import re
 from langchain_core.messages import HumanMessage
 from src.utils.file_operations import save_json_file, load_json_file
 from src.utils.prompts import step_extraction_prompt
-from src.components.duplicate_removel import remove_duplicate_steps
-
 import re
 
 def clean_llm_text(text):
@@ -16,10 +14,8 @@ def clean_llm_text(text):
     if not isinstance(text, str):
         return text
     
-    # 1. Remove surrounding quotes
     text = text.strip().strip('"').strip("'")
     
-    # 2. Fix literal newlines
     text = text.replace(r'\n', '\n')
     
     def decode_match(match):
@@ -63,7 +59,7 @@ def extract_actionable_steps(folder_path, model, text_chunk, max_retries=5, base
             new_data = clean_and_parse_json(response.content)
             
             if not isinstance(new_data, dict) or "steps" not in new_data or not isinstance(new_data["steps"], list):
-                raise ValueError("Invalid response format: Expected a dictionary with a 'steps' list.")
+                raise ValueError("Invalid response format.")
 
             for step in new_data["steps"]:
                 if "detailed_breakdown" in step:
@@ -77,15 +73,13 @@ def extract_actionable_steps(folder_path, model, text_chunk, max_retries=5, base
                     existing_data["steps"].append(step)
 
             save_json_file(folder_path, "actionable_steps.json", existing_data)
-            remove_duplicate_steps(folder_path, "actionable_steps.json")
-
+            
             print(f"✅ Successfully processed chunk (Attempt {attempt+1})")
-            return new_data 
+            return new_data["steps"] 
 
         except Exception as e:
             attempt += 1
             print(f"[Attempt {attempt}] Error occurred: {e}")
             time.sleep(base_delay * attempt)  
 
-    print("❌ Failed after max retries. Skipping this chunk safely.")
-    return {"steps": []}
+    return []

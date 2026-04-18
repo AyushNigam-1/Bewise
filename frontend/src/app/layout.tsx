@@ -7,8 +7,11 @@ import { Montserrat } from 'next/font/google';
 const montserrat = Montserrat({ subsets: ['latin'] });
 
 export const metadata = {
-  title: "Book Insights",
+  title: "Bewise",
   description: "Bite-sized, actionable knowledge from the best books.",
+  icons: {
+    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>',
+  }
 };
 
 export default function RootLayout({
