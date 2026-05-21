@@ -9,9 +9,7 @@ import {
   Bookmark,
   Loader2,
   Share2,
-  ShoppingBag,
   Tag,
-  User,
 } from "lucide-react";
 import posthog from "posthog-js";
 import { motion } from "framer-motion";
@@ -139,6 +137,7 @@ const Overview = () => {
               className="flex flex-col md:flex-row gap-3 md:relative fixed right-0 bottom-0 m-2 md:m-0 z-40"
             >
               <button
+                data-testid="overview-bookmark-btn"
                 onClick={() => book.id && bookmarkBook(book.id)}
                 className="inline-flex items-center justify-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 p-3 rounded-full transition-colors shadow-lg md:shadow-none"
               >
@@ -152,6 +151,7 @@ const Overview = () => {
                 />
               </button>
               <button
+                data-testid="overview-share-btn"
                 type="button"
                 onClick={() => setIsOpen(true)}
                 className="inline-flex items-center justify-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 p-3 rounded-full transition-colors shadow-lg md:shadow-none"

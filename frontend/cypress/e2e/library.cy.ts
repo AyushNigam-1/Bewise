@@ -122,6 +122,45 @@ describe("Book Library Features", () => {
     // 5. Verify the frontend actually fired the bookmark API call!
     cy.wait("@bookmarkRequest").its("response.statusCode").should("eq", 200);
   });
+
+  it.only("should filter the book library when a category is selected from the dialog", () => {
+    // 1. Intercept with the EXACT object structure your React frontend expects
+    cy.intercept("POST", "**/books/find-by-categories*", {
+      statusCode: 200,
+      body: {
+        books: [
+          {
+            id: 99,
+            title: "Psychology 101",
+            thumbnail: "https://via.placeholder.com/150",
+          },
+        ],
+        // WE ADDED THE CATEGORIES ARRAY HERE!
+        categories: [
+          {
+            name: "Psychology",
+            icon: "🧠",
+            description: "Dive into the human mind",
+          },
+        ],
+      },
+    }).as("filterBooksRequest");
+
+    // 2. Open the category dialog
+    cy.getByTestId("open-category-dialog-btn").click();
+
+    // 3. Verify the dialog actually opened
+    cy.contains("Select Categories").should("be.visible");
+
+    // 4. Click a category pill (It will actually be there now!)
+    cy.getByTestId("category-pill-Psychology").click();
+
+    // 5. Verify the network request fired with the new filter
+    cy.wait("@filterBooksRequest").its("request.body").should("not.be.null");
+
+    // 6. Verify the UI updated to show the filtered book!
+    cy.getByTestId("book-card").should("have.length", 1);
+  });
 });
 
 describe("Mobile Library Experience", () => {
@@ -131,7 +170,7 @@ describe("Mobile Library Experience", () => {
     cy.visit("/");
   });
 
-  it.only("should always display interaction buttons without needing to hover on mobile", () => {
+  it("should always display interaction buttons without needing to hover on mobile", () => {
     cy.getByTestId("book-card", { timeout: 10000 }).should(
       "have.length.at.least",
       1,

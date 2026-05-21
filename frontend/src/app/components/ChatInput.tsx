@@ -160,6 +160,7 @@ export default function ChatInput({
             {({ open, close }) => (
               <>
                 <PopoverButton
+                  data-testid="context-menu-btn"
                   className="rounded-full flex items-center p-2 justify-center transition-all flex-shrink-0 bg-transparent text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 outline-none"
                   title="Select Context"
                 >
@@ -213,6 +214,7 @@ export default function ChatInput({
                         );
                         return (
                           <button
+                            data-testid={`context-item-${item.name}`}
                             key={item.id}
                             onClick={() => toggleContext(item)}
                             className={`w-full cursor-pointer text-left rounded-lg p-2.5 sm:p-3 flex items-center justify-between transition-colors outline-none
@@ -242,7 +244,7 @@ export default function ChatInput({
           </Popover>
 
           <button
-            data-testid="send-button"
+            data-testid={loading ? "stop-button" : "send-button"}
             onClick={loading ? onStop : handleSend}
             disabled={!input.trim() && !loading}
             className={`h-10 w-10 sm:h-11 sm:w-11 rounded-full flex items-center justify-center transition-all flex-shrink-0
