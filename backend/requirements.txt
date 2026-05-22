@@ -21,3 +21,5 @@ sqlmodel
 rq
 groq
 ragas
+fastembed
+datasets
