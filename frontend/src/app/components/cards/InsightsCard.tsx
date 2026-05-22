@@ -49,6 +49,7 @@ export const InsightCard = ({
 
       <div className="flex gap-4 items-center justify-between w-full mt-auto dark:border-gray-700">
         <button
+          data-testid="insight-bookmark-btn"
           onClick={() => {
             console.log(step.step_id);
             onBookmark?.(step.step_id);
@@ -63,6 +64,7 @@ export const InsightCard = ({
         </button>
 
         <button
+          data-testid="insight-share-btn"
           onClick={() =>
             onShare?.(
               `${window.location.origin}/insight/${step?.step}/${step?.category}/${step?.step_id}`,

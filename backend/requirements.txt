@@ -19,3 +19,5 @@ fastapi_limiter
 langserve
 sqlmodel
 rq
+groq
+ragas

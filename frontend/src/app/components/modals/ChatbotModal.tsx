@@ -480,6 +480,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                               className="flex items-center gap-1"
                             >
                               <button
+                                data-testid="copy-human-message"
                                 onClick={() => handleCopy(m.content, i)}
                                 title="Copy message"
                                 className="p-1.5 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-full hover:bg-gray-200 dark:hover:bg-gray-800"
@@ -509,6 +510,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                     {m.role === "ai" && m.content && (
                       <div className="pl-1 flex items-center gap-1 mt-0.5">
                         <button
+                          data-testid="copy-ai-message"
                           onClick={() => handleCopy(m.content, i)}
                           className={`p-1.5 transition-colors rounded-full disabled:opacity-50 ${
                             copiedIndex === i
@@ -524,6 +526,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
                         </button>
 
                         <button
+                          data-testid="read-message-aloud"
                           onClick={() => handleReadAloud(m.content, i)}
                           disabled={voiceMutation.isPending}
                           className="p-1.5 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"
@@ -570,7 +573,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
               toggleContext={toggleContext}
               removeContext={removeContext}
               onSendMessage={handleSendMessage}
-              clearContexts={() => {}}
+              clearContexts={() => setSelectedContexts([])}
               onStop={handleStopGeneration}
             />
           </DialogPanel>
