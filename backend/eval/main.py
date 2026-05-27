@@ -1,3 +1,12 @@
+import sys
+from unittest.mock import MagicMock
+
+mock_module = MagicMock()
+mock_module.ChatVertexAI = MagicMock
+
+# 2. Force the dummy module into Python's system cache
+sys.modules["langchain_community.chat_models.vertexai"] = mock_module
+
 from ragas import evaluate
 
 from .eval_config import get_evaluation_setup

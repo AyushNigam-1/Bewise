@@ -2,13 +2,13 @@ name: RAGAS Evaluation Pipeline
 
 on:
   pull_request:
-    branches: [ master ]
+    branches: [master]
   workflow_dispatch: # Allows you to manually trigger it from the GitHub Actions tab!
 
 jobs:
   evaluate-rag:
     runs-on: ubuntu-latest
-    
+
     # This is the magic line that fixes your nested folder issue
     defaults:
       run:
@@ -21,8 +21,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12' # Match this to your local version
-          cache: 'pip' # Caches your pip dependencies to speed up builds
+          python-version: "3.12" # Match this to your local version
+          cache: "pip" # Caches your pip dependencies to speed up builds
 
       # This stops the runner from downloading the local embedding model every single time
       - name: Cache HuggingFace Local Models
@@ -36,7 +36,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -U -r requirements.txt
 
       - name: Run RAG Evaluation
         env:
@@ -45,7 +45,7 @@ jobs:
         run: |
           echo "Starting RAGAS Evaluation..."
           python -m eval.main
-      
+
       - name: Upload Evaluation Report
         if: always() # This forces GitHub to upload the file even if the Python script threw an error!
         uses: actions/upload-artifact@v4
@@ -62,4 +62,4 @@ jobs:
         run: |
           curl -X POST -H 'Content-type: application/json' \
           --data '{"text":"🚨 *RAG Pipeline Alert!* \nWorkflow: `${{ github.workflow }}` \nBranch: `${{ github.ref_name }}` \nThe RAGAS evaluation just failed. Check GitHub Actions to download the `rag_report.csv` artifact."}' \
-          $SLACK_WEBHOOK_UR
+          $SLACK_WEBHOOK_URL
