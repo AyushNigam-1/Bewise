@@ -24,3 +24,5 @@ groq
 ragas==0.3.9
 fastembed
 datasets
+pytest
+pytest-cov
