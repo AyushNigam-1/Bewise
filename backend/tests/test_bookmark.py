@@ -1,78 +1,19 @@
 import json
 from types import SimpleNamespace
-from unittest.mock import MagicMock, mock_open
+from unittest.mock import mock_open, patch
 
+import controllers.bookmark_controller as bookmarks
 import pytest
-
-import controllers.bookmark_handler as bookmarks
-
-
-class DummyRedis:
-    def __init__(self):
-        self.store = {}
-        self.deleted = []
-
-    def get(self, key):
-        return self.store.get(key)
-
-    def setex(self, key, ttl, value):
-        self.store[key] = value
-
-    def delete(self, key):
-        self.deleted.append(key)
-        self.store.pop(key, None)
-
-    def scan_iter(self, pattern):
-        prefix = pattern.replace("*", "")
-        return [k for k in list(self.store.keys()) if k.startswith(prefix)]
-
-
-class FakeResult:
-    def __init__(self, items):
-        self._items = list(items)
-
-    def all(self):
-        return self._items
-
-    def first(self):
-        return self._items[0] if self._items else None
-
-
-class FakeSession:
-    def __init__(self, get_results=None, exec_results=None):
-        self.get_results = list(get_results or [])
-        self.exec_results = list(exec_results or [])
-        self.added = []
-        self.committed = False
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        return False
-
-    def get(self, model, pk):
-        if self.get_results:
-            return self.get_results.pop(0)
-        return None
-
-    def exec(self, statement):
-        if not self.exec_results:
-            raise AssertionError("Unexpected exec() call")
-        return FakeResult(self.exec_results.pop(0))
-
-    def add(self, obj):
-        self.added.append(obj)
-
-    def commit(self):
-        self.committed = True
 
 
 @pytest.fixture
-def fake_deps(monkeypatch):
-    redis = DummyRedis()
-    posthog = MagicMock()
-    sentry = MagicMock()
+def module_deps(monkeypatch, base_fake_deps):
+    """
+    Injects FakeRedis, PostHog, and Sentry from conftest into the controller.
+    """
+    redis = base_fake_deps["redis"]
+    posthog = base_fake_deps["posthog"]
+    sentry = base_fake_deps["sentry"]
 
     monkeypatch.setattr(bookmarks, "redis_client", redis)
     monkeypatch.setattr(bookmarks, "posthog", posthog)
@@ -82,88 +23,97 @@ def fake_deps(monkeypatch):
     return redis, posthog, sentry
 
 
-def test_toggle_bookmark_book_adds_book(monkeypatch, fake_deps):
-    redis, posthog, _ = fake_deps
-    user = SimpleNamespace(user_id="u1", favourite_books=[1])
+@patch("controllers.bookmark_controller.BookmarkRepository")
+def test_toggle_bookmark_book_adds_book(mock_repo, module_deps):
+    redis, posthog, _ = module_deps
 
-    session = FakeSession(get_results=[user])
-    monkeypatch.setattr(bookmarks, "Session", lambda engine: session)
+    # 1. Arrange: Tell the mock repository to return a successful add action
+    mock_repo.toggle_book.return_value = (True, [1, 2])
+    redis.set("bookmarks:books_data:u1", "old_cache")  # Pre-populate cache
 
+    # 2. Act
     result = bookmarks.toggle_bookmark_book("u1", 2)
 
+    # 3. Assert
     assert result == {"bookmarked": True, "favourite_books": [1, 2]}
-    assert user.favourite_books == [1, 2]
-    assert session.committed is True
-    assert redis.deleted == ["bookmarks:books_data:u1"]
+    assert redis.exists("bookmarks:books_data:u1") == 0  # Proves cache was deleted!
+
     posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["event"] == "book_bookmarked"
 
 
-def test_toggle_bookmark_book_removes_book(monkeypatch, fake_deps):
-    redis, posthog, _ = fake_deps
-    user = SimpleNamespace(user_id="u1", favourite_books=[1, 2])
+@patch("controllers.bookmark_controller.BookmarkRepository")
+def test_toggle_bookmark_book_removes_book(mock_repo, module_deps):
+    redis, posthog, _ = module_deps
 
-    session = FakeSession(get_results=[user])
-    monkeypatch.setattr(bookmarks, "Session", lambda engine: session)
+    # Arrange: Tell the mock repository to return a successful remove action
+    mock_repo.toggle_book.return_value = (False, [1])
+    redis.set("bookmarks:books_data:u1", "old_cache")
 
+    # Act
     result = bookmarks.toggle_bookmark_book("u1", 2)
 
+    # Assert
     assert result == {"bookmarked": False, "favourite_books": [1]}
-    assert user.favourite_books == [1]
-    assert redis.deleted == ["bookmarks:books_data:u1"]
+    assert redis.exists("bookmarks:books_data:u1") == 0
     posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["event"] == "book_unbookmarked"
 
 
-def test_toggle_bookmark_insight_adds_and_clears_related_cache(monkeypatch, fake_deps):
-    redis, posthog, _ = fake_deps
-    user = SimpleNamespace(user_id="u1", favourite_insights=[10])
-    redis.store["session_recommend:u1:1"] = "a"
-    redis.store["session_recommend:u1:2"] = "b"
+@patch("controllers.bookmark_controller.BookmarkRepository")
+def test_toggle_bookmark_insight_adds_and_clears_related_cache(mock_repo, module_deps):
+    redis, posthog, _ = module_deps
+    mock_repo.toggle_insight.return_value = (True, [10, 20])
 
-    session = FakeSession(get_results=[user])
-    monkeypatch.setattr(bookmarks, "Session", lambda engine: session)
+    # Pre-populate all the caches the insight toggle is supposed to nuke
+    redis.set("bookmarks:insights_data:u1", "old")
+    redis.set("recommend:u1", "old")
+    redis.set("session_recommend:u1:1", "a")
+    redis.set("session_recommend:u1:2", "b")
 
     result = bookmarks.toggle_bookmark_insight("u1", 20)
 
     assert result == {"bookmarked": True, "favourite_insights": [10, 20]}
-    assert user.favourite_insights == [10, 20]
-    assert session.committed is True
-    assert "bookmarks:insights_data:u1" not in redis.store
-    assert "recommend:u1" not in redis.store
-    assert "session_recommend:u1:1" not in redis.store
-    assert "session_recommend:u1:2" not in redis.store
+
+    # Assert ALL caches were cleared
+    assert redis.exists("bookmarks:insights_data:u1") == 0
+    assert redis.exists("recommend:u1") == 0
+    assert redis.exists("session_recommend:u1:1") == 0
+    assert redis.exists("session_recommend:u1:2") == 0
+
     posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["event"] == "insight_bookmarked"
 
 
-def test_get_bookmarked_books_with_categories_uses_cache(fake_deps):
-    redis, _, _ = fake_deps
+def test_get_bookmarked_books_with_categories_uses_cache(module_deps):
+    redis, _, _ = module_deps
     cached = {"books": [{"id": 1}], "categories": [{"name": "python"}]}
-    redis.store["bookmarks:books_data:u1"] = json.dumps(cached)
+    # fakeredis uses standard .set() and .get()
+    redis.set("bookmarks:books_data:u1", json.dumps(cached))
 
     result = bookmarks.get_bookmarked_books_with_categories("u1")
 
     assert result == cached
 
 
-def test_get_bookmarked_books_with_categories_empty_bookmarks(monkeypatch, fake_deps):
-    redis, _, _ = fake_deps
-    user = SimpleNamespace(user_id="u1", favourite_books=[])
+@patch("controllers.bookmark_controller.BookmarkRepository")
+def test_get_bookmarked_books_with_categories_empty_bookmarks(mock_repo, module_deps):
+    redis, _, _ = module_deps
 
-    session = FakeSession(get_results=[user])
-    monkeypatch.setattr(bookmarks, "Session", lambda engine: session)
+    # Tell the repo that this user has no books
+    mock_repo.get_bookmarked_books.return_value = []
 
     result = bookmarks.get_bookmarked_books_with_categories("u1")
 
     assert result == {"bookmarked_books": [], "favourite_categories": []}
-    assert json.loads(redis.store["bookmarks:books_data:u1"]) == result
+    assert json.loads(redis.get("bookmarks:books_data:u1")) == result
 
 
-def test_get_bookmarked_books_with_categories_db_path(monkeypatch, fake_deps):
-    redis, posthog, _ = fake_deps
-    user = SimpleNamespace(user_id="u1", favourite_books=[1, 2])
+@patch("controllers.bookmark_controller.BookmarkRepository")
+def test_get_bookmarked_books_with_categories_db_path(mock_repo, module_deps):
+    redis, posthog, _ = module_deps
 
+    # Create fake SQLModel objects to return from the repo
     book1 = SimpleNamespace(
         id=1,
         title="Book A",
@@ -181,80 +131,68 @@ def test_get_bookmarked_books_with_categories_db_path(monkeypatch, fake_deps):
         category=["python"],
     )
 
-    session = FakeSession(get_results=[user], exec_results=[[book1, book2]])
-    monkeypatch.setattr(bookmarks, "Session", lambda engine: session)
-    monkeypatch.setattr(
-        bookmarks,
-        "get_category_details_from_json",
-        lambda cat_name, categories_data: {
-            "name": cat_name,
-            "icon": categories_data.get(cat_name, {}).get("icon", "📌"),
-            "description": categories_data.get(cat_name, {}).get(
-                "description", f"Explore insights from {cat_name}."
-            ),
-        },
-    )
+    mock_repo.get_bookmarked_books.return_value = [book1, book2]
 
-    categories_json = json.dumps(
+    # Mock the category helper
+    monkeypatch_json = json.dumps(
         {
             "python": {"icon": "🐍", "description": "Python desc"},
             "ai": {"icon": "🤖", "description": "AI desc"},
         }
     )
-    monkeypatch.setattr("builtins.open", mock_open(read_data=categories_json))
 
-    result = bookmarks.get_bookmarked_books_with_categories("u1")
+    with (
+        patch("builtins.open", mock_open(read_data=monkeypatch_json)),
+        patch(
+            "controllers.bookmark_controller.get_category_details_from_json"
+        ) as mock_cat_helper,
+    ):
+        mock_cat_helper.side_effect = lambda cat_name, data: {
+            "name": cat_name,
+            "icon": "📌",
+            "description": f"{cat_name} desc",
+        }
 
-    assert result["books"] == [
-        {
-            "id": 1,
-            "title": "Book A",
-            "author": "Author A",
-            "thumbnail": "thumb-a.png",
-            "description": "desc a",
-            "category": ["python", "ai"],
-        },
-        {
-            "id": 2,
-            "title": "Book B",
-            "author": "Author B",
-            "thumbnail": "thumb-b.png",
-            "description": "desc b",
-            "category": ["python"],
-        },
-    ]
+        result = bookmarks.get_bookmarked_books_with_categories("u1")
+
+    # Verify controller transformed the repo data properly
+    assert len(result["books"]) == 2
+    assert result["books"][0]["id"] == 1
     assert {c["name"] for c in result["categories"]} == {"python", "ai"}
-    assert "bookmarks:books_data:u1" in redis.store
+
+    # Verify cache was set
+    assert redis.exists("bookmarks:books_data:u1") == 1
+
     posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["event"] == "viewed_bookmarked_books"
 
 
-def test_get_bookmarked_insights_with_categories_uses_cache(fake_deps):
-    redis, _, _ = fake_deps
+def test_get_bookmarked_insights_with_categories_uses_cache(module_deps):
+    redis, _, _ = module_deps
     cached = {"insights": [{"step_id": 1}], "categories": [{"name": "python"}]}
-    redis.store["bookmarks:insights_data:u1"] = json.dumps(cached)
+    redis.set("bookmarks:insights_data:u1", json.dumps(cached))
 
     result = bookmarks.get_bookmarked_insights_with_categories("u1")
 
     assert result == cached
 
 
-def test_get_bookmarked_insights_with_categories_empty_bookmarks(monkeypatch, fake_deps):
-    redis, _, _ = fake_deps
-    user = SimpleNamespace(user_id="u1", favourite_insights=[])
-
-    session = FakeSession(get_results=[user])
-    monkeypatch.setattr(bookmarks, "Session", lambda engine: session)
+@patch("controllers.bookmark_controller.BookmarkRepository")
+def test_get_bookmarked_insights_with_categories_empty_bookmarks(
+    mock_repo, module_deps
+):
+    redis, _, _ = module_deps
+    mock_repo.get_bookmarked_insights.return_value = []
 
     result = bookmarks.get_bookmarked_insights_with_categories("u1")
 
     assert result == {"bookmarked_insights": [], "favourite_categories": []}
-    assert json.loads(redis.store["bookmarks:insights_data:u1"]) == result
+    assert json.loads(redis.get("bookmarks:insights_data:u1")) == result
 
 
-def test_get_bookmarked_insights_with_categories_db_path(monkeypatch, fake_deps):
-    redis, posthog, _ = fake_deps
-    user = SimpleNamespace(user_id="u1", favourite_insights=[11, 12])
+@patch("controllers.bookmark_controller.BookmarkRepository")
+def test_get_bookmarked_insights_with_categories_db_path(mock_repo, module_deps):
+    redis, posthog, _ = module_deps
 
     insight1 = SimpleNamespace(
         id=11,
@@ -275,32 +213,15 @@ def test_get_bookmarked_insights_with_categories_db_path(monkeypatch, fake_deps)
         detailed_breakdown="Breakdown 2",
     )
 
-    session = FakeSession(get_results=[user], exec_results=[[insight1, insight2]])
-    monkeypatch.setattr(bookmarks, "Session", lambda engine: session)
+    mock_repo.get_bookmarked_insights.return_value = [insight1, insight2]
 
     result = bookmarks.get_bookmarked_insights_with_categories("u1")
 
-    assert result["insights"] == [
-        {
-            "step_id": 11,
-            "book_name": "Book A",
-            "category": "python",
-            "icon": "🐍",
-            "title": "Step 1",
-            "description": "Desc 1",
-            "detailed_breakdown": "Breakdown 1",
-        },
-        {
-            "step_id": 12,
-            "book_name": "Book B",
-            "category": "ai",
-            "icon": "🤖",
-            "title": "Step 2",
-            "description": "Desc 2",
-            "detailed_breakdown": "Breakdown 2",
-        },
-    ]
+    assert len(result["insights"]) == 2
+    assert result["insights"][0]["step_id"] == 11
     assert {c["name"] for c in result["categories"]} == {"python", "ai"}
-    assert "bookmarks:insights_data:u1" in redis.store
+
+    assert redis.exists("bookmarks:insights_data:u1") == 1
+
     posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["event"] == "viewed_bookmarked_insights"

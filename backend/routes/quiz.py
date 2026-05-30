@@ -1,6 +1,6 @@
 from fastapi import APIRouter , Depends
 from langserve import add_routes
-from controllers.quiz_handler import quiz_runnable
+from controllers.quiz_controller import quiz_runnable
 from pyrate_limiter import Limiter, Rate, Duration
 from fastapi_limiter.depends import RateLimiter
 

@@ -1,6 +1,5 @@
 import os
 from contextlib import asynccontextmanager
-
 import sentry_sdk
 import uvicorn
 from core.analytics import posthog
@@ -14,7 +13,6 @@ from routes.books import router as books_router
 from routes.chatbot import rag_ai_router
 from routes.quiz import quiz_ai_router
 from routes.recommendation_routes import router as recommendation_router
-from routes.users import router as users_router
 from routes.voice import router as voice_router
 
 load_dotenv()
@@ -48,7 +46,6 @@ app.add_middleware(
 app.include_router(bookmark_router)
 app.include_router(recommendation_router)
 app.include_router(books_router)
-app.include_router(users_router)
 app.include_router(rag_ai_router)
 app.include_router(voice_router)
 app.include_router(quiz_ai_router)

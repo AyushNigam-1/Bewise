@@ -26,3 +26,6 @@ fastembed
 datasets
 pytest
 pytest-cov
+testcontainers
+fakeredis
+psycopg2-binary

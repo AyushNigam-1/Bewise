@@ -3,7 +3,7 @@ from enum import Enum
 from fastapi_limiter.depends import RateLimiter
 from pyrate_limiter import Limiter, Rate, Duration
 
-from controllers.bookmark_handler import (
+from controllers.bookmark_controller import (
     toggle_bookmark_book,
     toggle_bookmark_insight,
     get_bookmarked_books_with_categories,

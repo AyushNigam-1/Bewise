@@ -1,85 +1,21 @@
 import json
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+from unittest.mock import MagicMock, mock_open, patch
 
+import controllers.book_controller as books
 import pytest
 from fastapi import HTTPException
 
-import controllers.book_handler as books
-
-
-class DummyRedis:
-    def __init__(self):
-        self.store = {}
-        self.deleted = []
-
-    def get(self, key):
-        return self.store.get(key)
-
-    def setex(self, key, ttl, value):
-        self.store[key] = value
-
-    def scan_iter(self, pattern):
-        prefix = pattern.replace("*", "")
-        return [k for k in list(self.store.keys()) if k.startswith(prefix)]
-
-    def delete(self, key):
-        self.deleted.append(key)
-        self.store.pop(key, None)
-
-
-class FakeResult:
-    def __init__(self, items):
-        self._items = list(items)
-
-    def all(self):
-        return self._items
-
-    def first(self):
-        return self._items[0] if self._items else None
-
-
-class FakeSession:
-    def __init__(self, exec_results=None, get_result=None):
-        self.exec_results = list(exec_results or [])
-        self.get_result = get_result
-        self.added = []
-        self.committed = False
-        self.flush_calls = 0
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        return False
-
-    def exec(self, statement):
-        if not self.exec_results:
-            raise AssertionError("Unexpected exec() call")
-        return FakeResult(self.exec_results.pop(0))
-
-    def get(self, model, pk):
-        return self.get_result
-
-    def add(self, obj):
-        self.added.append(obj)
-
-    def flush(self):
-        self.flush_calls += 1
-        next_id = 1
-        for obj in self.added:
-            if getattr(obj, "id", None) is None:
-                obj.id = next_id
-                next_id += 1
-
-    def commit(self):
-        self.committed = True
-
 
 @pytest.fixture
-def fake_deps(monkeypatch):
-    redis = DummyRedis()
-    posthog = MagicMock()
+def module_deps(monkeypatch, base_fake_deps):
+    """
+    Injects FakeRedis, PostHog, and Sentry from the global conftest into the controller.
+    """
+    redis = base_fake_deps["redis"]
+    posthog = base_fake_deps["posthog"]
 
+    # Patch the book_controller specifically
     monkeypatch.setattr(books, "redis_client", redis)
     monkeypatch.setattr(books, "posthog", posthog)
     monkeypatch.setattr(books, "CACHE_TTL", 123)
@@ -87,9 +23,9 @@ def fake_deps(monkeypatch):
     return redis, posthog
 
 
-def test_get_all_books_uses_cache(fake_deps):
-    redis, posthog = fake_deps
-    redis.store["books:all"] = json.dumps([{"id": 1, "title": "Cached Book"}])
+def test_get_all_books_uses_cache(module_deps):
+    redis, posthog = module_deps
+    redis.set("books:all", json.dumps([{"id": 1, "title": "Cached Book"}]))
 
     result = books.get_all_books(user_id="u1")
 
@@ -98,10 +34,12 @@ def test_get_all_books_uses_cache(fake_deps):
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "redis_cache"
 
 
-def test_get_all_books_reads_db_and_caches(monkeypatch, fake_deps):
-    redis, posthog = fake_deps
+@patch("controllers.book_controller.BookRepository")
+def test_get_all_books_reads_db_and_caches(mock_repo, module_deps):
+    redis, posthog = module_deps
 
-    book = books.Book(
+    book = SimpleNamespace(
+        id=1,
         title="Book A",
         author="Author A",
         thumbnail="thumb.png",
@@ -110,8 +48,7 @@ def test_get_all_books_reads_db_and_caches(monkeypatch, fake_deps):
         content={},
     )
 
-    session = FakeSession(exec_results=[[book]])
-    monkeypatch.setattr(books, "Session", lambda engine: session)
+    mock_repo.get_all_books.return_value = [book]
 
     result = books.get_all_books(user_id="u1")
 
@@ -125,30 +62,31 @@ def test_get_all_books_reads_db_and_caches(monkeypatch, fake_deps):
             "category": ["python", "ai"],
         }
     ]
-    assert "books:all" in redis.store
+    assert redis.exists("books:all")
     posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "database"
 
 
-def test_find_books_by_categories_cache_hit(fake_deps):
-    redis, _ = fake_deps
+def test_find_books_by_categories_cache_hit(module_deps):
+    redis, _ = module_deps
 
-    cached = {
-        "books": [{"id": 1}],
-        "categories": []
-    }
+    cached = {"books": [{"id": 1}], "categories": []}
 
-    redis.store["books_with_cats:python"] = json.dumps(cached)
+    redis.set("books_with_cats:python", json.dumps(cached))
 
     result = books.find_books_by_categories(["python"])
 
     assert result == cached
 
 
-def test_find_books_by_categories_builds_books_and_categories(monkeypatch, fake_deps):
-    redis, posthog = fake_deps
+@patch("controllers.book_controller.BookRepository")
+def test_find_books_by_categories_builds_books_and_categories(
+    mock_repo, monkeypatch, module_deps
+):
+    redis, posthog = module_deps
 
-    book1 = books.Book(
+    book1 = SimpleNamespace(
+        id=1,
         title="Book A",
         author="Author A",
         thumbnail="thumb-a.png",
@@ -156,7 +94,8 @@ def test_find_books_by_categories_builds_books_and_categories(monkeypatch, fake_
         category=["python", "ai"],
         content={"python": {"steps": [1, 2]}},
     )
-    book2 = books.Book(
+    book2 = SimpleNamespace(
+        id=2,
         title="Book B",
         author="Author B",
         thumbnail="thumb-b.png",
@@ -165,8 +104,8 @@ def test_find_books_by_categories_builds_books_and_categories(monkeypatch, fake_
         content={"python": {"steps": [3]}},
     )
 
-    session = FakeSession(exec_results=[[book1, book2]])
-    monkeypatch.setattr(books, "Session", lambda engine: session)
+    mock_repo.get_books_by_categories.return_value = [book1, book2]
+
     monkeypatch.setattr(
         books,
         "load_json_file",
@@ -183,16 +122,16 @@ def test_find_books_by_categories_builds_books_and_categories(monkeypatch, fake_
         {"name": "ai", "icon": "🤖", "description": "AI desc"},
         {"name": "python", "icon": "🐍", "description": "Python desc"},
     ]
-    assert "books_with_cats:python" in redis.store
+    assert redis.exists("books_with_cats:python")
     posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "database"
 
 
-def test_get_book_info_returns_404_for_missing_book(monkeypatch, fake_deps):
-    _, posthog = fake_deps
+@patch("controllers.book_controller.BookRepository")
+def test_get_book_info_returns_404_for_missing_book(mock_repo, module_deps):
+    _, posthog = module_deps
 
-    session = FakeSession(exec_results=[[None]])
-    monkeypatch.setattr(books, "Session", lambda engine: session)
+    mock_repo.get_book_by_title.return_value = None
 
     with pytest.raises(HTTPException) as exc:
         books.get_book_info("Missing Book", user_id="u1")
@@ -203,10 +142,12 @@ def test_get_book_info_returns_404_for_missing_book(monkeypatch, fake_deps):
     assert posthog.capture.call_args.kwargs["event"] == "book_not_found"
 
 
-def test_get_book_info_reads_db_and_counts(monkeypatch, fake_deps):
-    redis, posthog = fake_deps
+@patch("controllers.book_controller.BookRepository")
+def test_get_book_info_reads_db_and_counts(mock_repo, module_deps):
+    redis, posthog = module_deps
 
-    book = books.Book(
+    book = SimpleNamespace(
+        id=1,
         title="Book A",
         author="Author A",
         thumbnail="thumb.png",
@@ -218,8 +159,7 @@ def test_get_book_info_reads_db_and_counts(monkeypatch, fake_deps):
         },
     )
 
-    session = FakeSession(exec_results=[[book]])
-    monkeypatch.setattr(books, "Session", lambda engine: session)
+    mock_repo.get_book_by_title.return_value = book
 
     result = books.get_book_info("Book A", user_id="u1")
 
@@ -227,14 +167,14 @@ def test_get_book_info_reads_db_and_counts(monkeypatch, fake_deps):
     assert result["sub_categories_count"] == 2
     assert result["total_insights"] == 3
     assert result["categories"] == "python, ai"
-    assert "book:info:Book A" in redis.store
+    assert redis.exists("book:info:Book A")
     posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "database"
 
 
-def test_get_book_content_book_not_found(monkeypatch, fake_deps):
-    session = FakeSession(exec_results=[[]])
-    monkeypatch.setattr(books, "Session", lambda engine: session)
+@patch("controllers.book_controller.BookRepository")
+def test_get_book_content_book_not_found(mock_repo, module_deps):
+    mock_repo.get_book_by_title.return_value = None
 
     with pytest.raises(HTTPException) as exc:
         books.get_book_content("Missing")
@@ -243,10 +183,12 @@ def test_get_book_content_book_not_found(monkeypatch, fake_deps):
     assert exc.value.detail == "Book not found"
 
 
-def test_get_book_content_returns_keys_and_values(monkeypatch, fake_deps):
-    redis, posthog = fake_deps
+@patch("controllers.book_controller.BookRepository")
+def test_get_book_content_returns_keys_and_values(mock_repo, module_deps):
+    redis, posthog = module_deps
 
-    book = books.Book(
+    book = SimpleNamespace(
+        id=1,
         title="Book A",
         author="Author A",
         thumbnail="thumb.png",
@@ -258,7 +200,7 @@ def test_get_book_content_returns_keys_and_values(monkeypatch, fake_deps):
         },
     )
 
-    insight1 = books.Insight(
+    insight1 = SimpleNamespace(
         id=1,
         book_name="Book A",
         category_name="python",
@@ -267,7 +209,7 @@ def test_get_book_content_returns_keys_and_values(monkeypatch, fake_deps):
         description="D1",
         detailed_breakdown="B1",
     )
-    insight2 = books.Insight(
+    insight2 = SimpleNamespace(
         id=2,
         book_name="Book A",
         category_name="python",
@@ -276,7 +218,7 @@ def test_get_book_content_returns_keys_and_values(monkeypatch, fake_deps):
         description="D2",
         detailed_breakdown="B2",
     )
-    insight3 = books.Insight(
+    insight3 = SimpleNamespace(
         id=3,
         book_name="Book A",
         category_name="ai",
@@ -286,13 +228,18 @@ def test_get_book_content_returns_keys_and_values(monkeypatch, fake_deps):
         detailed_breakdown="B3",
     )
 
-    session = FakeSession(exec_results=[[book], [insight1, insight2, insight3]])
-    monkeypatch.setattr(books, "Session", lambda engine: session)
+    mock_repo.get_book_by_title.return_value = book
+    mock_repo.get_insights_by_ids.return_value = [insight1, insight2, insight3]
 
     result = books.get_book_content("Book A", category=["python"], user_id="u1")
 
     assert result["keys"] == [
-        {"name": "python", "icon": "🐍", "description": "Python desc", "steps_count": "2"},
+        {
+            "name": "python",
+            "icon": "🐍",
+            "description": "Python desc",
+            "steps_count": "2",
+        },
         {"name": "ai", "icon": "🤖", "description": "AI desc", "steps_count": "1"},
     ]
     assert result["values"] == [
@@ -311,23 +258,26 @@ def test_get_book_content_returns_keys_and_values(monkeypatch, fake_deps):
             "description": "D2",
         },
     ]
-    assert "book:content_combined:Book A:python" in redis.store
+    assert redis.exists("book:content_combined:Book A:python")
     posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "database"
 
 
-def test_get_step_details_uses_cache(fake_deps):
-    redis, posthog = fake_deps
-    redis.store["insight:7"] = json.dumps(
-        {
-            "step_id": 7,
-            "book_name": "Book A",
-            "category": "python",
-            "title": "Cached Step",
-            "description": "Cached",
-            "detailed_breakdown": "Cached breakdown",
-            "category_icon": "🐍",
-        }
+def test_get_step_details_uses_cache(module_deps):
+    redis, posthog = module_deps
+    redis.set(
+        "insight:7",
+        json.dumps(
+            {
+                "step_id": 7,
+                "book_name": "Book A",
+                "category": "python",
+                "title": "Cached Step",
+                "description": "Cached",
+                "detailed_breakdown": "Cached breakdown",
+                "category_icon": "🐍",
+            }
+        ),
     )
 
     result = books.get_step_details(7, user_id="u1")
@@ -337,8 +287,9 @@ def test_get_step_details_uses_cache(fake_deps):
     assert posthog.capture.call_args.kwargs["properties"]["book_title"] == "Book A"
 
 
-def test_get_step_details_db(monkeypatch, fake_deps):
-    insight = books.Insight(
+@patch("controllers.book_controller.BookRepository")
+def test_get_step_details_db(mock_repo, module_deps):
+    insight = SimpleNamespace(
         id=1,
         book_name="Book A",
         category_name="python",
@@ -348,8 +299,7 @@ def test_get_step_details_db(monkeypatch, fake_deps):
         detailed_breakdown="Breakdown",
     )
 
-    session = FakeSession(get_result=insight)
-    monkeypatch.setattr(books, "Session", lambda engine: session)
+    mock_repo.get_insight_by_id.return_value = insight
 
     result = books.get_step_details(1)
 
@@ -359,9 +309,9 @@ def test_get_step_details_db(monkeypatch, fake_deps):
     assert result["category"] == "python"
 
 
-def test_get_step_details_not_found(monkeypatch, fake_deps):
-    session = FakeSession(get_result=None)
-    monkeypatch.setattr(books, "Session", lambda engine: session)
+@patch("controllers.book_controller.BookRepository")
+def test_get_step_details_not_found(mock_repo, module_deps):
+    mock_repo.get_insight_by_id.return_value = None
 
     with pytest.raises(HTTPException) as exc:
         books.get_step_details(999)
@@ -370,15 +320,13 @@ def test_get_step_details_not_found(monkeypatch, fake_deps):
     assert exc.value.detail == "Step not found"
 
 
-def test_create_book_embeds_and_invalidates_cache(monkeypatch, fake_deps):
-    redis, posthog = fake_deps
-    redis.store["books:all"] = "cached"
+@patch("controllers.book_controller.BookRepository")
+def test_create_book_embeds_and_invalidates_cache(mock_repo, module_deps):
+    redis, posthog = module_deps
+    redis.set("books:all", "cached")
 
-    embed_mock = MagicMock()
-    monkeypatch.setattr(books, "embed_and_upsert_insight", embed_mock)
-
-    session = FakeSession()
-    monkeypatch.setattr(books, "Session", lambda engine: session)
+    # Mock the repository transaction returning 2 total insights embedded
+    mock_repo.create_book_transaction.return_value = 2
 
     book_data = {
         "Title": "New Book",
@@ -415,22 +363,25 @@ def test_create_book_embeds_and_invalidates_cache(monkeypatch, fake_deps):
     result = books.create_book(book_data, user_id="system")
 
     assert result == {"message": "Book and associated steps created successfully"}
-    assert session.committed is True
-    assert embed_mock.call_count == 2
-    assert "books:all" not in redis.store
+    mock_repo.create_book_transaction.assert_called_once()
+
+    # Fakeredis handles scan_iter naturally, so the cache wipe should work!
+    assert redis.exists("books:all") == 0
     posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["event"] == "book_created_and_embedded"
 
 
-def test_process_book_calls_processor_and_create_book(monkeypatch, fake_deps):
-    _, posthog = fake_deps
+def test_process_book_calls_processor_and_create_book(monkeypatch, module_deps):
+    _, posthog = module_deps
 
     processor_mock = MagicMock()
     processor_mock.process.return_value = {"Title": "Processed Book"}
 
     create_mock = MagicMock(return_value={"message": "ok"})
 
-    monkeypatch.setattr(books, "BookistProcessor", MagicMock(return_value=processor_mock))
+    monkeypatch.setattr(
+        books, "BookistProcessor", MagicMock(return_value=processor_mock)
+    )
     monkeypatch.setattr(books, "create_book", create_mock)
 
     result = books.process_book(
@@ -450,15 +401,11 @@ def test_process_book_calls_processor_and_create_book(monkeypatch, fake_deps):
     assert posthog.capture.call_count >= 1
 
 
-def test_process_book_failure(monkeypatch, fake_deps):
+def test_process_book_failure(monkeypatch, module_deps):
     processor = MagicMock()
     processor.process.side_effect = Exception("PDF failed")
 
-    monkeypatch.setattr(
-        books,
-        "BookistProcessor",
-        MagicMock(return_value=processor)
-    )
+    monkeypatch.setattr(books, "BookistProcessor", MagicMock(return_value=processor))
 
     with pytest.raises(Exception) as exc:
         books.process_book(

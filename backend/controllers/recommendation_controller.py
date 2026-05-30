@@ -1,13 +1,11 @@
 import json
 import time
-import sentry_sdk
-from fastapi import HTTPException
-from sqlmodel import Session
 
+import sentry_sdk
 from core.analytics import posthog
-from core.database import engine
-from core.models import User, Insight
-from core.redis import redis_client, CACHE_TTL
+from core.redis import CACHE_TTL, redis_client
+from fastapi import HTTPException
+from repositories.recommendation_repository import RecommendationRepository
 from services.vector import recommend_for_user, recommend_next_insights
 
 
@@ -27,12 +25,13 @@ def recommend(user_id: str):
         return data
 
     try:
-        with Session(engine) as session:
-            user = session.get(User, user_id)
-            insight_ids = user.favourite_insights if user else []
+        # 1. Ask the Repo for data
+        insight_ids = RecommendationRepository.get_user_favourite_insights(user_id)
 
+        # 2. Get AI Recommendations
         recommendations = recommend_for_user(insight_ids)
 
+        # 3. Cache and Return
         result = {"recommendations": recommendations}
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
 
@@ -44,9 +43,12 @@ def recommend(user_id: str):
         )
 
         return result
+
     except Exception as e:
         sentry_sdk.capture_exception(e)
-        raise HTTPException(status_code=500, detail="Failed to generate recommendations")
+        raise HTTPException(
+            status_code=500, detail="Failed to generate recommendations"
+        )
 
 
 def session_recommend(user_id: str, insight_id: int):
@@ -63,14 +65,14 @@ def session_recommend(user_id: str, insight_id: int):
         return data
 
     try:
-        with Session(engine) as session:
-            insight_obj = session.get(Insight, insight_id)
-            if not insight_obj:
-                raise HTTPException(status_code=404, detail="Insight not found")
+        # 1. Ask the Repo for the specific insight AND the user's bookmarks
+        insight_obj = RecommendationRepository.get_insight(insight_id)
+        if not insight_obj:
+            raise HTTPException(status_code=404, detail="Insight not found")
 
-            user = session.get(User, user_id)
-            bookmarked_ids = user.favourite_insights if user else []
+        bookmarked_ids = RecommendationRepository.get_user_favourite_insights(user_id)
 
+        # 2. Get contextual AI Recommendations
         recommendations = recommend_next_insights(
             current_insight_title=insight_obj.title,
             current_insight_description=insight_obj.description,
@@ -79,6 +81,7 @@ def session_recommend(user_id: str, insight_id: int):
             top_k=3,
         )
 
+        # 3. Cache and Return
         result = {"recommendations": recommendations}
         redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
 
@@ -88,6 +91,11 @@ def session_recommend(user_id: str, insight_id: int):
             properties={"source": "vector_db"},
         )
         return result
+
+    except HTTPException:
+        raise
     except Exception as e:
         sentry_sdk.capture_exception(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch session recommendations")
+        raise HTTPException(
+            status_code=500, detail="Failed to fetch session recommendations"
+        )

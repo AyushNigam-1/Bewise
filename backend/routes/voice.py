@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Response, Depends
 from pydantic import BaseModel, Field
-from controllers.voice_handler import generate_audio_from_text
+from controllers.voice_controller import generate_audio_from_text
 from fastapi_limiter.depends import RateLimiter
 from pyrate_limiter import Limiter, Rate, Duration
 

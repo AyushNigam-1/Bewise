@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from controllers.chatbot_handler import RAGResponse
+from controllers.chatbot_controller import RAGResponse
 
 @pytest.fixture
 def mock_dependencies():
@@ -9,9 +9,9 @@ def mock_dependencies():
     Bypasses Pinecone vector search and Groq LLM generations seamlessly.
     """
     # 1. Mock the Vector Database search function
-    with patch("controllers.chatbot_handler.search_insights") as mock_vector, \
-         patch("controllers.chatbot_handler.llm") as mock_llm, \
-         patch("controllers.chatbot_handler.Session") as mock_db_session:
+    with patch("controllers.chatbot_controller.search_insights") as mock_vector, \
+         patch("controllers.chatbot_controller.llm") as mock_llm, \
+         patch("controllers.chatbot_controller.Session") as mock_db_session:
          
         # Set up what the fake Pinecone vector search returns instantly
         mock_vector.return_value = [
@@ -106,7 +106,7 @@ def test_unit_rag_fatal_entrypoint_crash(client, mock_dependencies):
     Tests lines 261-277: Forcing a fatal exception in the graph invocation
     to ensure Sentry and PostHog capture the error safely.
     """
-    with patch("controllers.chatbot_handler.rag_graph.invoke") as mock_graph:
+    with patch("controllers.chatbot_controller.rag_graph.invoke") as mock_graph:
         mock_graph.side_effect = Exception("FATAL SYSTEM FAILURE")
 
         payload = {
@@ -168,7 +168,7 @@ def test_unit_rag_db_fetch_crash(client, mock_dependencies):
     # Force the database context manager to explode
     mock_dependencies["db"].return_value.__enter__.side_effect = Exception("SQL Server Offline")
     
-    with patch("controllers.chatbot_handler.sentry_sdk.capture_exception") as mock_sentry:
+    with patch("controllers.chatbot_controller.sentry_sdk.capture_exception") as mock_sentry:
         payload = {
             "input": {
                 "message": "Tell me about habits",

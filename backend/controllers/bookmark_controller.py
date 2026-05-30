@@ -1,17 +1,17 @@
 import json
-from typing import Dict, Any
+from typing import Any, Dict
 
 import sentry_sdk
-from fastapi import HTTPException
-from sqlmodel import Session, select
-
 from core.analytics import posthog
-from core.database import engine
-from core.models import User, Book, Insight
-from core.redis import redis_client, CACHE_TTL
+from core.redis import CACHE_TTL, redis_client
+from fastapi import HTTPException
+from repositories.bookmark_repository import BookmarkRepository
 
 
-def get_category_details_from_json(category_name: str, categories_data: dict) -> Dict[str, str]:
+def get_category_details_from_json(
+    category_name: str, categories_data: dict
+) -> Dict[str, str]:
+    """Helper utility for formatting category details."""
     for main_cat, main_data in categories_data.items():
         subcategories = main_data.get("subcategories", {})
         if category_name in subcategories:
@@ -37,26 +37,17 @@ def get_category_details_from_json(category_name: str, categories_data: dict) ->
 
 def toggle_bookmark_book(user_id: str, book_id: int) -> Dict[str, Any]:
     try:
-        with Session(engine) as session:
-            user = session.get(User, user_id)
-            if not user:
-                raise HTTPException(status_code=404, detail="User not found")
+        # 1. Ask Repo to handle the database transaction
+        result = BookmarkRepository.toggle_book(user_id, book_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="User not found")
 
-            books = list(user.favourite_books or [])
+        action, books = result
 
-            if book_id in books:
-                books.remove(book_id)
-                action = False
-            else:
-                books.append(book_id)
-                action = True
-
-            user.favourite_books = books
-            session.add(user)
-            session.commit()
-
+        # 2. Clear cache
         redis_client.delete(f"bookmarks:books_data:{user_id}")
 
+        # 3. Fire Analytics
         event_name = "book_bookmarked" if action else "book_unbookmarked"
         posthog.capture(
             distinct_id=user_id,
@@ -65,6 +56,9 @@ def toggle_bookmark_book(user_id: str, book_id: int) -> Dict[str, Any]:
         )
 
         return {"bookmarked": action, "favourite_books": books}
+
+    except HTTPException:
+        raise
     except Exception as e:
         sentry_sdk.capture_exception(e)
         raise HTTPException(status_code=500, detail="Failed to toggle book bookmark")
@@ -72,23 +66,11 @@ def toggle_bookmark_book(user_id: str, book_id: int) -> Dict[str, Any]:
 
 def toggle_bookmark_insight(user_id: str, insight_id: int) -> Dict[str, Any]:
     try:
-        with Session(engine) as session:
-            user = session.get(User, user_id)
-            if not user:
-                raise HTTPException(status_code=404, detail="User not found")
+        result = BookmarkRepository.toggle_insight(user_id, insight_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="User not found")
 
-            insights = list(user.favourite_insights or [])
-
-            if insight_id in insights:
-                insights.remove(insight_id)
-                action = False
-            else:
-                insights.append(insight_id)
-                action = True
-
-            user.favourite_insights = insights
-            session.add(user)
-            session.commit()
+        action, insights = result
 
         redis_client.delete(f"bookmarks:insights_data:{user_id}")
         redis_client.delete(f"recommend:{user_id}")
@@ -99,10 +81,16 @@ def toggle_bookmark_insight(user_id: str, insight_id: int) -> Dict[str, Any]:
         posthog.capture(
             distinct_id=user_id,
             event=event_name,
-            properties={"insight_id": insight_id, "total_bookmarked_insights": len(insights)},
+            properties={
+                "insight_id": insight_id,
+                "total_bookmarked_insights": len(insights),
+            },
         )
 
         return {"bookmarked": action, "favourite_insights": insights}
+
+    except HTTPException:
+        raise
     except Exception as e:
         sentry_sdk.capture_exception(e)
         raise HTTPException(status_code=500, detail="Failed to toggle insight bookmark")
@@ -115,17 +103,14 @@ def get_bookmarked_books_with_categories(user_id: str) -> Dict[str, Any]:
         return json.loads(cached_data)
 
     try:
-        with Session(engine) as session:
-            user = session.get(User, user_id)
-            book_ids = user.favourite_books if user else []
+        # Ask Repo for the DB models
+        books_data = BookmarkRepository.get_bookmarked_books(user_id)
 
-            if not book_ids:
-                result = {"bookmarked_books": [], "favourite_categories": []}
-                redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-                return result
-
-            statement = select(Book).where(Book.id.in_(book_ids))
-            books_data = session.exec(statement).all()
+        # User not found or empty array
+        if not books_data:
+            result = {"bookmarked_books": [], "favourite_categories": []}
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+            return result
 
         try:
             with open("categories.json", "r", encoding="utf-8") as file:
@@ -181,17 +166,14 @@ def get_bookmarked_insights_with_categories(user_id: str) -> Dict[str, Any]:
         return json.loads(cached_data)
 
     try:
-        with Session(engine) as session:
-            user = session.get(User, user_id)
-            insight_ids = user.favourite_insights if user else []
+        # Ask Repo for the DB models
+        insights_data = BookmarkRepository.get_bookmarked_insights(user_id)
 
-            if not insight_ids:
-                result = {"bookmarked_insights": [], "favourite_categories": []}
-                redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-                return result
-
-            statement = select(Insight).where(Insight.id.in_(insight_ids))
-            insights_data = session.exec(statement).all()
+        # User not found or empty array
+        if not insights_data:
+            result = {"bookmarked_insights": [], "favourite_categories": []}
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+            return result
 
         result_insights = []
         unique_categories = set()
@@ -212,7 +194,11 @@ def get_bookmarked_insights_with_categories(user_id: str) -> Dict[str, Any]:
                 unique_categories.add((insight.category_name, insight.category_icon))
 
         result_categories = [
-            {"name": name, "icon": icon, "description": f"Explore insights from {name}."}
+            {
+                "name": name,
+                "icon": icon,
+                "description": f"Explore insights from {name}.",
+            }
             for name, icon in unique_categories
         ]
 

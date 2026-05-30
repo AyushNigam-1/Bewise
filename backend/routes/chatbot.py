@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi_limiter.depends import RateLimiter
 from langserve import add_routes
-from controllers.chatbot_handler import rag_runnable
+from controllers.chatbot_controller import rag_runnable
 from pyrate_limiter import Limiter, Rate, Duration
 from fastapi_limiter.depends import RateLimiter
 

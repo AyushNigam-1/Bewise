@@ -1,54 +1,83 @@
+# tests/conftest.py
+from unittest.mock import MagicMock
+
+# The Enterprise Tools
+import fakeredis
 import pytest
-from fastapi.testclient import TestClient
 from app import app
 from core.database import get_session
-from sqlmodel import SQLModel, create_engine, Session
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel, create_engine
+from testcontainers.postgres import PostgresContainer
 
-@compiles(ARRAY, 'sqlite')
-def compile_array_sqlite(type_, compiler, **kw):
-    # Tell SQLite to treat Postgres Arrays as basic JSON
-    return 'JSON'
+# --- THE INFRASTRUCTURE FIXTURES ---
 
-@compiles(JSONB, 'sqlite')
-def compile_jsonb_sqlite(type_, compiler, **kw):
-    # Tell SQLite to treat Postgres JSONB as basic JSON
-    return 'JSON'
 
-SQLITE_URL = "sqlite:///:memory:"
-test_engine = create_engine(SQLITE_URL, connect_args={"check_same_thread": False})
-
-def override_get_session():
+@pytest.fixture(scope="session")
+def postgres_engine():
     """
-    This function replaces your normal database session.
-    Every time FastAPI asks for the database, it gets the ghost DB instead.
+    Spins up a real PostgreSQL Docker container before any tests run.
+    It creates the tables, yields the engine to the tests, and completely
+    destroys the container and the data when the test suite finishes.
     """
-    with Session(test_engine) as session:
+    # Spin up Postgres 15 (match this to your production version!)
+    with PostgresContainer("postgres:15-alpine") as postgres:
+        # Testcontainers dynamically assigns a random open port
+        db_url = postgres.get_connection_url()
+        engine = create_engine(db_url)
+
+        # Build your actual production schema inside the container
+        SQLModel.metadata.create_all(engine)
+
+        yield engine
+        # The 'with' context manager automatically kills the container here
+
+
+@pytest.fixture
+def db_session(postgres_engine):
+    """
+    Provides a clean, real database session for individual tests to use.
+    """
+    with Session(postgres_engine) as session:
         yield session
 
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_database():
+
+# --- THE DEPENDENCY FIXTURES ---
+
+
+@pytest.fixture
+def base_fake_deps():
     """
-    Before any tests run, create all the tables in the ghost database.
-    After all tests finish, drop them.
+    Returns enterprise-grade fake objects for background dependencies.
     """
-    SQLModel.metadata.create_all(test_engine)
-    yield
-    SQLModel.metadata.drop_all(test_engine)
+    # FakeRedis perfectly mimics a real Redis server in RAM automatically
+    redis = fakeredis.FakeRedis(decode_responses=True)
+
+    # We still use MagicMock for analytics because we NEVER want to
+    # accidentally send test data to our production PostHog/Sentry dashboards
+    posthog = MagicMock()
+    sentry = MagicMock()
+
+    return {"redis": redis, "posthog": posthog, "sentry": sentry}
+
+
+# --- THE FASTAPI TEST CLIENT ---
 
 
 @pytest.fixture(scope="module")
-def client():
+def client(postgres_engine):
     """
-    Creates a fresh FastAPI TestClient, but tells FastAPI to swap out
-    the real database for our ghost database.
+    Creates a fresh FastAPI TestClient, intercepting the database dependency
+    to point to our Testcontainer Postgres instance instead of production.
     """
-    # Override the dependency globally for the test client
+
+    def override_get_session():
+        with Session(postgres_engine) as session:
+            yield session
+
     app.dependency_overrides[get_session] = override_get_session
-    
+
     with TestClient(app) as c:
         yield c
-        
-    # Clean up overrides after tests
+
     app.dependency_overrides.clear()

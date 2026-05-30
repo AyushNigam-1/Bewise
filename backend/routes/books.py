@@ -7,7 +7,7 @@ from pyrate_limiter import Limiter, Rate, Duration
 from fastapi_limiter.depends import RateLimiter
 from rq.job import Job
 
-from controllers.book_handler import (
+from controllers.book_controller import (
     get_all_books,
     find_books_by_categories,
     get_book_info,

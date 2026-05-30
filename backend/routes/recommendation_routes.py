@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from fastapi_limiter.depends import RateLimiter
 from pyrate_limiter import Limiter, Rate, Duration
 
-from controllers.recommendation_handler import recommend, session_recommend
+from controllers.recommendation_controller import recommend, session_recommend
 
 shared_limiter = Limiter(Rate(60, Duration.SECOND * 60))
 router = APIRouter(dependencies=[Depends(RateLimiter(limiter=shared_limiter))])
