@@ -1,112 +1,117 @@
-import traceback
 import logging
-import time 
-from typing import Optional, Dict, List, TypedDict, Any
-from pydantic import BaseModel, Field
-from langgraph.graph import StateGraph, START, END
-from langchain_core.runnables import RunnableLambda
-from sqlmodel import Session, select, or_
-from core.database import engine
-from core.models import Insight
+import time
+import traceback
+from typing import Any, Dict, List, Optional, TypedDict
 
-from services.vector import search_insights
-from core.llm import llm
-import sentry_sdk 
+import sentry_sdk
 from core.analytics import posthog
+from core.database import engine
+from core.llm import llm
+from core.models import Book, Insight
+from langchain_core.runnables import RunnableLambda
+from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel, Field
+from services.vector import search_insights
+from sqlmodel import Session, or_, select
 
 logger = logging.getLogger(__name__)
 
+
 class RAGResponse(BaseModel):
-    answer: str = Field(description="Detailed answer or summary based ONLY on provided context")
-    ids: List[int] = Field(default_factory=list, description="Relevant insight ids used for the answer. Empty if none.")
+    answer: str = Field(
+        description="Detailed answer or summary based ONLY on provided context"
+    )
+    ids: List[int] = Field(
+        default_factory=list,
+        description="Relevant insight ids used for the answer. Empty if none.",
+    )
+
 
 class RAGState(TypedDict):
     message: str
     session_id: str
-    books_ids: Optional[List[Any]] 
-    insights_ids: Optional[List[Any]] 
+    books_ids: Optional[List[Any]]
+    insights_ids: Optional[List[Any]]
     pinecone_hits: List[dict]
     final_response: dict
+
 
 def retrieve_node(state: RAGState):
     start_time = time.time()
     message = state["message"]
     session_id = state.get("session_id", "anonymous")
-    
-    raw_books = state.get("books_ids") or []
-    raw_insights = state.get("insights_ids") or []
-    
-    book_names = [str(b) for b in raw_books]
-    insight_ids = []
-    insight_titles = []
 
-    for item in raw_insights:
-        if isinstance(item, int) or (isinstance(item, str) and item.isdigit()):
-            insight_ids.append(int(item))
-        else:
-            insight_titles.append(str(item))
+    # Strictly expecting lists of integers now
+    raw_book_ids = state.get("books_ids") or []
+    insight_ids = state.get("insights_ids") or []
 
+    book_names = []
     combined_hits = {}
-    all_text_names = list(set(book_names + insight_titles))
-
     explicit_db_hits = 0
-    if insight_ids or all_text_names:
-        try:
-            with Session(engine) as db:
-                conditions = []
-                if insight_ids:
-                    conditions.append(Insight.id.in_(insight_ids))
-                if all_text_names:
-                    conditions.append(Insight.title.in_(all_text_names))
-                    conditions.append(Insight.book_name.in_(all_text_names))
-                
-                if conditions:
-                    statement = select(Insight).where(or_(*conditions)).limit(15)
-                    rows = db.exec(statement).all()
-                    
-                    for r in rows:
-                        combined_hits[r.id] = {
-                            "insight_id": r.id,
-                            "book": r.book_name,
-                            "category": r.category_name,
-                            "title": r.title,
-                            "description": r.description,
-                            "detailed_breakdown": r.detailed_breakdown,
-                            "category_icon": "📌",
-                            "source": "explicit" 
-                        }
-                    explicit_db_hits = len(rows)
-        except Exception as e:
-            sentry_sdk.capture_exception(e) 
-            logger.error(f"DB Fetch Error in RAG: {e}")
 
+    try:
+        with Session(engine) as db:
+            # 1. Resolve integer Book IDs to string titles for Pinecone and Insight filtering
+            if raw_book_ids:
+                books = db.exec(select(Book).where(Book.id.in_(raw_book_ids))).all()
+                book_names = [b.title for b in books]
+
+            # 2. Fetch explicit insights based on integer IDs or resolved book names
+            conditions = []
+            if insight_ids:
+                conditions.append(Insight.id.in_(insight_ids))
+            if book_names:
+                conditions.append(Insight.book_name.in_(book_names))
+
+            if conditions:
+                statement = select(Insight).where(or_(*conditions)).limit(15)
+                rows = db.exec(statement).all()
+
+                for r in rows:
+                    combined_hits[r.id] = {
+                        "insight_id": r.id,
+                        "book": r.book_name,
+                        "category": r.category_name,
+                        "title": r.title,
+                        "description": r.description,
+                        "detailed_breakdown": r.detailed_breakdown,
+                        "category_icon": "📌",
+                        "source": "explicit",
+                    }
+                explicit_db_hits = len(rows)
+
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        logger.error(f"DB Fetch Error in RAG: {e}")
+
+    # Passed insight_titles=[] to prevent breaking your existing vector service signature
     pinecone_results = search_insights(
         query=message,
         book_names=book_names,
         insight_ids=insight_ids,
-        insight_titles=insight_titles,
-        top_k=5
+        insight_titles=[],
+        top_k=5,
     )
 
     vector_hits = 0
     for h in pinecone_results:
         i_id = h["insight_id"]
         if i_id not in combined_hits:
-            h["source"] = "vector" 
-            h["detailed_breakdown"] = h.get("description", "") 
+            h["source"] = "vector"
+            h["detailed_breakdown"] = h.get("description", "")
             combined_hits[i_id] = h
             vector_hits += 1
 
     latency = time.time() - start_time
     posthog.capture(
-        distinct_id=session_id, 
-        event='rag_retrieval_completed', 
+        distinct_id=session_id,
+        event="rag_retrieval_completed",
         properties={
-            'explicit_db_hits': explicit_db_hits,
-            'vector_hits': vector_hits,
-            'total_context_items': len(combined_hits),
-            'latency_seconds': round(latency, 2)
-        }
+            "explicit_db_hits": explicit_db_hits,
+            "vector_hits": vector_hits,
+            "total_context_items": len(combined_hits),
+            "latency_seconds": round(latency, 2),
+        },
     )
 
     return {"pinecone_hits": list(combined_hits.values())}
@@ -130,7 +135,7 @@ def generate_node(state: RAGState):
     system_prompt = """
     You are Wiser, an intelligent AI reading assistant.
     You have been provided with specific context (Candidate insights) explicitly selected by the user.
-    
+
     CRITICAL RULES:
     1. If the user asks you to "explain this", "summarize", or "tell me about it", they are directly asking you to explain the Candidate insights provided below.
     2. Answer thoroughly using ONLY the provided insights.
@@ -155,39 +160,38 @@ def generate_node(state: RAGState):
 
     llm_success = True
     try:
-        parsed: RAGResponse = structured_llm.invoke([
-            ("system", system_prompt),
-            ("human", human_prompt)
-        ])
+        parsed: RAGResponse = structured_llm.invoke(
+            [("system", system_prompt), ("human", human_prompt)]
+        )
     except Exception as e:
         llm_success = False
         posthog.capture(
-            distinct_id=session_id, 
-            event='rag_llm_parsing_failed', 
-            properties={'error': str(e)}
-        ) 
+            distinct_id=session_id,
+            event="rag_llm_parsing_failed",
+            properties={"error": str(e)},
+        )
         logger.warning(f"LLM Parsing failed (likely conversational query): {e}")
         parsed = RAGResponse(
             answer="I am Wiser, your reading assistant! I'm doing great. How can I help you explore your books and insights today?",
-            ids=[]
+            ids=[],
         )
 
     latency = time.time() - start_time
     posthog.capture(
-        distinct_id=session_id, 
-        event='rag_generation_completed', 
+        distinct_id=session_id,
+        event="rag_generation_completed",
         properties={
-            'llm_success': llm_success,
-            'cited_sources_count': len(parsed.ids),
-            'latency_seconds': round(latency, 2)
-        }
+            "llm_success": llm_success,
+            "cited_sources_count": len(parsed.ids),
+            "latency_seconds": round(latency, 2),
+        },
     )
 
     if not parsed.ids and not parsed.answer:
         return {
             "final_response": {
                 "answer": "No relevant insight found to answer your question.",
-                "insights": {}
+                "insights": {},
             }
         }
 
@@ -196,30 +200,28 @@ def generate_node(state: RAGState):
 
     for hit in final_hits:
         if hit.get("source") == "explicit":
-            continue 
+            continue
 
         book = hit["book"]
         if book not in books:
             books[book] = []
 
-        safe_book = hit['book'].replace(' ', '%20')
-        safe_cat = hit['category'].replace(' ', '%20')
+        safe_book = hit["book"].replace(" ", "%20")
+        safe_cat = hit["category"].replace(" ", "%20")
 
-        books[book].append({
-            "id": hit["insight_id"],
-            "title": hit["title"],
-            "category": hit["category"],
-            "category_icon": hit.get("category_icon", "📌"),
-            "description": hit["description"],
-            "link": f"/insight/{safe_book}/{safe_cat}/{hit['insight_id']}",
-        })
+        books[book].append(
+            {
+                "id": hit["insight_id"],
+                "title": hit["title"],
+                "category": hit["category"],
+                "category_icon": hit.get("category_icon", "📌"),
+                "description": hit["description"],
+                "link": f"/insight/{safe_book}/{safe_cat}/{hit['insight_id']}",
+            }
+        )
 
-    return {
-        "final_response": {
-            "answer": parsed.answer,
-            "insights": books
-        }
-    }
+    return {"final_response": {"answer": parsed.answer, "insights": books}}
+
 
 workflow = StateGraph(RAGState)
 
@@ -232,48 +234,46 @@ workflow.add_edge("generate", END)
 
 rag_graph = workflow.compile()
 
+
 def rag_entrypoint(input_data: dict):
     start_time = time.time()
     session_id = input_data.get("session_id", "anonymous")
-    
+
     posthog.capture(
-        distinct_id=session_id, 
-        event='rag_interaction_started', 
-        properties={
-            'query_length': len(input_data.get("message", ""))
-        }
+        distinct_id=session_id,
+        event="rag_interaction_started",
+        properties={"query_length": len(input_data.get("message", ""))},
     )
 
     try:
         final_state = rag_graph.invoke(input_data)
-        
+
         total_latency = time.time() - start_time
         posthog.capture(
-            distinct_id=session_id, 
-            event='rag_interaction_success', 
-            properties={
-                'total_latency_seconds': round(total_latency, 2)
-            }
+            distinct_id=session_id,
+            event="rag_interaction_success",
+            properties={"total_latency_seconds": round(total_latency, 2)},
         )
-        
+
         return final_state["final_response"]
-        
+
     except Exception as e:
         total_latency = time.time() - start_time
-        
+
         sentry_sdk.capture_exception(e)
-        
+
         posthog.capture(
-            distinct_id=session_id, 
-            event='rag_interaction_failed', 
+            distinct_id=session_id,
+            event="rag_interaction_failed",
             properties={
-                'error_message': str(e),
-                'failed_after_seconds': round(total_latency, 2)
-            }
+                "error_message": str(e),
+                "failed_after_seconds": round(total_latency, 2),
+            },
         )
-        
+
         logger.error(f"RAG agent failed: {e}")
         traceback.print_exc()
         raise Exception("RAG agent failed.")
+
 
 rag_runnable = RunnableLambda(rag_entrypoint)

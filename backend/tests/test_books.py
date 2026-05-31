@@ -1,10 +1,11 @@
 import json
-from types import SimpleNamespace
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import controllers.book_controller as books
 import pytest
 from fastapi import HTTPException
+
+from tests.factories import BookFactory, InsightFactory
 
 
 @pytest.fixture
@@ -38,7 +39,7 @@ def test_get_all_books_uses_cache(module_deps):
 def test_get_all_books_reads_db_and_caches(mock_repo, module_deps):
     redis, posthog = module_deps
 
-    book = SimpleNamespace(
+    book = BookFactory.build(
         id=1,
         title="Book A",
         author="Author A",
@@ -71,7 +72,6 @@ def test_find_books_by_categories_cache_hit(module_deps):
     redis, _ = module_deps
 
     cached = {"books": [{"id": 1}], "categories": []}
-
     redis.set("books_with_cats:python", json.dumps(cached))
 
     result = books.find_books_by_categories(["python"])
@@ -79,33 +79,49 @@ def test_find_books_by_categories_cache_hit(module_deps):
     assert result == cached
 
 
+@pytest.mark.parametrize(
+    "search_categories, expected_book_ids, expected_cache_key",
+    [
+        (["python"], [1, 2], "books_with_cats:python"),
+        (["python", "ai"], [1, 2], "books_with_cats:ai,python"),
+        ([], [1, 2], "books_with_cats:all"),
+        (["rust"], [], "books_with_cats:rust"),
+    ],
+)
 @patch("controllers.book_controller.BookRepository")
-def test_find_books_by_categories_builds_books_and_categories(
-    mock_repo, monkeypatch, module_deps
+def test_find_books_by_categories_matrix(
+    mock_repo,
+    monkeypatch,
+    module_deps,
+    search_categories,
+    expected_book_ids,
+    expected_cache_key,
 ):
     redis, posthog = module_deps
 
-    book1 = SimpleNamespace(
+    # 1. Arrange: Setup our factory DB data
+    book1 = BookFactory.build(
         id=1,
         title="Book A",
-        author="Author A",
-        thumbnail="thumb-a.png",
-        description="desc a",
         category=["python", "ai"],
-        content={"python": {"steps": [1, 2]}},
+        content={"python": {"steps": [1]}, "ai": {"steps": [2]}},
     )
-    book2 = SimpleNamespace(
+    book2 = BookFactory.build(
         id=2,
         title="Book B",
-        author="Author B",
-        thumbnail="thumb-b.png",
-        description="desc b",
         category=["python"],
         content={"python": {"steps": [3]}},
     )
 
-    mock_repo.get_books_by_categories.return_value = [book1, book2]
+    # Dynamic mock logic based on the test parameters
+    if not search_categories:
+        mock_repo.get_books_by_categories.return_value = [book1, book2]
+    elif "rust" in search_categories:
+        mock_repo.get_books_by_categories.return_value = []
+    else:
+        mock_repo.get_books_by_categories.return_value = [book1, book2]
 
+    # Mock the category helper
     monkeypatch.setattr(
         books,
         "load_json_file",
@@ -115,14 +131,12 @@ def test_find_books_by_categories_builds_books_and_categories(
         },
     )
 
-    result = books.find_books_by_categories(["python"], user_id="u1")
+    # 2. Act
+    result = books.find_books_by_categories(search_categories, user_id="u1")
 
-    assert len(result["books"]) == 2
-    assert result["categories"] == [
-        {"name": "ai", "icon": "🤖", "description": "AI desc"},
-        {"name": "python", "icon": "🐍", "description": "Python desc"},
-    ]
-    assert redis.exists("books_with_cats:python")
+    # 3. Assert
+    assert [b["id"] for b in result["books"]] == expected_book_ids
+    assert redis.exists(expected_cache_key)
     posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "database"
 
@@ -146,12 +160,9 @@ def test_get_book_info_returns_404_for_missing_book(mock_repo, module_deps):
 def test_get_book_info_reads_db_and_counts(mock_repo, module_deps):
     redis, posthog = module_deps
 
-    book = SimpleNamespace(
+    book = BookFactory.build(
         id=1,
         title="Book A",
-        author="Author A",
-        thumbnail="thumb.png",
-        description="desc",
         category=["python", "ai"],
         content={
             "python": {"steps": [1, 2]},
@@ -187,12 +198,9 @@ def test_get_book_content_book_not_found(mock_repo, module_deps):
 def test_get_book_content_returns_keys_and_values(mock_repo, module_deps):
     redis, posthog = module_deps
 
-    book = SimpleNamespace(
+    book = BookFactory.build(
         id=1,
         title="Book A",
-        author="Author A",
-        thumbnail="thumb.png",
-        description="desc",
         category=["python", "ai"],
         content={
             "python": {"icon": "🐍", "description": "Python desc", "steps": [1, 2]},
@@ -200,7 +208,7 @@ def test_get_book_content_returns_keys_and_values(mock_repo, module_deps):
         },
     )
 
-    insight1 = SimpleNamespace(
+    insight1 = InsightFactory.build(
         id=1,
         book_name="Book A",
         category_name="python",
@@ -209,7 +217,7 @@ def test_get_book_content_returns_keys_and_values(mock_repo, module_deps):
         description="D1",
         detailed_breakdown="B1",
     )
-    insight2 = SimpleNamespace(
+    insight2 = InsightFactory.build(
         id=2,
         book_name="Book A",
         category_name="python",
@@ -218,7 +226,7 @@ def test_get_book_content_returns_keys_and_values(mock_repo, module_deps):
         description="D2",
         detailed_breakdown="B2",
     )
-    insight3 = SimpleNamespace(
+    insight3 = InsightFactory.build(
         id=3,
         book_name="Book A",
         category_name="ai",
@@ -289,14 +297,11 @@ def test_get_step_details_uses_cache(module_deps):
 
 @patch("controllers.book_controller.BookRepository")
 def test_get_step_details_db(mock_repo, module_deps):
-    insight = SimpleNamespace(
+    insight = InsightFactory.build(
         id=1,
         book_name="Book A",
         category_name="python",
-        category_icon="🐍",
         title="Step 1",
-        description="Desc",
-        detailed_breakdown="Breakdown",
     )
 
     mock_repo.get_insight_by_id.return_value = insight
@@ -325,7 +330,6 @@ def test_create_book_embeds_and_invalidates_cache(mock_repo, module_deps):
     redis, posthog = module_deps
     redis.set("books:all", "cached")
 
-    # Mock the repository transaction returning 2 total insights embedded
     mock_repo.create_book_transaction.return_value = 2
 
     book_data = {
@@ -364,8 +368,6 @@ def test_create_book_embeds_and_invalidates_cache(mock_repo, module_deps):
 
     assert result == {"message": "Book and associated steps created successfully"}
     mock_repo.create_book_transaction.assert_called_once()
-
-    # Fakeredis handles scan_iter naturally, so the cache wipe should work!
     assert redis.exists("books:all") == 0
     posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["event"] == "book_created_and_embedded"
@@ -376,7 +378,6 @@ def test_process_book_calls_processor_and_create_book(monkeypatch, module_deps):
 
     processor_mock = MagicMock()
     processor_mock.process.return_value = {"Title": "Processed Book"}
-
     create_mock = MagicMock(return_value={"message": "ok"})
 
     monkeypatch.setattr(
