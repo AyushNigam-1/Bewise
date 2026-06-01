@@ -1,28 +1,18 @@
 import json
-from types import SimpleNamespace
 from unittest.mock import mock_open, patch
 
 import controllers.bookmark_controller as bookmarks
 import pytest
 
+from tests.factories import BookFactory, InsightFactory
+
 
 @pytest.fixture
-def module_deps(monkeypatch, base_fake_deps):
-    """
-    Injects FakeRedis, PostHog, and Sentry from conftest into the controller.
-    """
-    redis = base_fake_deps["redis"]
-    posthog = base_fake_deps["posthog"]
-    sentry = base_fake_deps["sentry"]
-
-    monkeypatch.setattr(bookmarks, "redis_client", redis)
-    monkeypatch.setattr(bookmarks, "posthog", posthog)
-    monkeypatch.setattr(bookmarks, "CACHE_TTL", 123)
-    monkeypatch.setattr(bookmarks.sentry_sdk, "capture_exception", sentry)
-
-    return redis, posthog, sentry
+def module_deps(patch_controller):
+    return patch_controller(bookmarks)
 
 
+@pytest.mark.unit
 @patch("controllers.bookmark_controller.BookmarkRepository")
 def test_toggle_bookmark_book_adds_book(mock_repo, module_deps):
     redis, posthog, _ = module_deps
@@ -42,6 +32,7 @@ def test_toggle_bookmark_book_adds_book(mock_repo, module_deps):
     assert posthog.capture.call_args.kwargs["event"] == "book_bookmarked"
 
 
+@pytest.mark.unit
 @patch("controllers.bookmark_controller.BookmarkRepository")
 def test_toggle_bookmark_book_removes_book(mock_repo, module_deps):
     redis, posthog, _ = module_deps
@@ -60,6 +51,7 @@ def test_toggle_bookmark_book_removes_book(mock_repo, module_deps):
     assert posthog.capture.call_args.kwargs["event"] == "book_unbookmarked"
 
 
+@pytest.mark.unit
 @patch("controllers.bookmark_controller.BookmarkRepository")
 def test_toggle_bookmark_insight_adds_and_clears_related_cache(mock_repo, module_deps):
     redis, posthog, _ = module_deps
@@ -85,6 +77,7 @@ def test_toggle_bookmark_insight_adds_and_clears_related_cache(mock_repo, module
     assert posthog.capture.call_args.kwargs["event"] == "insight_bookmarked"
 
 
+@pytest.mark.unit
 def test_get_bookmarked_books_with_categories_uses_cache(module_deps):
     redis, _, _ = module_deps
     cached = {"books": [{"id": 1}], "categories": [{"name": "python"}]}
@@ -96,6 +89,7 @@ def test_get_bookmarked_books_with_categories_uses_cache(module_deps):
     assert result == cached
 
 
+@pytest.mark.unit
 @patch("controllers.bookmark_controller.BookmarkRepository")
 def test_get_bookmarked_books_with_categories_empty_bookmarks(mock_repo, module_deps):
     redis, _, _ = module_deps
@@ -109,12 +103,13 @@ def test_get_bookmarked_books_with_categories_empty_bookmarks(mock_repo, module_
     assert json.loads(redis.get("bookmarks:books_data:u1")) == result
 
 
+@pytest.mark.unit
 @patch("controllers.bookmark_controller.BookmarkRepository")
 def test_get_bookmarked_books_with_categories_db_path(mock_repo, module_deps):
     redis, posthog, _ = module_deps
 
-    # Create fake SQLModel objects to return from the repo
-    book1 = SimpleNamespace(
+    # Create factory SQLModel objects to return from the repo
+    book1 = BookFactory.build(
         id=1,
         title="Book A",
         author="Author A",
@@ -122,7 +117,7 @@ def test_get_bookmarked_books_with_categories_db_path(mock_repo, module_deps):
         description="desc a",
         category=["python", "ai"],
     )
-    book2 = SimpleNamespace(
+    book2 = BookFactory.build(
         id=2,
         title="Book B",
         author="Author B",
@@ -167,6 +162,7 @@ def test_get_bookmarked_books_with_categories_db_path(mock_repo, module_deps):
     assert posthog.capture.call_args.kwargs["event"] == "viewed_bookmarked_books"
 
 
+@pytest.mark.unit
 def test_get_bookmarked_insights_with_categories_uses_cache(module_deps):
     redis, _, _ = module_deps
     cached = {"insights": [{"step_id": 1}], "categories": [{"name": "python"}]}
@@ -177,6 +173,7 @@ def test_get_bookmarked_insights_with_categories_uses_cache(module_deps):
     assert result == cached
 
 
+@pytest.mark.unit
 @patch("controllers.bookmark_controller.BookmarkRepository")
 def test_get_bookmarked_insights_with_categories_empty_bookmarks(
     mock_repo, module_deps
@@ -190,11 +187,12 @@ def test_get_bookmarked_insights_with_categories_empty_bookmarks(
     assert json.loads(redis.get("bookmarks:insights_data:u1")) == result
 
 
+@pytest.mark.unit
 @patch("controllers.bookmark_controller.BookmarkRepository")
 def test_get_bookmarked_insights_with_categories_db_path(mock_repo, module_deps):
     redis, posthog, _ = module_deps
 
-    insight1 = SimpleNamespace(
+    insight1 = InsightFactory.build(
         id=11,
         book_name="Book A",
         category_name="python",
@@ -203,7 +201,7 @@ def test_get_bookmarked_insights_with_categories_db_path(mock_repo, module_deps)
         description="Desc 1",
         detailed_breakdown="Breakdown 1",
     )
-    insight2 = SimpleNamespace(
+    insight2 = InsightFactory.build(
         id=12,
         book_name="Book B",
         category_name="ai",

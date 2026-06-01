@@ -13,6 +13,33 @@ from testcontainers.postgres import PostgresContainer
 # --- THE INFRASTRUCTURE FIXTURES ---
 
 
+@pytest.fixture
+def patch_controller(monkeypatch, base_fake_deps):
+    """
+    FIXTURE FACTORY: A globally reusable hook to patch any controller module.
+    """
+
+    def _patcher(controller_module):
+        redis = base_fake_deps["redis"]
+        posthog = base_fake_deps["posthog"]
+        sentry = base_fake_deps["sentry"]
+
+        # raising=False ensures it won't crash if a controller
+        # doesn't happen to import one of these specific variables.
+        monkeypatch.setattr(controller_module, "redis_client", redis, raising=False)
+        monkeypatch.setattr(controller_module, "posthog", posthog, raising=False)
+        monkeypatch.setattr(controller_module, "CACHE_TTL", 123, raising=False)
+
+        if hasattr(controller_module, "sentry_sdk"):
+            monkeypatch.setattr(
+                controller_module.sentry_sdk, "capture_exception", sentry, raising=False
+            )
+
+        return redis, posthog, sentry
+
+    return _patcher
+
+
 @pytest.fixture(scope="session")
 def postgres_engine():
     """
@@ -58,7 +85,9 @@ def base_fake_deps():
     posthog = MagicMock()
     sentry = MagicMock()
 
-    return {"redis": redis, "posthog": posthog, "sentry": sentry}
+    yield {"redis": redis, "posthog": posthog, "sentry": sentry}
+
+    redis.flushall()
 
 
 # --- THE FASTAPI TEST CLIENT ---
@@ -81,3 +110,26 @@ def client(postgres_engine):
         yield c
 
     app.dependency_overrides.clear()
+
+
+# Add this to the bottom of tests/conftest.py
+
+
+def pytest_collection_modifyitems(config, items):
+    """
+    CUSTOM HOOK: Intelligent Test Ordering.
+    Forces all lightning-fast @pytest.mark.unit tests to run first,
+    pushing @pytest.mark.slow and @pytest.mark.integration tests to the end.
+    """
+    fast_tests = []
+    slow_tests = []
+
+    for item in items:
+        # Check if the test has been tagged as slow or integration
+        if item.get_closest_marker("slow") or item.get_closest_marker("integration"):
+            slow_tests.append(item)
+        else:
+            fast_tests.append(item)
+
+    # Completely overwrite the execution queue with our sorted lists
+    items[:] = fast_tests + slow_tests

@@ -1,28 +1,18 @@
 import json
-from types import SimpleNamespace
 from unittest.mock import patch
 
 import controllers.recommendation_controller as recommendations
 import pytest
 
+from tests.factories import InsightFactory
+
 
 @pytest.fixture
-def module_deps(monkeypatch, base_fake_deps):
-    """
-    Injects FakeRedis, PostHog, and Sentry from the global conftest into the controller.
-    """
-    redis = base_fake_deps["redis"]
-    posthog = base_fake_deps["posthog"]
-    sentry = base_fake_deps["sentry"]
-
-    monkeypatch.setattr(recommendations, "redis_client", redis)
-    monkeypatch.setattr(recommendations, "posthog", posthog)
-    monkeypatch.setattr(recommendations, "CACHE_TTL", 123)
-    monkeypatch.setattr(recommendations.sentry_sdk, "capture_exception", sentry)
-
-    return redis, posthog, sentry
+def module_deps(patch_controller):
+    return patch_controller(recommendations)
 
 
+@pytest.mark.unit
 def test_recommend_uses_cache(module_deps):
     redis, posthog, _ = module_deps
 
@@ -36,6 +26,7 @@ def test_recommend_uses_cache(module_deps):
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "redis_cache"
 
 
+@pytest.mark.unit
 @patch("controllers.recommendation_controller.RecommendationRepository")
 @patch("controllers.recommendation_controller.recommend_for_user")
 def test_recommend_builds_and_caches(mock_recommend_ai, mock_repo, module_deps):
@@ -60,6 +51,7 @@ def test_recommend_builds_and_caches(mock_recommend_ai, mock_repo, module_deps):
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "vector_db"
 
 
+@pytest.mark.unit
 def test_session_recommend_uses_cache(module_deps):
     redis, posthog, _ = module_deps
     redis.set("session_recommend:u1:5", json.dumps({"recommendations": ["cached"]}))
@@ -71,6 +63,7 @@ def test_session_recommend_uses_cache(module_deps):
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "redis_cache"
 
 
+@pytest.mark.unit
 @patch("controllers.recommendation_controller.RecommendationRepository")
 @patch("controllers.recommendation_controller.recommend_next_insights")
 def test_session_recommend_builds_and_caches(
@@ -78,8 +71,8 @@ def test_session_recommend_builds_and_caches(
 ):
     redis, posthog, _ = module_deps
 
-    # 1. Arrange: Fake the current insight in the DB
-    insight = SimpleNamespace(
+    # 1. Arrange: Fake the current insight in the DB using the Factory
+    insight = InsightFactory.build(
         id=5,
         title="Current Insight",
         description="Current description",

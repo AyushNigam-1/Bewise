@@ -47,6 +47,8 @@ def mock_dependencies():
         }
 
 
+@pytest.mark.unit
+@pytest.mark.rag
 def test_unit_rag_flow_success(client, mock_dependencies):
     """
     Tests that your application routes inputs to the retrieve node,
@@ -80,6 +82,8 @@ def test_unit_rag_flow_success(client, mock_dependencies):
     mock_dependencies["llm_invoke"].assert_called_once()
 
 
+@pytest.mark.unit
+@pytest.mark.rag
 def test_unit_rag_llm_failure_handling(client, mock_dependencies):
     """
     Tests your explicit error handling resiliency code.
@@ -105,6 +109,8 @@ def test_unit_rag_llm_failure_handling(client, mock_dependencies):
     assert len(data["insights"]) == 0
 
 
+@pytest.mark.unit
+@pytest.mark.rag
 def test_unit_rag_fatal_entrypoint_crash(client, mock_dependencies):
     """
     Tests lines 261-277: Forcing a fatal exception in the graph invocation
@@ -129,11 +135,8 @@ def test_unit_rag_fatal_entrypoint_crash(client, mock_dependencies):
         assert str(exc_info.value) == "RAG agent failed."
 
 
-from unittest.mock import MagicMock
-
-import pytest
-
-
+@pytest.mark.unit
+@pytest.mark.rag
 @pytest.mark.parametrize(
     "insights_ids, books_ids, expected_db_calls",
     [
@@ -196,6 +199,8 @@ def test_unit_rag_explicit_db_fetch_variants(
     assert mock_db.exec.call_count == expected_db_calls
 
 
+@pytest.mark.unit
+@pytest.mark.rag
 def test_unit_rag_db_fetch_crash(client, mock_dependencies):
     """
     Tests the exception block inside retrieve_node.
@@ -226,6 +231,8 @@ def test_unit_rag_db_fetch_crash(client, mock_dependencies):
         mock_sentry.assert_called_once()
 
 
+@pytest.mark.unit
+@pytest.mark.rag
 def test_unit_rag_no_insights_found(client, mock_dependencies):
     """
     Tests the 'empty response' guard logic.

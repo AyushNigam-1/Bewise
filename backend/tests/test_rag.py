@@ -1,3 +1,9 @@
+import pytest
+
+
+@pytest.mark.integration
+@pytest.mark.rag
+@pytest.mark.slow
 def test_rag_langserve_happy_path(client):
     """
     Tests the LangServe /invoke endpoint with a valid query.
@@ -33,6 +39,9 @@ def test_rag_langserve_happy_path(client):
     assert len(final_response["answer"]) > 0
 
 
+@pytest.mark.integration
+@pytest.mark.rag
+@pytest.mark.slow
 def test_rag_conversational_fallback(client):
     """
     Tests Rule #4 of your system prompt:
@@ -58,6 +67,8 @@ def test_rag_conversational_fallback(client):
     )
 
 
+@pytest.mark.integration
+@pytest.mark.rag
 def test_rag_langserve_validation_error(client):
     """
     Tests the Sad Path. If we don't provide the 'input' wrapper,
