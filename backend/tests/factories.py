@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-
 from core.models import Book, Insight, User
 from factory.base import Factory
 from factory.declarations import LazyFunction, Sequence

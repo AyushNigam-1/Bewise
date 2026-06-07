@@ -1,4 +1,4 @@
-from controllers.chatbot_handler import rag_graph
+from backend.controllers.chatbot_controller import rag_graph
 from datasets import Dataset
 
 # Your test cases defined centrally
