@@ -7,3 +7,9 @@ Object.assign(navigator, {
         writeText: vi.fn(),
     },
 });
+global.ResizeObserver = class ResizeObserver {
+    observe() { }
+    unobserve() { }
+    disconnect() { }
+};
+window.HTMLElement.prototype.scrollIntoView = vi.fn();

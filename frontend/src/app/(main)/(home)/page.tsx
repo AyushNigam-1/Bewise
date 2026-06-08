@@ -14,7 +14,7 @@ import ShareModal from "@/app/components/modals/ShareModal";
 const EMPTY_BOOKS: any[] = [];
 const EMPTY_CATEGORIES: Categories[] = [];
 
-const Page = () => {
+const ExplorePage = () => {
   const [filteredCategories, setFilteredCategories] = useState<Categories[]>(
     [],
   );
@@ -169,4 +169,4 @@ const Page = () => {
   );
 };
 
-export default Page;
+export default ExplorePage;
