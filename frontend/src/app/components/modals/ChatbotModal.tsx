@@ -82,7 +82,7 @@ const ChatbotModal = ({ book, contextItems = [] }: ChatbotModalProps) => {
   }, [messages.length, chatMutation.isPending]);
 
   useEffect(() => {
-    if (!isOpen && audioRef.current) {a
+    if (!isOpen && audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
       setPlayingIndex(null);
