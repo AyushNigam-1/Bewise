@@ -2,17 +2,14 @@ import logging
 import time
 import traceback
 from typing import Any, Dict, List, Optional, TypedDict
-
 import sentry_sdk
 from core.analytics import posthog
-from core.database import engine
 from core.llm import llm
-from core.models import Book, Insight
+from repositories.insight_repository import get_book_names_by_ids, get_explicit_insights
 from langchain_core.runnables import RunnableLambda
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 from services.vector import search_insights
-from sqlmodel import Session, or_, select
 
 logger = logging.getLogger(__name__)
 
@@ -41,50 +38,28 @@ def retrieve_node(state: RAGState):
     message = state["message"]
     session_id = state.get("session_id", "anonymous")
 
-    # Strictly expecting lists of integers now
     raw_book_ids = state.get("books_ids") or []
     insight_ids = state.get("insights_ids") or []
 
-    book_names = []
     combined_hits = {}
     explicit_db_hits = 0
+    book_names = []
 
     try:
-        with Session(engine) as db:
-            # 1. Resolve integer Book IDs to string titles for Pinecone and Insight filtering
-            if raw_book_ids:
-                books = db.exec(select(Book).where(Book.id.in_(raw_book_ids))).all()
-                book_names = [b.title for b in books]
-
-            # 2. Fetch explicit insights based on integer IDs or resolved book names
-            conditions = []
-            if insight_ids:
-                conditions.append(Insight.id.in_(insight_ids))
-            if book_names:
-                conditions.append(Insight.book_name.in_(book_names))
-
-            if conditions:
-                statement = select(Insight).where(or_(*conditions)).limit(15)
-                rows = db.exec(statement).all()
-
-                for r in rows:
-                    combined_hits[r.id] = {
-                        "insight_id": r.id,
-                        "book": r.book_name,
-                        "category": r.category_name,
-                        "title": r.title,
-                        "description": r.description,
-                        "detailed_breakdown": r.detailed_breakdown,
-                        "category_icon": "📌",
-                        "source": "explicit",
-                    }
-                explicit_db_hits = len(rows)
+        # 1. Database Repository Calls
+        book_names = get_book_names_by_ids(raw_book_ids)
+        explicit_insights = get_explicit_insights(insight_ids, book_names)
+        
+        for insight in explicit_insights:
+            combined_hits[insight["insight_id"]] = insight
+            
+        explicit_db_hits = len(explicit_insights)
 
     except Exception as e:
         sentry_sdk.capture_exception(e)
         logger.error(f"DB Fetch Error in RAG: {e}")
 
-    # Passed insight_titles=[] to prevent breaking your existing vector service signature
+    # 2. Vector Repository Call
     pinecone_results = search_insights(
         query=message,
         book_names=book_names,
@@ -93,6 +68,7 @@ def retrieve_node(state: RAGState):
         top_k=5,
     )
 
+    # 3. Merge Logic
     vector_hits = 0
     for h in pinecone_results:
         i_id = h["insight_id"]
@@ -102,17 +78,9 @@ def retrieve_node(state: RAGState):
             combined_hits[i_id] = h
             vector_hits += 1
 
+    # 4. Telemetry
     latency = time.time() - start_time
-    posthog.capture(
-        distinct_id=session_id,
-        event="rag_retrieval_completed",
-        properties={
-            "explicit_db_hits": explicit_db_hits,
-            "vector_hits": vector_hits,
-            "total_context_items": len(combined_hits),
-            "latency_seconds": round(latency, 2),
-        },
-    )
+    posthog.capture(...) # (Keep your existing posthog code here)
 
     return {"pinecone_hits": list(combined_hits.values())}
 

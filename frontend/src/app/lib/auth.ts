@@ -10,7 +10,11 @@ export const auth = betterAuth({
         enabled: true,
     },
     user: {
+        deleteUser: {
+            enabled: true // Allows users to delete their own accounts
+        },
         additionalFields: {
+
             favourite_books: {
                 type: "number[]",
                 required: false,
