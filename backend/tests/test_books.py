@@ -1,10 +1,8 @@
 import json
 from unittest.mock import MagicMock, patch
-
 import controllers.book_controller as books
 import pytest
 from fastapi import HTTPException
-
 from tests.factories import BookFactory, InsightFactory
 
 
@@ -21,7 +19,9 @@ def test_get_all_books_uses_cache(module_deps):
     result = books.get_all_books(user_id="u1")
 
     assert result == [{"id": 1, "title": "Cached Book"}]
+    
     posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "fetched_all_books_completed"
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "redis_cache"
 
 
@@ -55,13 +55,15 @@ def test_get_all_books_reads_db_and_caches(mock_repo, module_deps):
         }
     ]
     assert redis.exists("books:all")
+    
     posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "fetched_all_books_completed"
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "database"
 
 
 @pytest.mark.unit
 def test_find_books_by_categories_cache_hit(module_deps):
-    redis, _, _ = module_deps
+    redis, posthog, _ = module_deps
 
     cached = {"books": [{"id": 1}], "categories": []}
     redis.set("books_with_cats:python", json.dumps(cached))
@@ -69,6 +71,10 @@ def test_find_books_by_categories_cache_hit(module_deps):
     result = books.find_books_by_categories(["python"])
 
     assert result == cached
+    
+    posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "searched_books_by_category_completed"
+    assert posthog.capture.call_args.kwargs["properties"]["source"] == "redis_cache"
 
 
 @pytest.mark.unit
@@ -130,7 +136,9 @@ def test_find_books_by_categories_matrix(
     # 3. Assert
     assert [b["id"] for b in result["books"]] == expected_book_ids
     assert redis.exists(expected_cache_key)
+    
     posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "searched_books_by_category_completed"
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "database"
 
 
@@ -146,8 +154,10 @@ def test_get_book_info_returns_404_for_missing_book(mock_repo, module_deps):
 
     assert exc.value.status_code == 404
     assert exc.value.detail == "Book not found"
+    
     posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "book_not_found"
+    assert posthog.capture.call_args.kwargs["event"] == "viewed_book_details_failed"
+    assert posthog.capture.call_args.kwargs["properties"]["not_found"] is True
 
 
 @pytest.mark.unit
@@ -174,13 +184,16 @@ def test_get_book_info_reads_db_and_counts(mock_repo, module_deps):
     assert result["total_insights"] == 3
     assert result["categories"] == "python, ai"
     assert redis.exists("book:info:Book A")
+    
     posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "viewed_book_details_completed"
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "database"
 
 
 @pytest.mark.unit
 @patch("controllers.book_controller.BookRepository")
 def test_get_book_content_book_not_found(mock_repo, module_deps):
+    _, posthog, _ = module_deps
     mock_repo.get_book_by_title.return_value = None
 
     with pytest.raises(HTTPException) as exc:
@@ -188,6 +201,9 @@ def test_get_book_content_book_not_found(mock_repo, module_deps):
 
     assert exc.value.status_code == 404
     assert exc.value.detail == "Book not found"
+    
+    posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "viewed_book_content_failed"
 
 
 @pytest.mark.unit
@@ -264,7 +280,9 @@ def test_get_book_content_returns_keys_and_values(mock_repo, module_deps):
         },
     ]
     assert redis.exists("book:content_combined:Book A:python")
+    
     posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "viewed_book_content_completed"
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "database"
 
 
@@ -289,13 +307,16 @@ def test_get_step_details_uses_cache(module_deps):
     result = books.get_step_details(7, user_id="u1")
 
     assert result["title"] == "Cached Step"
+    
     posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "read_insight_step_completed"
     assert posthog.capture.call_args.kwargs["properties"]["book_title"] == "Book A"
 
 
 @pytest.mark.unit
 @patch("controllers.book_controller.BookRepository")
 def test_get_step_details_db(mock_repo, module_deps):
+    _, posthog, _ = module_deps
     insight = InsightFactory.build(
         id=1,
         book_name="Book A",
@@ -311,11 +332,15 @@ def test_get_step_details_db(mock_repo, module_deps):
     assert result["title"] == "Step 1"
     assert result["book_name"] == "Book A"
     assert result["category"] == "python"
+    
+    posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "read_insight_step_completed"
 
 
 @pytest.mark.unit
 @patch("controllers.book_controller.BookRepository")
 def test_get_step_details_not_found(mock_repo, module_deps):
+    _, posthog, _ = module_deps
     mock_repo.get_insight_by_id.return_value = None
 
     with pytest.raises(HTTPException) as exc:
@@ -323,6 +348,9 @@ def test_get_step_details_not_found(mock_repo, module_deps):
 
     assert exc.value.status_code == 404
     assert exc.value.detail == "Step not found"
+    
+    posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "read_insight_step_failed"
 
 
 @pytest.mark.unit
@@ -370,26 +398,24 @@ def test_create_book_embeds_and_invalidates_cache(mock_repo, module_deps):
     assert result == {"message": "Book and associated steps created successfully"}
     mock_repo.create_book_transaction.assert_called_once()
     assert redis.exists("books:all") == 0
+    
     posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "book_created_and_embedded"
+    assert posthog.capture.call_args.kwargs["event"] == "book_created_and_embedded_completed"
 
 
 @pytest.mark.unit
 def test_process_book_calls_processor_and_create_book(monkeypatch, module_deps):
     _, posthog, _ = module_deps
 
-    # 1. Create the mocks and save them to variables FIRST
     processor_instance_mock = MagicMock()
     processor_instance_mock.process.return_value = {"Title": "Processed Book"}
 
     processor_class_mock = MagicMock(return_value=processor_instance_mock)
     create_mock = MagicMock(return_value={"message": "ok"})
 
-    # 2. Inject the variables using monkeypatch
     monkeypatch.setattr(books, "BookistProcessor", processor_class_mock)
     monkeypatch.setattr(books, "create_book", create_mock)
 
-    # 3. Act
     result = books.process_book(
         pdf_path="file.pdf",
         book_title="Title",
@@ -400,16 +426,18 @@ def test_process_book_calls_processor_and_create_book(monkeypatch, module_deps):
         user_id="u1",
     )
 
-    # 4. Assert using your strongly-typed variables!
     assert result == {"message": "ok"}
     processor_class_mock.assert_called_once()
     processor_instance_mock.process.assert_called_once()
     create_mock.assert_called_once_with({"Title": "Processed Book"}, user_id="u1")
-    assert posthog.capture.call_count >= 1
+
+    assert posthog.capture.call_count == 1
+    assert posthog.capture.call_args.kwargs["event"] == "book_processing_completed"
 
 
 @pytest.mark.unit
 def test_process_book_failure(monkeypatch, module_deps):
+    _, posthog, _ = module_deps
     processor = MagicMock()
     processor.process.side_effect = Exception("PDF failed")
 
@@ -426,3 +454,7 @@ def test_process_book_failure(monkeypatch, module_deps):
         )
 
     assert "PDF failed" in str(exc.value)
+    
+    posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "book_processing_failed"
+    assert "PDF failed" in posthog.capture.call_args.kwargs["properties"]["error"]

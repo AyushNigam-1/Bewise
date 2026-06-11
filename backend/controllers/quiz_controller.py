@@ -1,15 +1,12 @@
 import json
 import hashlib
-import time
-import traceback
 from typing import List, TypedDict
 from pydantic import BaseModel
 from langgraph.graph import StateGraph, START, END
 from langchain_core.runnables import RunnableLambda
 from core.llm import llm 
 from core.redis import redis_client, CACHE_TTL 
-import sentry_sdk 
-from core.analytics import posthog
+from core.telemetry import NodeTracker
 
 class QuizQuestion(BaseModel):
     question: str
@@ -46,69 +43,35 @@ workflow.add_edge("generator", END)
 quiz_graph = workflow.compile()
 
 def generate_quiz_with_cache(input_data: dict):
-    start_time = time.time()
     text = input_data.get("source_text", "")
-    
     user_id = input_data.get("session_id", "anonymous")
 
-    posthog.capture(
-        distinct_id=user_id, 
-        event='quiz_generation_requested', 
-        properties={'text_length': len(text)}
-    )
+    with NodeTracker("quiz_generation", session_id=user_id) as tracker:
+        
+        tracker.add_data(text_length=len(text))
 
-    text_hash = hashlib.md5(text.encode("utf-8")).hexdigest()
-    cache_key = f"quiz:{text_hash}"
+        text_hash = hashlib.md5(text.encode("utf-8")).hexdigest()
+        cache_key = f"quiz:{text_hash}"
 
-    try:
-        cached = redis_client.get(cache_key)
-        if cached:
-            latency = time.time() - start_time
-            posthog.capture(
-                distinct_id=user_id, 
-                event='quiz_generated', 
-                properties={
-                    'source': 'redis_cache',
-                    'latency_seconds': round(latency, 2),
-                    'text_length': len(text)
-                }
+        try:
+            cached = redis_client.get(cache_key)
+            if cached:
+                tracker.add_data(source="redis_cache")
+                return json.loads(cached)
+
+            final_state = quiz_graph.invoke({"source_text": text})
+            result = final_state["generated_quiz"]
+
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+            
+            tracker.add_data(
+                source="llm_generation",
+                questions_count=len(result.get("quiz", []))
             )
-            return json.loads(cached)
+            
+            return result
 
-        final_state = quiz_graph.invoke({"source_text": text})
-        result = final_state["generated_quiz"]
-
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-        
-        latency = time.time() - start_time
-        posthog.capture(
-            distinct_id=user_id, 
-            event='quiz_generated', 
-            properties={
-                'source': 'llm_generation',
-                'latency_seconds': round(latency, 2),
-                'questions_count': len(result.get("quiz", [])),
-                'text_length': len(text)
-            }
-        )
-        
-        return result
-
-    except Exception as e:
-        latency = time.time() - start_time
-        
-        sentry_sdk.capture_exception(e)
-        
-        posthog.capture(
-            distinct_id=user_id, 
-            event='quiz_generation_failed', 
-            properties={
-                'error': str(e),
-                'latency_seconds': round(latency, 2)
-            }
-        )
-        
-        traceback.print_exc()
-        raise Exception("Failed to generate quiz.")
+        except Exception as e:
+            raise Exception("Failed to generate quiz.") from e
 
 quiz_runnable = RunnableLambda(generate_quiz_with_cache)

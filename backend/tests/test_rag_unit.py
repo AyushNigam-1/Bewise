@@ -1,6 +1,5 @@
-from unittest.mock import MagicMock, patch
-
 import pytest
+from unittest.mock import MagicMock, patch
 from controllers.chatbot_controller import RAGResponse
 
 
@@ -8,13 +7,14 @@ from controllers.chatbot_controller import RAGResponse
 def mock_dependencies():
     """
     Advanced PyTest Fixture to patch out all external network bound services.
-    Bypasses Pinecone vector search and Groq LLM generations seamlessly.
+    Bypasses Pinecone vector search, Groq LLM generations, and the new DB Repositories.
     """
-    # 1. Mock the Vector Database search function
+    # 1. Mock the Vector Database and the NEW Repository functions!
     with (
         patch("controllers.chatbot_controller.search_insights") as mock_vector,
         patch("controllers.chatbot_controller.llm") as mock_llm,
-        patch("controllers.chatbot_controller.Session") as mock_db_session,
+        patch("controllers.chatbot_controller.get_book_names_by_ids") as mock_get_books,
+        patch("controllers.chatbot_controller.get_explicit_insights") as mock_get_insights,
     ):
         # Set up what the fake Pinecone vector search returns instantly
         mock_vector.return_value = [
@@ -30,20 +30,21 @@ def mock_dependencies():
 
         # Set up a fake structured output generator for the Groq LLM
         mock_structured_llm = MagicMock()
-
-        # When structured_llm.invoke is called, return a valid RAGResponse object
         mock_structured_llm.invoke.return_value = RAGResponse(
             answer="According to Clean Code, functions must be small and modular.",
             ids=[42],
         )
-
-        # Tie the structured output mock back to your main LLM instance method
         mock_llm.with_structured_output.return_value = mock_structured_llm
+
+        # Default repo returns
+        mock_get_books.return_value = []
+        mock_get_insights.return_value = []
 
         yield {
             "vector": mock_vector,
             "llm_invoke": mock_structured_llm.invoke,
-            "db": mock_db_session,
+            "get_books": mock_get_books,
+            "get_insights": mock_get_insights,
         }
 
 
@@ -53,7 +54,6 @@ def test_unit_rag_flow_success(client, mock_dependencies):
     """
     Tests that your application routes inputs to the retrieve node,
     maps context block components correctly, and processes structured responses.
-    Runs in 5 milliseconds instead of 5 seconds!
     """
     payload = {
         "input": {
@@ -69,15 +69,10 @@ def test_unit_rag_flow_success(client, mock_dependencies):
     assert response.status_code == 200
     data = response.json()["output"]
 
-    # Prove your internal application engine stitched things correctly
-    assert (
-        data["answer"]
-        == "According to Clean Code, functions must be small and modular."
-    )
+    assert data["answer"] == "According to Clean Code, functions must be small and modular."
     assert "Clean Code" in data["insights"]
     assert data["insights"]["Clean Code"][0]["id"] == 42
 
-    # Advanced Assertion: Verify your code actually attempted to call the underlying APIs
     mock_dependencies["vector"].assert_called_once()
     mock_dependencies["llm_invoke"].assert_called_once()
 
@@ -90,10 +85,7 @@ def test_unit_rag_llm_failure_handling(client, mock_dependencies):
     If the Groq LLM throws a random timeout or connectivity crash,
     does your code activate the conversational fallback gracefully?
     """
-    # Force the mocked LLM to throw a runtime exception inside the graph execution loop
-    mock_dependencies["llm_invoke"].side_effect = Exception(
-        "Groq API rate limit reached or gateway timeout"
-    )
+    mock_dependencies["llm_invoke"].side_effect = Exception("Groq API rate limit")
 
     payload = {"input": {"message": "What up bot", "session_id": "mock-session-crash"}}
 
@@ -104,7 +96,6 @@ def test_unit_rag_llm_failure_handling(client, mock_dependencies):
     assert response.status_code == 200
     data = response.json()["output"]
 
-    # Verify that your graph caught the error and activated your custom except safe text
     assert "I am Wiser, your reading assistant!" in data["answer"]
     assert len(data["insights"]) == 0
 
@@ -113,76 +104,54 @@ def test_unit_rag_llm_failure_handling(client, mock_dependencies):
 @pytest.mark.rag
 def test_unit_rag_fatal_entrypoint_crash(client, mock_dependencies):
     """
-    Tests lines 261-277: Forcing a fatal exception in the graph invocation
-    to ensure Sentry and PostHog capture the error safely.
+    Tests forcing a fatal exception in the graph invocation.
+    Because NodeTracker re-raises the exact original exception, we test for it safely.
     """
     with patch("controllers.chatbot_controller.rag_graph.invoke") as mock_graph:
         mock_graph.side_effect = Exception("FATAL SYSTEM FAILURE")
 
         payload = {
-            "input": {
-                "message": "This should explode",
-                "session_id": "test-fatal-crash",
-            }
+            "input": {"message": "This should explode", "session_id": "test"}
         }
 
-        # We wrap the call in pytest.raises because we KNOW it will throw an exception
-        # and we want the test to PASS when it happens.
         with pytest.raises(Exception) as exc_info:
             client.post("/ai/rag/invoke", json=payload)
 
-        # Verify the exception message matches the one you hardcoded in your except block
-        assert str(exc_info.value) == "RAG agent failed."
+        # The NodeTracker beautifully preserves the exact error message
+        assert str(exc_info.value) == "FATAL SYSTEM FAILURE"
 
 
 @pytest.mark.unit
 @pytest.mark.rag
 @pytest.mark.parametrize(
-    "insights_ids, books_ids, expected_db_calls",
+    "insights_ids, books_ids",
     [
-        (
-            [99],
-            None,
-            1,
-        ),  # Scenario 1: Only insight ID passed (1 DB query to fetch insight)
-        (
-            None,
-            [5],
-            2,
-        ),  # Scenario 2: Only book ID passed (1 DB query to resolve book title)
-        (
-            [99],
-            [5],
-            2,
-        ),  # Scenario 3: Both passed (1 DB query for title, 1 DB query for insight)
+        ([99], None), # Scenario 1: Only insight ID passed
+        (None, [5]),  # Scenario 2: Only book ID passed
+        ([99], [5]),  # Scenario 3: Both passed
     ],
 )
 def test_unit_rag_explicit_db_fetch_variants(
-    client, mock_dependencies, insights_ids, books_ids, expected_db_calls
+    client, mock_dependencies, insights_ids, books_ids
 ):
     """
-    Tests that explicit insight/book queries hit the SQL database using strict integer IDs.
-    Parameterised to verify the new Book resolution logic alongside Insight lookups.
+    Tests that explicit insight/book queries hit the new Repositories.
     """
-    # 1. Arrange: Setup the fake database
-    mock_db = mock_dependencies["db"].return_value.__enter__.return_value
+    # 1. Arrange: Setup the fake repository responses
+    mock_dependencies["get_books"].return_value = ["Atomic Habits"]
+    mock_dependencies["get_insights"].return_value = [
+        {
+            "insight_id": 99,
+            "book": "Atomic Habits",
+            "category": "Self-Help",
+            "title": "1% Better",
+            "description": "Compound interest",
+            "detailed_breakdown": "Focus on systems",
+            "source": "explicit"
+        }
+    ]
 
-    # Generic mock row that works for both Book and Insight returns
-    mock_row = MagicMock(
-        id=99,
-        title="1% Better",
-        book_name="Atomic Habits",
-        category_name="Self-Help",
-        description="Compound interest of habits",
-        detailed_breakdown="Focus on systems, not goals.",
-    )
-    mock_db.exec.return_value.all.return_value = [mock_row]
-
-    payload = {
-        "input": {"message": "Tell me about habits", "session_id": "test-explicit-db"}
-    }
-
-    # Dynamically inject the integer arrays if they exist
+    payload = {"input": {"message": "Tell me about habits", "session_id": "test"}}
     if insights_ids is not None:
         payload["input"]["insights_ids"] = insights_ids
     if books_ids is not None:
@@ -193,10 +162,9 @@ def test_unit_rag_explicit_db_fetch_variants(
 
     # 3. Assert
     assert response.status_code == 200
-    mock_dependencies["db"].assert_called()
-
-    # Prove that the exact right number of SQL queries ran based on our new logic
-    assert mock_db.exec.call_count == expected_db_calls
+    # Prove the repositories were called
+    mock_dependencies["get_books"].assert_called()
+    mock_dependencies["get_insights"].assert_called()
 
 
 @pytest.mark.unit
@@ -204,31 +172,23 @@ def test_unit_rag_explicit_db_fetch_variants(
 def test_unit_rag_db_fetch_crash(client, mock_dependencies):
     """
     Tests the exception block inside retrieve_node.
-    If the SQL database is offline, it should log the error to Sentry
-    but gracefully continue to vector search instead of killing the request.
+    If the repository database code is offline, it should gracefully 
+    continue to vector search instead of killing the request.
     """
-    # Force the database context manager to explode
-    mock_dependencies["db"].return_value.__enter__.side_effect = Exception(
-        "SQL Server Offline"
-    )
+    # Force the repository to crash
+    mock_dependencies["get_books"].side_effect = Exception("SQL Server Offline")
 
-    with patch(
-        "controllers.chatbot_controller.sentry_sdk.capture_exception"
-    ) as mock_sentry:
-        payload = {
-            "input": {
-                "message": "Tell me about habits",
-                "session_id": "test-db-crash",
-                "insights_ids": [99],
-            }
-        }
+    payload = {
+        "input": {"message": "Tell me about habits", "insights_ids": [99]}
+    }
 
-        response = client.post("/ai/rag/invoke", json=payload)
+    response = client.post("/ai/rag/invoke", json=payload)
 
-        # It should still return 200 because vector search acts as a fallback
-        assert response.status_code == 200
-        # Prove that Sentry captured the silent database crash
-        mock_sentry.assert_called_once()
+    # It should still return 200 because vector search acts as a fallback
+    assert response.status_code == 200
+    
+    # Prove the fallback worked by ensuring vector search was still called
+    mock_dependencies["vector"].assert_called_once()
 
 
 @pytest.mark.unit
@@ -243,10 +203,7 @@ def test_unit_rag_no_insights_found(client, mock_dependencies):
     mock_dependencies["llm_invoke"].return_value = RAGResponse(answer="", ids=[])
 
     payload = {
-        "input": {
-            "message": "What is the airspeed velocity of an unladen swallow?",
-            "session_id": "test-empty",
-        }
+        "input": {"message": "What is airspeed?", "session_id": "test-empty"}
     }
 
     # 2. Act

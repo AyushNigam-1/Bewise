@@ -22,7 +22,10 @@ def test_recommend_uses_cache(module_deps):
     result = recommendations.recommend("u1")
 
     assert result == {"recommendations": ["cached"]}
+    
+    # Verify NodeTracker correctly appended '_completed' and captured the property
     posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "recommendations_fetched_completed"
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "redis_cache"
 
 
@@ -47,7 +50,9 @@ def test_recommend_builds_and_caches(mock_recommend_ai, mock_repo, module_deps):
     # Verify the cache was populated correctly
     assert json.loads(redis.get("recommend:u1")) == {"recommendations": ["r1", "r2"]}
 
+    # Verify NodeTracker
     posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "recommendations_fetched_completed"
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "vector_db"
 
 
@@ -59,7 +64,10 @@ def test_session_recommend_uses_cache(module_deps):
     result = recommendations.session_recommend("u1", 5)
 
     assert result == {"recommendations": ["cached"]}
+    
+    # Verify NodeTracker 
     posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "session_recommendations_fetched_completed"
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "redis_cache"
 
 
@@ -103,5 +111,7 @@ def test_session_recommend_builds_and_caches(
         "recommendations": ["next1", "next2"]
     }
 
+    # Verify NodeTracker
     posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "session_recommendations_fetched_completed"
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "vector_db"

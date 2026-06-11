@@ -24,16 +24,14 @@ def patch_controller(monkeypatch, base_fake_deps):
         posthog = base_fake_deps["posthog"]
         sentry = base_fake_deps["sentry"]
 
-        # raising=False ensures it won't crash if a controller
-        # doesn't happen to import one of these specific variables.
+        # 1. Patch Redis locally on the controller (if it uses it)
         monkeypatch.setattr(controller_module, "redis_client", redis, raising=False)
-        monkeypatch.setattr(controller_module, "posthog", posthog, raising=False)
         monkeypatch.setattr(controller_module, "CACHE_TTL", 123, raising=False)
 
-        if hasattr(controller_module, "sentry_sdk"):
-            monkeypatch.setattr(
-                controller_module.sentry_sdk, "capture_exception", sentry, raising=False
-            )
+        # 2. GLOBAL PATCH: Since all controllers now use NodeTracker, 
+        # we intercept PostHog and Sentry directly at the telemetry module!
+        monkeypatch.setattr("core.telemetry.posthog", posthog, raising=False)
+        monkeypatch.setattr("core.telemetry.sentry_sdk.capture_exception", sentry, raising=False)
 
         return redis, posthog, sentry
 

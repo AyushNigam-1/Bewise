@@ -48,8 +48,9 @@ def test_generate_quiz_cache_hit(mock_graph, module_deps):
     assert result == cached_quiz
     mock_graph.assert_not_called()  # Proves we saved money by skipping the LLM!
 
-    # Verify analytics tracked the cache hit
-    assert posthog.capture.call_args.kwargs["event"] == "quiz_generated"
+    # Verify analytics tracked the cache hit via NodeTracker
+    posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "quiz_generation_completed"
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "redis_cache"
 
 
@@ -95,7 +96,9 @@ def test_generate_quiz_llm_generation(mock_graph, module_deps):
     # fakeredis natively supports exists()
     assert redis.exists(f"quiz:{text_hash}")
 
-    # Verify analytics tracked the real generation
+    # Verify analytics tracked the real generation via NodeTracker
+    posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "quiz_generation_completed"
     assert posthog.capture.call_args.kwargs["properties"]["source"] == "llm_generation"
 
 
@@ -123,5 +126,6 @@ def test_generate_quiz_catastrophic_failure(mock_graph, module_deps):
     # 3. Verify Safety Nets
     sentry.assert_called_once()  # Sentry caught the real Groq API Timeout
 
+    posthog.capture.assert_called_once()
     assert posthog.capture.call_args.kwargs["event"] == "quiz_generation_failed"
-    assert "Groq API Timeout" in posthog.capture.call_args.kwargs["properties"]["error"]
+    assert "Failed to generate quiz." in posthog.capture.call_args.kwargs["properties"]["error"]

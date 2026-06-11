@@ -1,9 +1,7 @@
 import json
-from unittest.mock import mock_open, patch
-
-import controllers.bookmark_controller as bookmarks
 import pytest
-
+from unittest.mock import mock_open, patch
+import controllers.bookmark_controller as bookmarks
 from tests.factories import BookFactory, InsightFactory
 
 
@@ -28,8 +26,9 @@ def test_toggle_bookmark_book_adds_book(mock_repo, module_deps):
     assert result == {"bookmarked": True, "favourite_books": [1, 2]}
     assert redis.exists("bookmarks:books_data:u1") == 0  # Proves cache was deleted!
 
+    # Verify NodeTracker appended _completed to our dynamic event name
     posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "book_bookmarked"
+    assert posthog.capture.call_args.kwargs["event"] == "book_bookmarked_completed"
 
 
 @pytest.mark.unit
@@ -47,8 +46,9 @@ def test_toggle_bookmark_book_removes_book(mock_repo, module_deps):
     # Assert
     assert result == {"bookmarked": False, "favourite_books": [1]}
     assert redis.exists("bookmarks:books_data:u1") == 0
+    
     posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "book_unbookmarked"
+    assert posthog.capture.call_args.kwargs["event"] == "book_unbookmarked_completed"
 
 
 @pytest.mark.unit
@@ -74,25 +74,30 @@ def test_toggle_bookmark_insight_adds_and_clears_related_cache(mock_repo, module
     assert redis.exists("session_recommend:u1:2") == 0
 
     posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "insight_bookmarked"
+    assert posthog.capture.call_args.kwargs["event"] == "insight_bookmarked_completed"
 
 
 @pytest.mark.unit
 def test_get_bookmarked_books_with_categories_uses_cache(module_deps):
-    redis, _, _ = module_deps
+    redis, posthog, _ = module_deps
     cached = {"books": [{"id": 1}], "categories": [{"name": "python"}]}
+    
     # fakeredis uses standard .set() and .get()
     redis.set("bookmarks:books_data:u1", json.dumps(cached))
 
     result = bookmarks.get_bookmarked_books_with_categories("u1")
 
     assert result == cached
+    
+    posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "viewed_bookmarked_books_completed"
+    assert posthog.capture.call_args.kwargs["properties"]["source"] == "redis_cache"
 
 
 @pytest.mark.unit
 @patch("controllers.bookmark_controller.BookmarkRepository")
 def test_get_bookmarked_books_with_categories_empty_bookmarks(mock_repo, module_deps):
-    redis, _, _ = module_deps
+    redis, posthog, _ = module_deps
 
     # Tell the repo that this user has no books
     mock_repo.get_bookmarked_books.return_value = []
@@ -101,6 +106,10 @@ def test_get_bookmarked_books_with_categories_empty_bookmarks(mock_repo, module_
 
     assert result == {"bookmarked_books": [], "favourite_categories": []}
     assert json.loads(redis.get("bookmarks:books_data:u1")) == result
+    
+    posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "viewed_bookmarked_books_completed"
+    assert posthog.capture.call_args.kwargs["properties"]["count"] == 0
 
 
 @pytest.mark.unit
@@ -159,18 +168,21 @@ def test_get_bookmarked_books_with_categories_db_path(mock_repo, module_deps):
     assert redis.exists("bookmarks:books_data:u1") == 1
 
     posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "viewed_bookmarked_books"
+    assert posthog.capture.call_args.kwargs["event"] == "viewed_bookmarked_books_completed"
 
 
 @pytest.mark.unit
 def test_get_bookmarked_insights_with_categories_uses_cache(module_deps):
-    redis, _, _ = module_deps
+    redis, posthog, _ = module_deps
     cached = {"insights": [{"step_id": 1}], "categories": [{"name": "python"}]}
     redis.set("bookmarks:insights_data:u1", json.dumps(cached))
 
     result = bookmarks.get_bookmarked_insights_with_categories("u1")
 
     assert result == cached
+    
+    posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "viewed_bookmarked_insights_completed"
 
 
 @pytest.mark.unit
@@ -178,13 +190,16 @@ def test_get_bookmarked_insights_with_categories_uses_cache(module_deps):
 def test_get_bookmarked_insights_with_categories_empty_bookmarks(
     mock_repo, module_deps
 ):
-    redis, _, _ = module_deps
+    redis, posthog, _ = module_deps
     mock_repo.get_bookmarked_insights.return_value = []
 
     result = bookmarks.get_bookmarked_insights_with_categories("u1")
 
     assert result == {"bookmarked_insights": [], "favourite_categories": []}
     assert json.loads(redis.get("bookmarks:insights_data:u1")) == result
+    
+    posthog.capture.assert_called_once()
+    assert posthog.capture.call_args.kwargs["event"] == "viewed_bookmarked_insights_completed"
 
 
 @pytest.mark.unit
@@ -222,4 +237,4 @@ def test_get_bookmarked_insights_with_categories_db_path(mock_repo, module_deps)
     assert redis.exists("bookmarks:insights_data:u1") == 1
 
     posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "viewed_bookmarked_insights"
+    assert posthog.capture.call_args.kwargs["event"] == "viewed_bookmarked_insights_completed"

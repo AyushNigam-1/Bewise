@@ -1,12 +1,11 @@
 import os
 from contextlib import asynccontextmanager
-import sentry_sdk
 import uvicorn
-from core.analytics import posthog
-from core.database import create_db_and_tables
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from core.database import create_db_and_tables
+from core.telemetry import init_telemetry, flush_telemetry
 from middleware.auth import SessionAuthenticationMiddleware
 from routes.bookmark_routes import router as bookmark_router
 from routes.books import router as books_router
@@ -19,18 +18,13 @@ load_dotenv()
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 
+init_telemetry()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
-    posthog.flush()
-
-
-sentry_sdk.init(
-    dsn=os.getenv("SENTRY_DSN"),
-    send_default_pii=True,
-)
+    flush_telemetry()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -43,6 +37,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 app.include_router(bookmark_router)
 app.include_router(recommendation_router)
 app.include_router(books_router)

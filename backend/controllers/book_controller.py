@@ -1,12 +1,8 @@
-# controllers/book_controller.py
 import json
-import time
-import traceback
 from typing import Any, Dict, List
-
-from core.analytics import posthog
-from core.redis import CACHE_TTL, redis_client
 from fastapi import HTTPException
+from core.telemetry import NodeTracker
+from core.redis import CACHE_TTL, redis_client
 from repositories.book_repository import BookRepository
 from services.vector import embed_and_upsert_insight
 from src.processor import BookistProcessor
@@ -15,42 +11,35 @@ from src.utils.file_operations import load_json_file
 
 def get_all_books(user_id: str = "anonymous") -> List[Dict[str, Any]]:
     cache_key = "books:all"
-    cached_data = redis_client.get(cache_key)
 
-    if cached_data:
-        books = json.loads(cached_data)
-        posthog.capture(
-            distinct_id=user_id,
-            event="fetched_all_books",
-            properties={"source": "redis_cache", "count": len(books)},
-        )
-        return books
+    with NodeTracker("fetched_all_books", session_id=user_id) as tracker:
+        cached_data = redis_client.get(cache_key)
 
-    try:
-        books_data = BookRepository.get_all_books()
+        if cached_data:
+            books = json.loads(cached_data)
+            tracker.add_data(source="redis_cache", count=len(books))
+            return books
 
-        book_list = [
-            {
-                "id": b.id,
-                "title": b.title,
-                "author": b.author,
-                "thumbnail": b.thumbnail,
-                "description": b.description,
-                "category": b.category,
-            }
-            for b in books_data
-        ]
+        try:
+            books_data = BookRepository.get_all_books()
+            book_list = [
+                {
+                    "id": b.id,
+                    "title": b.title,
+                    "author": b.author,
+                    "thumbnail": b.thumbnail,
+                    "description": b.description,
+                    "category": b.category,
+                }
+                for b in books_data
+            ]
 
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(book_list))
-        posthog.capture(
-            distinct_id=user_id,
-            event="fetched_all_books",
-            properties={"source": "database", "count": len(book_list)},
-        )
-        return book_list
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(book_list))
+            tracker.add_data(source="database", count=len(book_list))
+            return book_list
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Database connection failed")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Database connection failed") from e
 
 
 def find_books_by_categories(
@@ -61,143 +50,108 @@ def find_books_by_categories(
         if not categories
         else f"books_with_cats:{','.join(sorted(categories))}"
     )
-    cached_data = redis_client.get(cache_key)
 
-    if cached_data:
-        data = json.loads(cached_data)
-        posthog.capture(
-            distinct_id=user_id,
-            event="searched_books_by_category",
-            properties={
-                "categories": categories,
-                "source": "redis_cache",
-                "books_count": len(data.get("books", [])),
-            },
-        )
-        return data
+    with NodeTracker("searched_books_by_category", session_id=user_id) as tracker:
+        tracker.add_data(categories=categories)
+        cached_data = redis_client.get(cache_key)
 
-    try:
-        books_data = BookRepository.get_books_by_categories(categories)
+        if cached_data:
+            data = json.loads(cached_data)
+            tracker.add_data(source="redis_cache", books_count=len(data.get("books", [])))
+            return data
 
-        books = [
-            {
-                "id": b.id,
-                "title": b.title,
-                "author": b.author,
-                "thumbnail": b.thumbnail,
-                "description": b.description,
-                "category": b.category,
-                "content": b.content,
-            }
-            for b in books_data
-        ]
+        try:
+            books_data = BookRepository.get_books_by_categories(categories)
 
-        unique_category_names = set()
-        for b in books_data:
-            if b.category:
-                unique_category_names.update(b.category)
-
-        all_categories_metadata = load_json_file("", "categories.json", {})
-
-        filtered_categories = []
-        for cat_name in unique_category_names:
-            cat_meta = all_categories_metadata.get(cat_name, {})
-            filtered_categories.append(
+            books = [
                 {
-                    "name": cat_name,
-                    "icon": cat_meta.get("icon", "📌"),
-                    "description": cat_meta.get(
-                        "description", f"Explore insights from {cat_name}."
-                    ),
+                    "id": b.id,
+                    "title": b.title,
+                    "author": b.author,
+                    "thumbnail": b.thumbnail,
+                    "description": b.description,
+                    "category": b.category,
+                    "content": b.content,
                 }
+                for b in books_data
+            ]
+
+            unique_category_names = {cat for b in books_data if b.category for cat in b.category}
+            all_categories_metadata = load_json_file("", "categories.json", {})
+
+            filtered_categories = sorted(
+                [
+                    {
+                        "name": cat_name,
+                        "icon": all_categories_metadata.get(cat_name, {}).get("icon", "📌"),
+                        "description": all_categories_metadata.get(cat_name, {}).get(
+                            "description", f"Explore insights from {cat_name}."
+                        ),
+                    }
+                    for cat_name in unique_category_names
+                ],
+                key=lambda x: x["name"],
             )
 
-        filtered_categories = sorted(filtered_categories, key=lambda x: x["name"])
+            result = {"books": books, "categories": filtered_categories}
 
-        result = {"books": books, "categories": filtered_categories}
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+            tracker.add_data(
+                source="database",
+                books_count=len(books),
+                cats_count=len(filtered_categories),
+            )
 
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-        posthog.capture(
-            distinct_id=user_id,
-            event="searched_books_by_category",
-            properties={
-                "categories": categories,
-                "source": "database",
-                "books_count": len(books),
-                "cats_count": len(filtered_categories),
-            },
-        )
+            return result
 
-        return result
-
-    except Exception as e:
-        posthog.capture(
-            distinct_id=user_id,
-            event="error_searching_categories",
-            properties={"error": str(e), "categories": categories},
-        )
-        raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 def get_book_info(title: str, user_id: str = "anonymous") -> Dict[str, Any]:
     cache_key = f"book:info:{title}"
-    cached_data = redis_client.get(cache_key)
 
-    if cached_data:
-        data = json.loads(cached_data)
-        posthog.capture(
-            distinct_id=user_id,
-            event="viewed_book_details",
-            properties={"book_title": title, "source": "redis_cache"},
-        )
-        return data
+    with NodeTracker("viewed_book_details", session_id=user_id) as tracker:
+        tracker.add_data(book_title=title)
+        cached_data = redis_client.get(cache_key)
 
-    try:
-        book = BookRepository.get_book_by_title(title)
+        if cached_data:
+            tracker.add_data(source="redis_cache")
+            return json.loads(cached_data)
 
-        if not book:
-            posthog.capture(
-                distinct_id=user_id,
-                event="book_not_found",
-                properties={"book_title": title},
+        try:
+            book = BookRepository.get_book_by_title(title)
+
+            if not book:
+                tracker.add_data(not_found=True)
+                raise HTTPException(status_code=404, detail="Book not found")
+
+            categories_str = ", ".join(book.category) if book.category else ""
+            num_keys = len(book.content or {})
+            total_steps = sum(
+                len((book.content or {}).get(key, {}).get("steps", []))
+                for key in (book.content or {}).keys()
             )
-            raise HTTPException(status_code=404, detail="Book not found")
 
-        categories_str = ", ".join(book.category) if book.category else ""
-
-        num_keys = len(book.content or {})
-        total_steps = sum(
-            len((book.content or {}).get(key, {}).get("steps", []))
-            for key in (book.content or {}).keys()
-        )
-
-        response_data = {
-            "id": book.id,
-            "title": book.title,
-            "thumbnail": book.thumbnail,
-            "author": book.author,
-            "description": book.description,
-            "sub_categories_count": num_keys,
-            "total_insights": total_steps,
-            "categories": categories_str,
-        }
-
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(response_data))
-        posthog.capture(
-            distinct_id=user_id,
-            event="viewed_book_details",
-            properties={
-                "book_title": title,
-                "source": "database",
+            response_data = {
+                "id": book.id,
+                "title": book.title,
+                "thumbnail": book.thumbnail,
+                "author": book.author,
+                "description": book.description,
+                "sub_categories_count": num_keys,
                 "total_insights": total_steps,
-            },
-        )
-        return response_data
+                "categories": categories_str,
+            }
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Database error")
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(response_data))
+            tracker.add_data(source="database", total_insights=total_steps)
+            return response_data
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Database error") from e
 
 
 def get_book_content(
@@ -207,163 +161,133 @@ def get_book_content(
         category = []
 
     cache_key = f"book:content_combined:{title}:{'all' if not category else ','.join(sorted(category))}"
-    cached_data = redis_client.get(cache_key)
 
-    if cached_data:
-        data = json.loads(cached_data)
-        posthog.capture(
-            distinct_id=user_id,
-            event="viewed_book_content",
-            properties={
-                "book_title": title,
-                "source": "redis_cache",
-                "values_count": len(data.get("values", [])),
-            },
-        )
-        return data
+    with NodeTracker("viewed_book_content", session_id=user_id) as tracker:
+        tracker.add_data(book_title=title, categories_requested=category)
+        cached_data = redis_client.get(cache_key)
 
-    try:
-        book = BookRepository.get_book_by_title(title)
+        if cached_data:
+            data = json.loads(cached_data)
+            tracker.add_data(source="redis_cache", values_count=len(data.get("values", [])))
+            return data
 
-        if not book:
-            raise HTTPException(status_code=404, detail="Book not found")
+        try:
+            book = BookRepository.get_book_by_title(title)
 
-        content = book.content or {}
+            if not book:
+                raise HTTPException(status_code=404, detail="Book not found")
 
-        # 1. Process Keys
-        keys_result = [
-            {
-                "name": key,
-                "icon": value.get("icon", ""),
-                "description": value.get("description", ""),
-                "steps_count": str(len(value.get("steps", []))),
-            }
-            for key, value in content.items()
-        ]
+            content = book.content or {}
 
-        # 2. Process Values
-        values_result = []
-        keys_to_use = category if category else list(content.keys())
+            # 1. Process Keys
+            keys_result = [
+                {
+                    "name": key,
+                    "icon": value.get("icon", ""),
+                    "description": value.get("description", ""),
+                    "steps_count": str(len(value.get("steps", []))),
+                }
+                for key, value in content.items()
+            ]
 
-        all_step_ids = []
-        for key in keys_to_use:
-            if key in content:
-                all_step_ids.extend(content[key].get("steps", []))
+            # 2. Process Values
+            values_result = []
+            keys_to_use = category if category else list(content.keys())
 
-        if all_step_ids:
-            steps_data = BookRepository.get_insights_by_ids(all_step_ids)
+            all_step_ids = []
+            for key in keys_to_use:
+                if key in content:
+                    all_step_ids.extend(content[key].get("steps", []))
 
-            for step in steps_data:
-                if step.category_name in keys_to_use:
-                    values_result.append(
-                        {
-                            "icon": step.category_icon,
-                            "category": step.category_name,
-                            "step_id": step.id,
-                            "step": step.title,
-                            "description": step.description,
-                        }
-                    )
+            if all_step_ids:
+                steps_data = BookRepository.get_insights_by_ids(all_step_ids)
 
-        result = {"keys": keys_result, "values": values_result}
+                for step in steps_data:
+                    if step.category_name in keys_to_use:
+                        values_result.append(
+                            {
+                                "icon": step.category_icon,
+                                "category": step.category_name,
+                                "step_id": step.id,
+                                "step": step.title,
+                                "description": step.description,
+                            }
+                        )
 
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-        posthog.capture(
-            distinct_id=user_id,
-            event="viewed_book_content",
-            properties={
-                "book_title": title,
-                "categories_requested": category,
-                "source": "database",
-                "keys_count": len(keys_result),
-                "values_count": len(values_result),
-            },
-        )
+            result = {"keys": keys_result, "values": values_result}
 
-        return result
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+            tracker.add_data(
+                source="database",
+                keys_count=len(keys_result),
+                values_count=len(values_result),
+            )
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+            return result
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 def get_step_details(step_id: int, user_id: str = "anonymous") -> Dict[str, Any]:
     cache_key = f"insight:{step_id}"
-    cached_data = redis_client.get(cache_key)
 
-    if cached_data:
-        data = json.loads(cached_data)
-        posthog.capture(
-            distinct_id=user_id,
-            event="read_insight_step",
-            properties={"step_id": step_id, "book_title": data.get("book_name")},
-        )
-        return data
+    with NodeTracker("read_insight_step", session_id=user_id) as tracker:
+        tracker.add_data(step_id=step_id)
+        cached_data = redis_client.get(cache_key)
 
-    try:
-        insight = BookRepository.get_insight_by_id(step_id)
+        if cached_data:
+            data = json.loads(cached_data)
+            tracker.add_data(source="redis_cache", book_title=data.get("book_name"))
+            return data
 
-        if not insight:
-            raise HTTPException(status_code=404, detail="Step not found")
+        try:
+            insight = BookRepository.get_insight_by_id(step_id)
 
-        result = {
-            "step_id": insight.id,
-            "book_name": insight.book_name,
-            "category": insight.category_name,
-            "title": insight.title,
-            "description": insight.description,
-            "detailed_breakdown": insight.detailed_breakdown,
-            "category_icon": insight.category_icon,
-        }
+            if not insight:
+                raise HTTPException(status_code=404, detail="Step not found")
 
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-        posthog.capture(
-            distinct_id=user_id,
-            event="read_insight_step",
-            properties={"step_id": step_id, "book_title": insight.book_name},
-        )
-        return result
+            result = {
+                "step_id": insight.id,
+                "book_name": insight.book_name,
+                "category": insight.category_name,
+                "title": insight.title,
+                "description": insight.description,
+                "detailed_breakdown": insight.detailed_breakdown,
+                "category_icon": insight.category_icon,
+            }
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+            tracker.add_data(source="database", book_title=insight.book_name)
+            return result
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 def create_book(book_data: Dict, user_id: str = "system") -> Dict[str, str]:
-    start_time = time.time()
+    with NodeTracker("book_created_and_embedded", session_id=user_id) as tracker:
+        tracker.add_data(book_title=book_data.get("Title"))
 
-    try:
-        # The repository handles the SQL transaction and calls our vector embedder during the flush
-        total_insights_embedded = BookRepository.create_book_transaction(
-            book_data=book_data, embed_callback=embed_and_upsert_insight
-        )
+        try:
+            total_insights_embedded = BookRepository.create_book_transaction(
+                book_data=book_data, embed_callback=embed_and_upsert_insight
+            )
 
-        for key in redis_client.scan_iter("books:*"):
-            redis_client.delete(key)
+            # Invalidate all book caches so the new book appears immediately
+            for key in redis_client.scan_iter("books:*"):
+                redis_client.delete(key)
 
-        latency = time.time() - start_time
-        posthog.capture(
-            distinct_id=user_id,
-            event="book_created_and_embedded",
-            properties={
-                "book_title": book_data["Title"],
-                "insights_embedded": total_insights_embedded,
-                "latency_seconds": round(latency, 2),
-            },
-        )
+            tracker.add_data(insights_embedded=total_insights_embedded)
 
-        return {"message": "Book and associated steps created successfully"}
+            return {"message": "Book and associated steps created successfully"}
 
-    except Exception as e:
-        posthog.capture(
-            distinct_id=user_id,
-            event="error_creating_book",
-            properties={"book_title": book_data.get("Title"), "error": str(e)},
-        )
-        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Database error: {e}") from e
 
 
 def process_book(
@@ -375,23 +299,17 @@ def process_book(
     category_list: List[str],
     user_id: str = "system",
 ):
-    posthog.capture(
-        distinct_id=user_id,
-        event="book_processing_started",
-        properties={"book_title": book_title},
-    )
+    # Notice we combined the "started" and "failed" events into one single NodeTracker context
+    with NodeTracker("book_processing", session_id=user_id) as tracker:
+        tracker.add_data(book_title=book_title)
+        
+        try:
+            processor = BookistProcessor(
+                pdf_path, book_title, author, description, cover_url, category_list
+            )
+            book_data = processor.process()
 
-    try:
-        processor = BookistProcessor(
-            pdf_path, book_title, author, description, cover_url, category_list
-        )
-        book_data = processor.process()
-
-        return create_book(book_data, user_id=user_id)
-    except Exception as e:
-        posthog.capture(
-            distinct_id=user_id,
-            event="book_processing_failed",
-            properties={"book_title": book_title, "error": str(e)},
-        )
-        raise e
+            return create_book(book_data, user_id=user_id)
+        except Exception as e:
+            # Let the tracker naturally catch the exception and log it to Sentry & PostHog
+            raise e
