@@ -3,6 +3,7 @@ import QueryProvider from "./providers/QueryProvider";
 import { ThemeProvider } from "./providers/ThemeProvider";
 import "./globals.css";
 import { Montserrat } from 'next/font/google';
+import { TelemetryProvider } from "./providers/TelemetryProvider";
 
 const montserrat = Montserrat({ subsets: ['latin'] });
 
@@ -34,9 +35,11 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <QueryProvider>
-            <AuthProvider>
-              {children}
-            </AuthProvider>
+            <TelemetryProvider>
+              <AuthProvider>
+                {children}
+              </AuthProvider>
+            </TelemetryProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

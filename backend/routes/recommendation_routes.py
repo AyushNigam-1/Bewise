@@ -2,11 +2,11 @@ from fastapi import APIRouter, Request, Depends
 from pydantic import BaseModel
 from fastapi_limiter.depends import RateLimiter
 from pyrate_limiter import Limiter, Rate, Duration
-
 from controllers.recommendation_controller import recommend, session_recommend
+from core.telemetry import TelemetryRoute
 
 shared_limiter = Limiter(Rate(60, Duration.SECOND * 60))
-router = APIRouter(dependencies=[Depends(RateLimiter(limiter=shared_limiter))])
+router = APIRouter(dependencies=[Depends(RateLimiter(limiter=shared_limiter))],route_class=TelemetryRoute)
 
 
 class SessionRecommendRequest(BaseModel):

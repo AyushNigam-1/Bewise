@@ -1,77 +1,70 @@
-import os
 import time
 import logging
+from typing import Callable
+from fastapi import Request, Response
+from fastapi.routing import APIRoute
 import sentry_sdk
 from posthog import Posthog
+import os
 
 logger = logging.getLogger(__name__)
 
-
+# Initialize PostHog globally
+POSTHOG_API_KEY = os.getenv("POSTHOG_API_KEY", "")
 posthog = Posthog(
-    os.getenv("POSTHOG_API_KEY", ""), 
-    host=os.getenv("POSTHOG_HOST", "https://app.posthog.com")
+    POSTHOG_API_KEY, 
+    host=os.getenv("POSTHOG_HOST", "https://us.i.posthog.com"),
+    disabled=not bool(POSTHOG_API_KEY)
 )
 
-def init_telemetry():
-    """Call this when the application starts."""
-    sentry_sdk.init(
-        dsn=os.getenv("SENTRY_DSN"),
-        send_default_pii=True,
-    )
-    logger.info("Sentry and Telemetry initialized.")
+class TelemetryRoute(APIRoute):
+    """
+    A custom APIRoute that automatically tracks latency, errors, and usage 
+    for every single endpoint in the FastAPI application.
+    """
+    def get_route_handler(self) -> Callable:
+        original_route_handler = super().get_route_handler()
 
-def flush_telemetry():
-    """Call this when the application shuts down."""
-    posthog.flush()
-    sentry_sdk.flush()
-    logger.info("Telemetry flushed cleanly.")
-
-
-class NodeTracker:
-    """A Universal Context Manager for Sync and Async tracking."""
-    
-    def __init__(self, event_name: str, session_id: str = "anonymous"):
-        self.event_name = event_name
-        self.session_id = session_id or "anonymous" 
-        self.start_time = None
-        self.properties = {}
-
-    def add_data(self, **kwargs):
-        self.properties.update(kwargs)
-
-    def _handle_exit(self, exc_type, exc_val):
-        """Shared logic for both sync and async exits."""
-        latency = round(time.time() - self.start_time, 2)
-        self.properties["latency_seconds"] = latency
-
-        if exc_type is not None:
-            logger.error(f"Error in {self.event_name}: {exc_val}")
-            sentry_sdk.capture_exception(exc_val)
+        async def custom_route_handler(request: Request) -> Response:
+            start_time = time.time()
             
-            posthog.capture(
-                distinct_id=self.session_id,
-                event=f"{self.event_name}_failed",
-                properties={**self.properties, "error": str(exc_val)}
-            )
-            return False 
-        
-        posthog.capture(
-            distinct_id=self.session_id,
-            event=f"{self.event_name}_completed",
-            properties=self.properties
-        )
-        return True
+            route_name = f"{request.method} {self.path}"
+            
+            user_id = getattr(request.state, "user_id", None) or request.headers.get("x-user-id", "anonymous")
 
-    def __enter__(self):
-        self.start_time = time.time()
-        return self
+            with sentry_sdk.isolation_scope() as scope:
+                scope.set_user({"id": user_id})
+                scope.set_tag("endpoint", route_name)
+                
+                try:
+                    response: Response = await original_route_handler(request)
+                    
+                    latency = round(time.time() - start_time, 4)
+                    
+                    posthog.capture(
+                        distinct_id=user_id,
+                        event="api_request_completed",
+                        properties={
+                            "endpoint": route_name,
+                            "status_code": response.status_code,
+                            "latency_seconds": latency
+                        }
+                    )
+                    return response
+                    
+                except Exception as e:
+                    latency = round(time.time() - start_time, 4)
+                    
+                    posthog.capture(
+                        distinct_id=user_id,
+                        event="api_request_failed",
+                        properties={
+                            "endpoint": route_name,
+                            "error": str(e),
+                            "latency_seconds": latency
+                        }
+                    )
+                    
+                    raise e
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        return self._handle_exit(exc_type, exc_val)
-
-    async def __aenter__(self):
-        self.start_time = time.time()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        return self._handle_exit(exc_type, exc_val)
+        return custom_route_handler

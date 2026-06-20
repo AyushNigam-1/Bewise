@@ -1,7 +1,5 @@
 import logging
 from typing import Any, Dict, List, Optional, TypedDict
-from core.telemetry import NodeTracker
-
 from core.llm import llm
 from repositories.insight_repository import get_book_names_by_ids, get_explicit_insights
 from langchain_core.runnables import RunnableLambda
@@ -28,53 +26,59 @@ def retrieve_node(state: RAGState):
     message = state["message"]
     session_id = state.get("session_id", "anonymous")
 
-    with NodeTracker("rag_retrieval", session_id=session_id) as tracker:
-        raw_book_ids = state.get("books_ids") or []
-        insight_ids = state.get("insights_ids") or []
+    # 2. Bundle metadata locally
+    log_context = {
+        "user_id": session_id,
+        "action": "rag_retrieval",
+        "message_length": len(message)
+    }
 
-        combined_hits = {}
-        explicit_db_hits = 0
-        book_names = []
+    raw_book_ids = state.get("books_ids") or []
+    insight_ids = state.get("insights_ids") or []
 
-        try:
-            book_names = get_book_names_by_ids(raw_book_ids)
-            explicit_insights = get_explicit_insights(insight_ids, book_names)
+    combined_hits = {}
+    explicit_db_hits = 0
+    book_names = []
+
+    try:
+        book_names = get_book_names_by_ids(raw_book_ids)
+        explicit_insights = get_explicit_insights(insight_ids, book_names)
+        
+        for insight in explicit_insights:
+            combined_hits[insight["insight_id"]] = insight
             
-            for insight in explicit_insights:
-                combined_hits[insight["insight_id"]] = insight
-                
-            explicit_db_hits = len(explicit_insights)
+        explicit_db_hits = len(explicit_insights)
 
-        except Exception as e:
-            # 🌟 CLEAN FALLBACK: We tell the tracker the DB failed, but we DO NOT crash.
-            # Posthog will log this silently when the node finishes!
-            tracker.add_data(db_fallback_triggered=True, db_error=str(e))
-            logger.warning(f"DB Fetch failed, falling back exclusively to Vector: {e}")
+    except Exception as e:
+        # 🌟 CLEAN FALLBACK: Sentry gets the trace, but the node doesn't crash!
+        log_context["db_fallback_triggered"] = True
+        logger.exception("DB Fetch failed, falling back exclusively to Vector", extra=log_context)
 
-        pinecone_results = search_insights(
-            query=message,
-            book_names=book_names,
-            insight_ids=insight_ids,
-            insight_titles=[],
-            top_k=5,
-        )
+    pinecone_results = search_insights(
+        query=message,
+        book_names=book_names,
+        insight_ids=insight_ids,
+        insight_titles=[],
+        top_k=5,
+    )
 
-        vector_hits = 0
-        for h in pinecone_results:
-            i_id = h["insight_id"]
-            if i_id not in combined_hits:
-                h["source"] = "vector"
-                h["detailed_breakdown"] = h.get("description", "")
-                combined_hits[i_id] = h
-                vector_hits += 1
+    vector_hits = 0
+    for h in pinecone_results:
+        i_id = h["insight_id"]
+        if i_id not in combined_hits:
+            h["source"] = "vector"
+            h["detailed_breakdown"] = h.get("description", "")
+            combined_hits[i_id] = h
+            vector_hits += 1
 
-        tracker.add_data(
-            explicit_db_hits=explicit_db_hits,
-            vector_hits=vector_hits,
-            total_context_items=len(combined_hits)
-        )
+    log_context.update({
+        "explicit_db_hits": explicit_db_hits,
+        "vector_hits": vector_hits,
+        "total_context_items": len(combined_hits)
+    })
+    logger.info("RAG retrieval completed", extra=log_context)
 
-        return {"pinecone_hits": list(combined_hits.values())}
+    return {"pinecone_hits": list(combined_hits.values())}
 
 
 def generate_node(state: RAGState):
@@ -82,59 +86,68 @@ def generate_node(state: RAGState):
     session_id = state.get("session_id", "anonymous")
     hits = state["pinecone_hits"]
 
-    with NodeTracker("rag_generation", session_id=session_id) as tracker:
-        blocks = []
-        for h in hits:
-            content = h.get("detailed_breakdown", h.get("description", ""))
-            blocks.append(
-                f"Id: {h['insight_id']}\nBook: {h['book']}\nCategory: {h['category']}\nTitle: {h['title']}\nContent: {content}"
-            )
+    log_context = {
+        "user_id": session_id,
+        "action": "rag_generation",
+        "hits_received": len(hits)
+    }
 
-        context = "\n---\n".join(blocks)
-        system_prompt = "You are Wiser, an intelligent AI reading assistant. Answer thoroughly using ONLY the provided insights..."
-        human_prompt = f"User question: {message}\n\nCandidate insights:\n{context}"
+    blocks = []
+    for h in hits:
+        content = h.get("detailed_breakdown", h.get("description", ""))
+        blocks.append(
+            f"Id: {h['insight_id']}\nBook: {h['book']}\nCategory: {h['category']}\nTitle: {h['title']}\nContent: {content}"
+        )
 
-        structured_llm = llm.with_structured_output(RAGResponse)
+    context = "\n---\n".join(blocks)
+    system_prompt = "You are Wiser, an intelligent AI reading assistant. Answer thoroughly using ONLY the provided insights..."
+    human_prompt = f"User question: {message}\n\nCandidate insights:\n{context}"
 
-        try:
-            parsed: RAGResponse = structured_llm.invoke([("system", system_prompt), ("human", human_prompt)])
-            tracker.add_data(llm_success=True, cited_sources_count=len(parsed.ids))
-            
-        except Exception as e:
-            # 🌟 CLEAN FALLBACK: Tell the tracker the LLM parsing failed (likely a conversational greeting).
-            tracker.add_data(llm_success=False, fallback_triggered=True, parse_error=str(e))
-            logger.warning(f"LLM Parsing failed, reverting to conversational fallback: {e}")
-            
-            parsed = RAGResponse(
-                answer="I am Wiser, your reading assistant! I'm doing great. How can I help you explore your books and insights today?",
-                ids=[],
-            )
+    structured_llm = llm.with_structured_output(RAGResponse)
 
-        if not parsed.ids and not parsed.answer:
-            return {"final_response": {"answer": "No relevant insight found to answer your question.", "insights": {}}}
+    try:
+        parsed: RAGResponse = structured_llm.invoke([("system", system_prompt), ("human", human_prompt)])
+        
+        log_context.update({
+            "llm_success": True, 
+            "cited_sources_count": len(parsed.ids)
+        })
+        logger.info("RAG generation successful", extra=log_context)
+        
+    except Exception as e:
+        log_context.update({"llm_success": False, "fallback_triggered": True})
+        logger.exception("LLM Parsing failed, reverting to conversational fallback", extra=log_context)
+        
+        parsed = RAGResponse(
+            answer="I am Wiser, your reading assistant! I'm doing great. How can I help you explore your books and insights today?",
+            ids=[],
+        )
 
-        final_hits = [h for h in hits if h["insight_id"] in parsed.ids]
-        books: Dict[str, List[dict]] = {}
+    if not parsed.ids and not parsed.answer:
+        return {"final_response": {"answer": "No relevant insight found to answer your question.", "insights": {}}}
 
-        for hit in final_hits:
-            if hit.get("source") == "explicit": continue
+    final_hits = [h for h in hits if h["insight_id"] in parsed.ids]
+    books: Dict[str, List[dict]] = {}
 
-            book = hit["book"]
-            if book not in books: books[book] = []
+    for hit in final_hits:
+        if hit.get("source") == "explicit": continue
 
-            safe_book = hit["book"].replace(" ", "%20")
-            safe_cat = hit["category"].replace(" ", "%20")
+        book = hit["book"]
+        if book not in books: books[book] = []
 
-            books[book].append({
-                "id": hit["insight_id"],
-                "title": hit["title"],
-                "category": hit["category"],
-                "category_icon": hit.get("category_icon", "📌"),
-                "description": hit["description"],
-                "link": f"/insight/{safe_book}/{safe_cat}/{hit['insight_id']}",
-            })
+        safe_book = hit["book"].replace(" ", "%20")
+        safe_cat = hit["category"].replace(" ", "%20")
 
-        return {"final_response": {"answer": parsed.answer, "insights": books}}
+        books[book].append({
+            "id": hit["insight_id"],
+            "title": hit["title"],
+            "category": hit["category"],
+            "category_icon": hit.get("category_icon", "📌"),
+            "description": hit["description"],
+            "link": f"/insight/{safe_book}/{safe_cat}/{hit['insight_id']}",
+        })
+
+    return {"final_response": {"answer": parsed.answer, "insights": books}}
 
 
 workflow = StateGraph(RAGState)
@@ -149,10 +162,18 @@ rag_graph = workflow.compile()
 
 def rag_entrypoint(input_data: dict):
     session_id = input_data.get("session_id", "anonymous")
+    log_context = {
+        "user_id": session_id,
+        "action": "rag_interaction",
+        "query_length": len(input_data.get("message", ""))
+    }
 
-    with NodeTracker("rag_interaction", session_id=session_id) as tracker:
-        tracker.add_data(query_length=len(input_data.get("message", "")))
+    try:
         final_state = rag_graph.invoke(input_data)
+        logger.info("RAG interaction completed", extra=log_context)
         return final_state["final_response"]
+    except Exception as e:
+        logger.exception("RAG graph execution failed natively", extra=log_context)
+        raise e
 
 rag_runnable = RunnableLambda(rag_entrypoint)

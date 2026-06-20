@@ -3,8 +3,9 @@ from pydantic import BaseModel, Field
 from controllers.voice_controller import generate_audio_from_text
 from fastapi_limiter.depends import RateLimiter
 from pyrate_limiter import Limiter, Rate, Duration
+from core.telemetry import TelemetryRoute
 
-router = APIRouter(dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(10, Duration.MINUTE * 1))))])
+router = APIRouter(dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(10, Duration.MINUTE * 1))))],route_class=TelemetryRoute)
 
 class TTSRequest(BaseModel):
     text: str = Field(..., max_length=200, description="Text to convert to speech (max 200 chars)")
