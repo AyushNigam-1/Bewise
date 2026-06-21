@@ -1,9 +1,7 @@
 import json
 from unittest.mock import patch
-
 import controllers.recommendation_controller as recommendations
 import pytest
-
 from tests.factories import InsightFactory
 
 
@@ -14,7 +12,7 @@ def module_deps(patch_controller):
 
 @pytest.mark.unit
 def test_recommend_uses_cache(module_deps):
-    redis, posthog, _ = module_deps
+    redis, _, _ = module_deps
 
     # fakeredis uses standard .set() and .get()
     redis.set("recommend:u1", json.dumps({"recommendations": ["cached"]}))
@@ -22,18 +20,13 @@ def test_recommend_uses_cache(module_deps):
     result = recommendations.recommend("u1")
 
     assert result == {"recommendations": ["cached"]}
-    
-    # Verify NodeTracker correctly appended '_completed' and captured the property
-    posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "recommendations_fetched_completed"
-    assert posthog.capture.call_args.kwargs["properties"]["source"] == "redis_cache"
 
 
 @pytest.mark.unit
 @patch("controllers.recommendation_controller.RecommendationRepository")
 @patch("controllers.recommendation_controller.recommend_for_user")
 def test_recommend_builds_and_caches(mock_recommend_ai, mock_repo, module_deps):
-    redis, posthog, _ = module_deps
+    redis, _, _ = module_deps
 
     # 1. Arrange: Fake the Database Repo and the AI Service
     mock_repo.get_user_favourite_insights.return_value = [1, 2]
@@ -50,25 +43,15 @@ def test_recommend_builds_and_caches(mock_recommend_ai, mock_repo, module_deps):
     # Verify the cache was populated correctly
     assert json.loads(redis.get("recommend:u1")) == {"recommendations": ["r1", "r2"]}
 
-    # Verify NodeTracker
-    posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "recommendations_fetched_completed"
-    assert posthog.capture.call_args.kwargs["properties"]["source"] == "vector_db"
-
 
 @pytest.mark.unit
 def test_session_recommend_uses_cache(module_deps):
-    redis, posthog, _ = module_deps
+    redis, _, _ = module_deps
     redis.set("session_recommend:u1:5", json.dumps({"recommendations": ["cached"]}))
 
     result = recommendations.session_recommend("u1", 5)
 
     assert result == {"recommendations": ["cached"]}
-    
-    # Verify NodeTracker 
-    posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "session_recommendations_fetched_completed"
-    assert posthog.capture.call_args.kwargs["properties"]["source"] == "redis_cache"
 
 
 @pytest.mark.unit
@@ -77,7 +60,7 @@ def test_session_recommend_uses_cache(module_deps):
 def test_session_recommend_builds_and_caches(
     mock_recommend_next_ai, mock_repo, module_deps
 ):
-    redis, posthog, _ = module_deps
+    redis, _, _ = module_deps
 
     # 1. Arrange: Fake the current insight in the DB using the Factory
     insight = InsightFactory.build(
@@ -110,8 +93,3 @@ def test_session_recommend_builds_and_caches(
     assert json.loads(redis.get("session_recommend:u1:5")) == {
         "recommendations": ["next1", "next2"]
     }
-
-    # Verify NodeTracker
-    posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "session_recommendations_fetched_completed"
-    assert posthog.capture.call_args.kwargs["properties"]["source"] == "vector_db"

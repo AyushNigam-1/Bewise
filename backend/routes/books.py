@@ -5,9 +5,7 @@ from controllers.book_controller import (
     create_book,
     find_books_by_categories,
     get_all_books,
-    get_book_content,
     get_book_info,
-    get_step_details,
     process_book,
 )
 from core.redis import redis_client_rq, redis_queue
@@ -19,7 +17,7 @@ from rq.job import Job
 from core.telemetry import TelemetryRoute
 
 shared_limiter = Limiter(Rate(60, Duration.SECOND * 60))
-router = APIRouter(dependencies=[Depends(RateLimiter(limiter=shared_limiter))],route_class=TelemetryRoute)
+router = APIRouter(dependencies=[Depends(RateLimiter(limiter=shared_limiter))], route_class=TelemetryRoute)
 
 
 @router.get("/books", response_model=List[Dict[str, Any]])
@@ -35,16 +33,6 @@ def find_books_by_categories_route(categories: List[str] = Body(...)):
 @router.get("/book/{title}/info")
 def get_book_info_route(title: str):
     return get_book_info(title)
-
-
-@router.post("/book/{title}/content", response_model=Dict[str, Any])
-def get_book_content_route(title: str, category: List[str] = Body(default=[])):
-    return get_book_content(title, category)
-
-
-@router.get("/insights/{step_id}")
-def get_step_details_route(step_id: int):
-    return get_step_details(step_id)
 
 
 @router.post("/books/")

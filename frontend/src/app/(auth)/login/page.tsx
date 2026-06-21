@@ -230,6 +230,22 @@ const Login = () => {
             )}
           </button>
         </motion.div>
+        <motion.div variants={itemVariants}>
+
+          <button
+            type="button"
+            disabled={isPending || socialLoading !== null}
+            onClick={() =>
+              onSubmit({
+                email: "guest@example.com",
+                password: "guestpassword123",
+              })
+            }
+            className="w-full flex justify-center items-center bg-transparent border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 p-2.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-300 font-semibold text-center cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed h-12"
+          >
+            Continue as Guest
+          </button>
+        </motion.div>
       </form>
 
       <motion.div

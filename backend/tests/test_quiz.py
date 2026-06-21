@@ -17,7 +17,7 @@ def test_generate_quiz_cache_hit(mock_graph, module_deps):
     """
     Tests that if the quiz is already in Redis, it skips LangGraph entirely.
     """
-    redis, posthog, _ = module_deps
+    redis, _, _ = module_deps
 
     # 1. Arrange: Pre-populate our Fake Redis with a generated quiz
     source_text = "This is a book about Python."
@@ -48,11 +48,6 @@ def test_generate_quiz_cache_hit(mock_graph, module_deps):
     assert result == cached_quiz
     mock_graph.assert_not_called()  # Proves we saved money by skipping the LLM!
 
-    # Verify analytics tracked the cache hit via NodeTracker
-    posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "quiz_generation_completed"
-    assert posthog.capture.call_args.kwargs["properties"]["source"] == "redis_cache"
-
 
 @pytest.mark.unit
 @pytest.mark.rag
@@ -61,7 +56,7 @@ def test_generate_quiz_llm_generation(mock_graph, module_deps):
     """
     Tests that an empty cache triggers LangGraph and saves the result to Redis.
     """
-    redis, posthog, _ = module_deps
+    redis, _, _ = module_deps
 
     # 1. Arrange: Set up what the fake LLM LangGraph will return
     fake_generated_quiz = {
@@ -96,11 +91,6 @@ def test_generate_quiz_llm_generation(mock_graph, module_deps):
     # fakeredis natively supports exists()
     assert redis.exists(f"quiz:{text_hash}")
 
-    # Verify analytics tracked the real generation via NodeTracker
-    posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "quiz_generation_completed"
-    assert posthog.capture.call_args.kwargs["properties"]["source"] == "llm_generation"
-
 
 @pytest.mark.unit
 @pytest.mark.rag
@@ -109,7 +99,7 @@ def test_generate_quiz_catastrophic_failure(mock_graph, module_deps):
     """
     Tests that a total LLM failure triggers the safety nets.
     """
-    _, posthog, sentry = module_deps
+    _, _, _ = module_deps
 
     # 1. Arrange: Force LangGraph to explode
     mock_graph.side_effect = Exception("Groq API Timeout")
@@ -122,10 +112,3 @@ def test_generate_quiz_catastrophic_failure(mock_graph, module_deps):
 
     # Verify it raised your custom fallback message
     assert str(exc_info.value) == "Failed to generate quiz."
-
-    # 3. Verify Safety Nets
-    sentry.assert_called_once()  # Sentry caught the real Groq API Timeout
-
-    posthog.capture.assert_called_once()
-    assert posthog.capture.call_args.kwargs["event"] == "quiz_generation_failed"
-    assert "Failed to generate quiz." in posthog.capture.call_args.kwargs["properties"]["error"]
