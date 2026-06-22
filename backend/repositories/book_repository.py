@@ -1,11 +1,9 @@
 from typing import Callable, List, Optional
-
 from core.database import engine
 from core.models import Book, Insight
 from sqlalchemy import Text, cast
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Session, select
-
 
 class BookRepository:
     @staticmethod
@@ -13,6 +11,14 @@ class BookRepository:
         """Fetches all books from the database."""
         with Session(engine) as session:
             return session.exec(select(Book)).all()
+    
+    @staticmethod
+    def get_book_names_by_ids(book_ids: List[int]) -> List[str]:
+        if not book_ids:
+            return []
+        with Session(engine) as db:
+            books = db.exec(select(Book).where(Book.id.in_(book_ids))).all()
+            return [b.title for b in books]
 
     @staticmethod
     def get_books_by_categories(categories: List[str]) -> List[Book]:
@@ -31,20 +37,6 @@ class BookRepository:
         """Fetches a single book by its exact title."""
         with Session(engine) as session:
             return session.exec(select(Book).where(Book.title == title)).first()
-
-    @staticmethod
-    def get_insights_by_ids(step_ids: List[int]) -> List[Insight]:
-        """Fetches a batch of insights using a list of IDs."""
-        if not step_ids:
-            return []
-        with Session(engine) as session:
-            return session.exec(select(Insight).where(Insight.id.in_(step_ids))).all()
-
-    @staticmethod
-    def get_insight_by_id(step_id: int) -> Optional[Insight]:
-        """Fetches a specific insight by ID."""
-        with Session(engine) as session:
-            return session.get(Insight, step_id)
 
     @staticmethod
     def create_book_transaction(book_data: dict, embed_callback: Callable) -> int:

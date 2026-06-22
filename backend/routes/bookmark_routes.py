@@ -1,7 +1,6 @@
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, HTTPException
 from enum import Enum
-from fastapi_limiter.depends import RateLimiter
-from pyrate_limiter import Limiter, Rate, Duration
+from core.telemetry import TelemetryRoute
 from controllers.bookmark_controller import (
     toggle_bookmark_book,
     toggle_bookmark_insight,
@@ -9,9 +8,7 @@ from controllers.bookmark_controller import (
     get_bookmarked_insights_with_categories,
 )
 
-shared_limiter = Limiter(Rate(60, Duration.SECOND * 60))
-router = APIRouter(dependencies=[Depends(RateLimiter(limiter=shared_limiter))])
-
+router = APIRouter(route_class=TelemetryRoute)
 
 class BookmarkType(str, Enum):
     books = "books"

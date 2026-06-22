@@ -1,6 +1,5 @@
 import os
 from typing import Any, Dict, List
-
 from controllers.book_controller import (
     create_book,
     find_books_by_categories,
@@ -9,16 +8,12 @@ from controllers.book_controller import (
     process_book,
 )
 from core.redis import redis_client_rq, redis_queue
-from fastapi import APIRouter, Body, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Body, File, Form, UploadFile
 from fastapi.responses import JSONResponse
-from fastapi_limiter.depends import RateLimiter
-from pyrate_limiter import Duration, Limiter, Rate
 from rq.job import Job
 from core.telemetry import TelemetryRoute
 
-shared_limiter = Limiter(Rate(60, Duration.SECOND * 60))
-router = APIRouter(dependencies=[Depends(RateLimiter(limiter=shared_limiter))], route_class=TelemetryRoute)
-
+router = APIRouter(route_class=TelemetryRoute)
 
 @router.get("/books", response_model=List[Dict[str, Any]])
 def get_all_books_route():

@@ -31,3 +31,5 @@ fakeredis
 psycopg2-binary
 factory-boy
 types-factory-boy
+pact-python
+pytest-asyncio

@@ -1,7 +1,8 @@
 import logging
 from typing import Any, Dict, List, Optional, TypedDict
 from core.llm import llm
-from repositories.insight_repository import get_book_names_by_ids, get_explicit_insights
+from repositories.book_repository import BookRepository
+from repositories.insight_repository import InsightRepository
 from langchain_core.runnables import RunnableLambda
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
@@ -41,8 +42,8 @@ def retrieve_node(state: RAGState):
     book_names = []
 
     try:
-        book_names = get_book_names_by_ids(raw_book_ids)
-        explicit_insights = get_explicit_insights(insight_ids, book_names)
+        book_names = BookRepository.get_book_names_by_ids(raw_book_ids)
+        explicit_insights = InsightRepository.get_explicit_insights(insight_ids, book_names)
         
         for insight in explicit_insights:
             combined_hits[insight["insight_id"]] = insight
@@ -50,7 +51,6 @@ def retrieve_node(state: RAGState):
         explicit_db_hits = len(explicit_insights)
 
     except Exception as e:
-        # 🌟 CLEAN FALLBACK: Sentry gets the trace, but the node doesn't crash!
         log_context["db_fallback_triggered"] = True
         logger.exception("DB Fetch failed, falling back exclusively to Vector", extra=log_context)
 

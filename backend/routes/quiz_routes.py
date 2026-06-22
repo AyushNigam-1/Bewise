@@ -5,7 +5,7 @@ from pyrate_limiter import Limiter, Rate, Duration
 from fastapi_limiter.depends import RateLimiter
 from core.telemetry import TelemetryRoute 
 
-limiter = Limiter(Rate(10, Duration.MINUTE * 1))
+limiter = Limiter(Rate(30, Duration.MINUTE * 1))
 
 quiz_ai_router = APIRouter(
     prefix="/ai/quiz",

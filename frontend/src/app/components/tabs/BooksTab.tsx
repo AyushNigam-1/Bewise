@@ -131,13 +131,13 @@ const BooksTab = () => {
             <div className="flex-grow w-full px-2 sm:px-0">
 
                 {viewState === "loading" && (
-                    <div className="w-full h-[70vh] flex items-center justify-center">
+                    <div className="w-full h-[87dvh] flex items-center justify-center">
                         <Loader2 className="animate-spin text-gray-400" size={36} />
                     </div>
                 )}
 
                 {viewState === "error" && (
-                    <div className="w-full h-[70vh] flex items-center justify-center text-red-500 font-medium text-sm sm:text-base text-center px-4">
+                    <div className="w-full h-[87dvh] flex items-center justify-center text-red-500 font-medium text-sm sm:text-base text-center px-4">
                         Something went wrong loading your bookmarked books.
                     </div>
                 )}
@@ -147,7 +147,7 @@ const BooksTab = () => {
                         initial={{ opacity: 0, y: 20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         transition={{ duration: 0.4, ease: "easeOut" }}
-                        className="w-full h-[70vh] flex flex-col items-center justify-center text-center px-4"
+                        className="w-full h-[87dvh] flex flex-col items-center justify-center text-center px-4"
                     >
                         <div className="bg-gray-50 dark:bg-gray-800/50 p-5 sm:p-6 rounded-full mb-4 sm:mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
                             <BookOpen size={40} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500 sm:w-12 sm:h-12" />
@@ -166,7 +166,7 @@ const BooksTab = () => {
                         initial={{ opacity: 0, y: 20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         transition={{ duration: 0.4, ease: "easeOut" }}
-                        className="w-full h-[70vh] flex flex-col items-center justify-center text-center px-4"
+                        className="w-full h-[87dvh] flex flex-col items-center justify-center text-center px-4"
                     >
                         <div className="bg-gray-50 dark:bg-gray-800/50 p-5 sm:p-6 rounded-full mb-4 sm:mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
                             <SearchX size={40} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500 sm:w-12 sm:h-12" />
@@ -185,7 +185,7 @@ const BooksTab = () => {
                         variants={containerVariants}
                         initial="hidden"
                         animate="show"
-                        className="w-full py-4 sm:py-6"
+                        className="w-full"
                     >
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
                             {filteredBooks.map((book) => (

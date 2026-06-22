@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 from fastapi import HTTPException
 from core.redis import CACHE_TTL, redis_client
 from repositories.book_repository import BookRepository
+from repositories.insight_repository import InsightRepository
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ def get_book_content(
                 all_step_ids.extend(content[key].get("steps", []))
 
         if all_step_ids:
-            steps_data = BookRepository.get_insights_by_ids(all_step_ids)
+            steps_data = InsightRepository.get_insights_by_ids(all_step_ids)
 
             for step in steps_data:
                 if step.category_name in keys_to_use:

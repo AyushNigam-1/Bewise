@@ -113,13 +113,13 @@ const InsightsTab = () => {
             <div className="flex-grow w-full">
 
                 {viewState === "loading" && (
-                    <div className="w-full h-[90vh] flex items-center justify-center">
+                    <div className="w-full h-[90dvh] flex items-center justify-center">
                         <Loader2 className="animate-spin text-gray-400" size={36} />
                     </div>
                 )}
 
                 {viewState === "error" && (
-                    <div className="w-full h-[80vh] flex items-center justify-center text-red-500">
+                    <div className="w-full h-[80dvh] flex items-center justify-center text-red-500">
                         Something went wrong loading your bookmarks.
                     </div>
                 )}
@@ -129,7 +129,7 @@ const InsightsTab = () => {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.3, ease: "easeOut" }}
-                        className="w-full h-[80vh] flex flex-col items-center justify-center text-center px-4"
+                        className="w-full h-[80dvh] flex flex-col items-center justify-center text-center px-4"
                     >
                         <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-full mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
                             <Bookmark size={48} strokeWidth={1.5} className="text-gray-400 dark:text-gray-500" />
