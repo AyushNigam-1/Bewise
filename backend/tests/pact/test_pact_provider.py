@@ -26,8 +26,8 @@ def run_fastapi_server_with_db():
 
         proc = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "tests.pact.pact_app:app", "--host", "127.0.0.1", "--port", "8000"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=sys.stdout, # 🚨 PRINTS UVICORN LOGS TO YOUR TERMINAL
+            stderr=sys.stderr, #
             env=my_env
         )
         
@@ -60,7 +60,8 @@ def test_pact_provider_compliance():
     verifier = (
         Verifier("BookistBackend", host="127.0.0.1")
         .add_source(PACT_FILE_PATH)
-        # We deleted the state_handler line!
+        # 🚨 BRING THIS BACK: Tells Pact to trigger dynamic DB seeding
+        .state_handler("http://127.0.0.1:8000/_pact/setup", body=True)
         .add_transport(protocol="http", port=8000)
     )
 

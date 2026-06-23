@@ -61,26 +61,3 @@ export const getBookmarkedInsights = async () => {
         throw new Error(error.response?.data?.detail || "Failed to fetch bookmarked insights");
     }
 };
-
-// export const getCompletedInsights = async (bookName: string) => {
-//     try {
-//         const response = await api.get(`/completed/insights/${bookName}`);
-//         return response.data.insights;
-//     } catch (error) {
-//         console.error("Failed to fetch completed insights:", error);
-//         throw error;
-//     }
-// };
-
-// export const addCompletedInsight = async (bookName: string, insightId: number) => {
-//     try {
-//         const response = await api.post(`/complete/insight`, {
-//             book_name: bookName,
-//             insight_id: insightId
-//         });
-//         return response.data;
-//     } catch (error) {
-//         console.error("Failed to add completed insight", error);
-//         throw error;
-//     }
-// }

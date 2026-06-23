@@ -4,67 +4,6 @@
   },
   "interactions": [
     {
-      "description": "a request for session recommendations",
-      "providerStates": [
-        {
-          "name": "a request for session recommendations"
-        }
-      ],
-      "request": {
-        "body": {
-          "insight_id": 42
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "method": "POST",
-        "path": "/insights/session-recommend"
-      },
-      "response": {
-        "body": {
-          "recommendations": [
-            {
-              "category": "productivity",
-              "title": "A related insight"
-            }
-          ]
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "matchingRules": {
-          "body": {
-            "$.recommendations": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type",
-                  "min": 1
-                }
-              ]
-            },
-            "$.recommendations[*].category": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.recommendations[*].title": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            }
-          }
-        },
-        "status": 200
-      }
-    },
-    {
       "description": "a request to get all bookmarked books",
       "providerStates": [
         {
