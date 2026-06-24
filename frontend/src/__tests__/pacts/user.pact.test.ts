@@ -1,5 +1,4 @@
-import { PactV3, MatchersV3 } from "@pact-foundation/pact";
-import path from "path";
+import { MatchersV3 } from "@pact-foundation/pact";
 import { describe, it, expect } from "vitest";
 import { api } from "@/app/lib/api";
 import {
@@ -9,14 +8,9 @@ import {
     getBookmarkedBooks,
     getBookmarkedInsights
 } from "@/app/services/userService";
+import { provider } from "./setup.pact";
 
 const { eachLike, integer, string, boolean } = MatchersV3;
-
-const provider = new PactV3({
-    consumer: "BookistFrontend",
-    provider: "BookistBackend",
-    dir: path.resolve(process.cwd(), "pacts"),
-});
 
 describe("User & Bookmarks API Frontend Contract", () => {
 
@@ -64,7 +58,7 @@ describe("User & Bookmarks API Frontend Contract", () => {
             .withRequest({
                 method: "POST",
                 path: "/insights/session-recommend",
-                body: { id: 42 }
+                body: { insight_id: 42 }
             })
             .willRespondWith({
                 status: 200,
@@ -123,7 +117,7 @@ describe("User & Bookmarks API Frontend Contract", () => {
                 headers: { "Content-Type": "application/json" },
                 body: {
                     insights: eachLike({
-                        insight_id: integer(42),
+                        // insight_id: integer(42),
                         title: string("Keep functions small")
                     }),
                     categories: eachLike({

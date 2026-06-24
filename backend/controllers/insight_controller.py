@@ -108,7 +108,7 @@ def get_step_details(step_id: int, user_id: str = "anonymous") -> Dict[str, Any]
         return data
 
     try:
-        insight = BookRepository.get_insight_by_id(step_id)
+        insight = InsightRepository.get_insight_by_id(step_id)
 
         if not insight:
             logger.warning("Step not found", extra=log_context)

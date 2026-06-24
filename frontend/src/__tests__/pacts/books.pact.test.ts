@@ -1,5 +1,4 @@
-import { PactV3, MatchersV3 } from "@pact-foundation/pact";
-import path from "path";
+import { MatchersV3 } from "@pact-foundation/pact";
 import { describe, it, expect, beforeAll } from "vitest";
 import { api } from "@/app/lib/api";
 import {
@@ -12,14 +11,8 @@ import {
     toggleBookmarkBook,
     toggleBookmarkInsight,
 } from "@/app/services/bookService"
-
-const { like, eachLike, boolean, integer, string } = MatchersV3;
-
-const provider = new PactV3({
-    consumer: "BookistFrontend",
-    provider: "BookistBackend",
-    dir: path.resolve(process.cwd(), "pacts"),
-});
+import { provider } from "./setup.pact";
+const { eachLike, boolean, integer, string } = MatchersV3;
 
 describe("Books API Contract Tests", () => {
     // CRITICAL: Point Axios to the Pact Mock Server
@@ -54,6 +47,7 @@ describe("Books API Contract Tests", () => {
 
     it("finds books by categories", async () => {
         provider
+            .given("a request to find books by categories")
             .uponReceiving("a request to find books by categories")
             .withRequest({
                 method: "POST",
@@ -78,6 +72,7 @@ describe("Books API Contract Tests", () => {
 
     it("gets book content by title", async () => {
         provider
+            .given("a request for book content")
             .uponReceiving("a request for book content")
             .withRequest({
                 method: "POST",
@@ -102,6 +97,7 @@ describe("Books API Contract Tests", () => {
 
     it("gets specific step details", async () => {
         provider
+            .given("a request for step details")
             .uponReceiving("a request for step details")
             .withRequest({ method: "GET", path: "/insights/42" })
             .willRespondWith({
@@ -129,9 +125,11 @@ describe("Books API Contract Tests", () => {
             Description: "Testing",
             Thumbnail: "img.png",
             Content: {},
+            Category: ["python"],
         };
 
         provider
+            .given("a request to create a book")
             .uponReceiving("a request to create a book")
             .withRequest({ method: "POST", path: "/books/", body: payload })
             .willRespondWith({
@@ -149,6 +147,7 @@ describe("Books API Contract Tests", () => {
 
     it("gets book info by title", async () => {
         provider
+            .given("a request for book info")
             .uponReceiving("a request for book info")
             .withRequest({ method: "GET", path: "/book/Atomic%20Habits/info" })
             .willRespondWith({
