@@ -147,67 +147,6 @@
       }
     },
     {
-      "description": "a request for session recommendations",
-      "providerStates": [
-        {
-          "name": "a request for session recommendations"
-        }
-      ],
-      "request": {
-        "body": {
-          "insight_id": 42
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "method": "POST",
-        "path": "/insights/session-recommend"
-      },
-      "response": {
-        "body": {
-          "recommendations": [
-            {
-              "category": "productivity",
-              "title": "A related insight"
-            }
-          ]
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "matchingRules": {
-          "body": {
-            "$.recommendations": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type",
-                  "min": 1
-                }
-              ]
-            },
-            "$.recommendations[*].category": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.recommendations[*].title": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            }
-          }
-        },
-        "status": 200
-      }
-    },
-    {
       "description": "a request for step details",
       "providerStates": [
         {
@@ -394,6 +333,104 @@
               ]
             },
             "$.categories[*].name": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "a request to generate a quiz",
+      "providerStates": [
+        {
+          "name": "a request to generate a quiz"
+        }
+      ],
+      "request": {
+        "body": {
+          "input": {
+            "source_text": "Python is a programming language created by Guido van Rossum."
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.input.source_text": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/ai/quiz/invoke"
+      },
+      "response": {
+        "body": {
+          "output": {
+            "quiz": [
+              {
+                "correct_answer": "Guido van Rossum",
+                "explanation": "He created it in 1991.",
+                "options": [
+                  "Guido van Rossum"
+                ],
+                "question": "Who created Python?"
+              }
+            ]
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.output.quiz": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.output.quiz[*].correct_answer": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.output.quiz[*].explanation": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.output.quiz[*].options": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.output.quiz[*].question": {
               "combine": "AND",
               "matchers": [
                 {
@@ -628,6 +665,11 @@
     },
     {
       "description": "a request to get all books",
+      "providerStates": [
+        {
+          "name": "a request to get all books"
+        }
+      ],
       "request": {
         "method": "GET",
         "path": "/books"
@@ -714,14 +756,82 @@
       }
     },
     {
+      "description": "a request to invoke the RAG chatbot",
+      "providerStates": [
+        {
+          "name": "a request to invoke the RAG chatbot"
+        }
+      ],
+      "request": {
+        "body": {
+          "input": {
+            "message": "What is Python?"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.input.message": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/ai/rag/invoke"
+      },
+      "response": {
+        "body": {
+          "output": {
+            "answer": "Python is a programming language.",
+            "insights": {}
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.output.answer": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.output.insights": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
       "description": "a request to toggle a book bookmark",
+      "providerStates": [
+        {
+          "name": "a request to toggle a book bookmark"
+        }
+      ],
       "request": {
         "method": "POST",
         "path": "/bookmark/book/1"
       },
       "response": {
         "body": {
-          "bookmarked": true,
           "favourite_books": [
             1
           ]
@@ -731,28 +841,12 @@
         },
         "matchingRules": {
           "body": {
-            "$.bookmarked": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
             "$.favourite_books": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "type",
                   "min": 1
-                }
-              ]
-            },
-            "$.favourite_books[*]": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "integer"
                 }
               ]
             }
@@ -763,13 +857,18 @@
     },
     {
       "description": "a request to toggle an insight bookmark",
+      "providerStates": [
+        {
+          "name": "a request to toggle an insight bookmark"
+        }
+      ],
       "request": {
         "method": "POST",
         "path": "/bookmark/insight/42"
       },
       "response": {
         "body": {
-          "bookmarked": false,
+          "bookmarked": true,
           "favourite_insights": [
             42
           ]
@@ -793,14 +892,6 @@
                 {
                   "match": "type",
                   "min": 1
-                }
-              ]
-            },
-            "$.favourite_insights[*]": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "integer"
                 }
               ]
             }

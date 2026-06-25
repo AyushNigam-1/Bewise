@@ -8,7 +8,6 @@ from repositories.insight_repository import InsightRepository
 
 logger = logging.getLogger(__name__)
 
-
 def get_book_content(
     title: str, category: List[str] = None, user_id: str = "anonymous"
 ) -> Dict[str, Any]:

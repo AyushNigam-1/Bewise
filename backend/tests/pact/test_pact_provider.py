@@ -59,7 +59,11 @@ def run_fastapi_server_with_db():
 def test_pact_provider_compliance():
     verifier = (
         Verifier("BookistBackend", host="127.0.0.1")
-        .add_source(PACT_FILE_PATH)
+        .broker_source(
+    url=os.environ["PACT_BROKER_BASE_URL"],
+    username=os.environ["PACT_BROKER_USERNAME"],
+    password=os.environ["PACT_BROKER_PASSWORD"],
+)
         # 🚨 BRING THIS BACK: Tells Pact to trigger dynamic DB seeding
         .state_handler("http://127.0.0.1:8000/_pact/setup", body=True)
         .add_transport(protocol="http", port=8000)

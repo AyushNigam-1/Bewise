@@ -22,6 +22,7 @@ describe("Books API Contract Tests", () => {
 
     it("gets all books", async () => {
         provider
+            .given("a request to get all books")
             .uponReceiving("a request to get all books")
             .withRequest({ method: "GET", path: "/books" })
             .willRespondWith({
@@ -167,45 +168,7 @@ describe("Books API Contract Tests", () => {
         });
     });
 
-    it("toggles a book bookmark", async () => {
-        provider
-            .uponReceiving("a request to toggle a book bookmark")
-            .withRequest({ method: "POST", path: "/bookmark/book/1" })
-            .willRespondWith({
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-                body: {
-                    bookmarked: boolean(true),
-                    favourite_books: eachLike(integer(1)),
-                },
-            });
 
-        await provider.executeTest(async (mockServer) => {
-            api.defaults.baseURL = mockServer.url;
-            const res = await toggleBookmarkBook(1);
-            expect(typeof res.bookmarked).toBe("boolean");
-        });
-    });
-
-    it("toggles an insight bookmark", async () => {
-        provider
-            .uponReceiving("a request to toggle an insight bookmark")
-            .withRequest({ method: "POST", path: "/bookmark/insight/42" })
-            .willRespondWith({
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-                body: {
-                    bookmarked: boolean(false),
-                    favourite_insights: eachLike(integer(42)),
-                },
-            });
-
-        await provider.executeTest(async (mockServer) => {
-            api.defaults.baseURL = mockServer.url;
-            const res = await toggleBookmarkInsight(42);
-            expect(typeof res.bookmarked).toBe("boolean");
-        });
-    });
 
     // Note on processBook:
     // We skip 'processBook' here because Multipart/Form-Data boundaries are 

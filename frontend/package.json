@@ -8,6 +8,8 @@
     "start": "next start",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run",
+    "test:pact": "vitest run src/__test__/pacts",
+    "pact:publish": "npx pact-broker publish ./pacts --broker-base-url=http://localhost:9292 --consumer-app-version=1.0.2",
     "lint": "next lint"
   },
   "dependencies": {
@@ -46,6 +48,7 @@
   },
   "devDependencies": {
     "@pact-foundation/pact": "^16.5.0",
+    "@pact-foundation/pact-cli": "^18.1.0",
     "@tailwindcss/postcss": "^4.2.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

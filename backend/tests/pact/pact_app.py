@@ -1,13 +1,13 @@
 import os
-from sqlmodel import Session, SQLModel,delete
+from sqlmodel import Session, SQLModel, delete
 from core.database import engine
 from core.models import Book, Insight, User
 from unittest.mock import patch 
-from datetime import datetime
-import routes.books_routes
-import services.vector
-import core.redis
-import controllers.recommendation_controller
+from tests.pact.state_handlers import STATE_REGISTRY # 🚨 Import the Registry
+
+# ---------------------------------------------------------
+# 🚨 1. START PATCHES FIRST (Hijack LangGraph directly!)
+# ---------------------------------------------------------
 patch('controllers.quiz_controller.quiz_graph.invoke', return_value={
     "generated_quiz": {
         "quiz": [
@@ -30,8 +30,16 @@ patch('controllers.chatbot_controller.rag_graph.invoke', return_value={
     }
 }).start()
 
+# ---------------------------------------------------------
+# 🚨 2. NOW IMPORT FASTAPI
+# ---------------------------------------------------------
 from app import app
+import routes.books_routes
+import services.vector
+import core.redis
+import controllers.recommendation_controller
 
+# Standard Lambda Mocks
 routes.books_routes.create_book = lambda book_data: {"message": "Book and associated steps created successfully"}
 services.vector.embed_and_upsert_insight = lambda *args, **kwargs: 1
 core.redis.redis_client.get = lambda key: None
@@ -42,6 +50,9 @@ controllers.recommendation_controller.session_recommend = lambda user_id, insigh
     ]
 }
 
+# ---------------------------------------------------------
+# 🚨 3. THE DYNAMIC WEBHOOK (Powered by the Registry)
+# ---------------------------------------------------------
 @app.post("/_pact/setup")
 async def setup_state(request: dict):
     state = request.get("state")
@@ -49,49 +60,22 @@ async def setup_state(request: dict):
     
     if os.getenv("PACT_TESTING") == "true":
         SQLModel.metadata.create_all(engine)
+        
         with Session(engine) as session:
+            # 1. Wipe the DB clean
             session.exec(delete(User))
             session.exec(delete(Book))
             session.exec(delete(Insight))
 
-            fav_books = []
-            fav_insights = []
+            # 2. Look up the specific seeding function for this state
+            handler = STATE_REGISTRY.get(state)
             
-            if state in ["a request to get all bookmarked books", "a request to get all bookmarked insights"]:
-                fav_books = [1]
-                fav_insights = [42]
-                            
-            u1 = User(
-                id="pact_test_user_123", 
-                name="Pact User", 
-                email="pact@test.com",
-                createdAt=datetime.now(),
-                updatedAt=datetime.now(),
-                favourite_books=fav_books,
-                favourite_insights=fav_insights
-            )
+            # 3. Execute the function if it exists
+            if handler:
+                handler(session)
+            else:
+                print(f"⚠️ Warning: No handler mapped for '{state}'. Database left empty.")
 
-            b1 = Book(
-                id=1, 
-                title="Atomic Habits", 
-                author="James Clear",
-                description="A book about habits",
-                thumbnail="url.png",
-                category=["productivity","python", "ai"], 
-                content={"python": {"icon": "🐍", "description": "Python", "steps": [42]}}
-            )
-            
-            i1 = Insight(
-                id=42, 
-                title="Keep functions small", 
-                book_name="Atomic Habits",
-                description="Short desc",
-                detailed_breakdown="Detailed breakdown...", 
-                category_name="python",
-                category_icon="🐍"
-            )
-
-            session.add_all([u1, b1, i1])
             session.commit()
             
     return {"result": "setup complete"}

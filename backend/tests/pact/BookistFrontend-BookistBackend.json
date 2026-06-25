@@ -4,28 +4,34 @@
   },
   "interactions": [
     {
-      "description": "a request for session recommendations",
+      "description": "a request for book content",
       "providerStates": [
         {
-          "name": "a request for session recommendations"
+          "name": "a request for book content"
         }
       ],
       "request": {
-        "body": {
-          "insight_id": 42
-        },
+        "body": [
+          "python"
+        ],
         "headers": {
           "Content-Type": "application/json"
         },
         "method": "POST",
-        "path": "/insights/session-recommend"
+        "path": "/book/Atomic%20Habits/content"
       },
       "response": {
         "body": {
-          "recommendations": [
+          "keys": [
             {
-              "category": "productivity",
-              "title": "A related insight"
+              "name": "python",
+              "steps_count": "5"
+            }
+          ],
+          "values": [
+            {
+              "step": "Step 1",
+              "step_id": 1
             }
           ]
         },
@@ -34,7 +40,7 @@
         },
         "matchingRules": {
           "body": {
-            "$.recommendations": {
+            "$.keys": {
               "combine": "AND",
               "matchers": [
                 {
@@ -43,7 +49,7 @@
                 }
               ]
             },
-            "$.recommendations[*].category": {
+            "$.keys[*].name": {
               "combine": "AND",
               "matchers": [
                 {
@@ -51,7 +57,143 @@
                 }
               ]
             },
-            "$.recommendations[*].title": {
+            "$.keys[*].steps_count": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.values": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.values[*].step": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.values[*].step_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "a request for book info",
+      "providerStates": [
+        {
+          "name": "a request for book info"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/book/Atomic%20Habits/info"
+      },
+      "response": {
+        "body": {
+          "sub_categories_count": 3,
+          "title": "Atomic Habits",
+          "total_insights": 15
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.sub_categories_count": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.title": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.total_insights": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "a request for step details",
+      "providerStates": [
+        {
+          "name": "a request for step details"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/insights/42"
+      },
+      "response": {
+        "body": {
+          "book_name": "Clean Code",
+          "detailed_breakdown": "...",
+          "step_id": 42,
+          "title": "Keep functions small"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.book_name": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.detailed_breakdown": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.step_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.title": {
               "combine": "AND",
               "matchers": [
                 {
@@ -62,6 +204,52 @@
           }
         },
         "status": 200
+      }
+    },
+    {
+      "description": "a request to create a book",
+      "providerStates": [
+        {
+          "name": "a request to create a book"
+        }
+      ],
+      "request": {
+        "body": {
+          "Author": "Me",
+          "Category": [
+            "python"
+          ],
+          "Content": {},
+          "Description": "Testing",
+          "Thumbnail": "img.png",
+          "Title": "New Book"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/books/"
+      },
+      "response": {
+        "body": {
+          "message": "Book and associated steps created successfully"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.message": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 201
       }
     },
     {
@@ -158,325 +346,12 @@
       }
     },
     {
-      "description": "a request to generate a quiz",
-      "providerStates": [
-        {
-          "name": "a request to generate a quiz"
-        }
-      ],
-      "request": {
-        "body": {
-          "input": {
-            "source_text": "Python is a programming language created by Guido van Rossum."
-          }
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "matchingRules": {
-          "body": {
-            "$.input.source_text": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            }
-          }
-        },
-        "method": "POST",
-        "path": "/ai/quiz/invoke"
-      },
-      "response": {
-        "body": {
-          "output": {
-            "quiz": [
-              {
-                "correct_answer": "Guido van Rossum",
-                "explanation": "He created it in 1991.",
-                "options": [
-                  "Guido van Rossum"
-                ],
-                "question": "Who created Python?"
-              }
-            ]
-          }
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "matchingRules": {
-          "body": {
-            "$.output.quiz": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type",
-                  "min": 1
-                }
-              ]
-            },
-            "$.output.quiz[*].correct_answer": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.output.quiz[*].explanation": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.output.quiz[*].options": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type",
-                  "min": 1
-                }
-              ]
-            },
-            "$.output.quiz[*].question": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            }
-          }
-        },
-        "status": 200
-      }
-    },
-    {
-      "description": "a request to get all bookmarked books",
-      "providerStates": [
-        {
-          "name": "a request to get all bookmarked books"
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "path": "/bookmarks/books"
-      },
-      "response": {
-        "body": {
-          "books": [
-            {
-              "author": "James Clear",
-              "category": [
-                "productivity"
-              ],
-              "description": "A book about habits",
-              "id": 1,
-              "thumbnail": "url.png",
-              "title": "Atomic Habits"
-            }
-          ],
-          "categories": [
-            {
-              "description": "Explore insights from this category.",
-              "icon": "📌",
-              "name": "productivity"
-            }
-          ]
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "matchingRules": {
-          "body": {
-            "$.books": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type",
-                  "min": 1
-                }
-              ]
-            },
-            "$.books[*].author": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.books[*].category": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type",
-                  "min": 1
-                }
-              ]
-            },
-            "$.books[*].description": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.books[*].id": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "integer"
-                }
-              ]
-            },
-            "$.books[*].thumbnail": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.books[*].title": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.categories": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type",
-                  "min": 1
-                }
-              ]
-            },
-            "$.categories[*].description": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.categories[*].icon": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.categories[*].name": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            }
-          }
-        },
-        "status": 200
-      }
-    },
-    {
-      "description": "a request to get all bookmarked insights",
-      "providerStates": [
-        {
-          "name": "a request to get all bookmarked insights"
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "path": "/bookmarks/insights"
-      },
-      "response": {
-        "body": {
-          "categories": [
-            {
-              "description": "Python",
-              "icon": "🐍",
-              "name": "python"
-            }
-          ],
-          "insights": [
-            {
-              "title": "Keep functions small"
-            }
-          ]
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "matchingRules": {
-          "body": {
-            "$.categories": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type",
-                  "min": 1
-                }
-              ]
-            },
-            "$.categories[*].description": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.categories[*].icon": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.categories[*].name": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            },
-            "$.insights": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type",
-                  "min": 1
-                }
-              ]
-            },
-            "$.insights[*].title": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            }
-          }
-        },
-        "status": 200
-      }
-    },
-    {
       "description": "a request to get all books",
+      "providerStates": [
+        {
+          "name": "a request to get all books"
+        }
+      ],
       "request": {
         "method": "GET",
         "path": "/books"
@@ -563,49 +438,29 @@
       }
     },
     {
-      "description": "a request to invoke the RAG chatbot",
+      "description": "a request to toggle a book bookmark",
       "providerStates": [
         {
-          "name": "a request to invoke the RAG chatbot"
+          "name": "a request to toggle a book bookmark"
         }
       ],
       "request": {
-        "body": {
-          "input": {
-            "message": "What is Python?"
-          }
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "matchingRules": {
-          "body": {
-            "$.input.message": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "type"
-                }
-              ]
-            }
-          }
-        },
         "method": "POST",
-        "path": "/ai/rag/invoke"
+        "path": "/bookmark/book/1"
       },
       "response": {
         "body": {
-          "output": {
-            "answer": "Python is a programming language.",
-            "insights": {}
-          }
+          "bookmarked": true,
+          "favourite_books": [
+            1
+          ]
         },
         "headers": {
           "Content-Type": "application/json"
         },
         "matchingRules": {
           "body": {
-            "$.output.answer": {
+            "$.bookmarked": {
               "combine": "AND",
               "matchers": [
                 {
@@ -613,11 +468,20 @@
                 }
               ]
             },
-            "$.output.insights": {
+            "$.favourite_books": {
               "combine": "AND",
               "matchers": [
                 {
-                  "match": "type"
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.favourite_books[*]": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
                 }
               ]
             }
@@ -628,13 +492,18 @@
     },
     {
       "description": "a request to toggle an insight bookmark",
+      "providerStates": [
+        {
+          "name": "a request to toggle an insight bookmark"
+        }
+      ],
       "request": {
         "method": "POST",
         "path": "/bookmark/insight/42"
       },
       "response": {
         "body": {
-          "bookmarked": true,
+          "bookmarked": false,
           "favourite_insights": [
             42
           ]
@@ -658,6 +527,14 @@
                 {
                   "match": "type",
                   "min": 1
+                }
+              ]
+            },
+            "$.favourite_insights[*]": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
                 }
               ]
             }

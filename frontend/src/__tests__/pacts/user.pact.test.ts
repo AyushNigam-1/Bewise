@@ -16,6 +16,7 @@ describe("User & Bookmarks API Frontend Contract", () => {
 
     it("generates the contract for toggling a favourite book", async () => {
         provider
+            .given("a request to toggle a book bookmark")
             .uponReceiving("a request to toggle a book bookmark")
             .withRequest({ method: "POST", path: "/bookmark/book/1" })
             .willRespondWith({
@@ -34,7 +35,8 @@ describe("User & Bookmarks API Frontend Contract", () => {
     });
 
     it("generates the contract for toggling a favourite insight", async () => {
-        provider.uponReceiving("a request to toggle an insight bookmark")
+        provider.given("a request to toggle an insight bookmark")
+            .uponReceiving("a request to toggle an insight bookmark")
             .withRequest({ method: "POST", path: "/bookmark/insight/42" })
             .willRespondWith({
                 status: 200,
