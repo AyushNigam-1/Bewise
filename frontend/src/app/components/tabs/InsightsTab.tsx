@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Bookmark, SearchX } from "lucide-react";
 import { motion } from "framer-motion";
-import { getBookmarkedInsights } from "@/app/services/userService";
+import { getBookmarkedInsights } from "@/app/services/bookmarkServices";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { User, Categories, StepData } from "@/app/types";
 import ShareModal from "@/app/components/modals/ShareModal";

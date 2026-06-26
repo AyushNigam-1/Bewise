@@ -1,23 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { Loader2, User, Github } from "lucide-react";
 import { motion } from "framer-motion";
-import { toast } from "react-toastify";
-import { signIn } from "@/app/lib/auth-client";
-import posthog from "posthog-js";
-
-const loginSchema = z.object({
-  email: z.email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
+import { useAuthActions } from "@/app/hooks/mutations/useAuthActions";
+import { loginSchema, type LoginFormValues } from "../../../../types/auth"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -39,12 +28,7 @@ const itemVariants = {
 };
 
 const Login = () => {
-  const router = useRouter();
-
-  const [isPending, setIsPending] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<
-    "google" | "github" | null
-  >(null);
+  const { isPending, socialLoading, loginWithEmail, continueWithSocial } = useAuthActions();
 
   const {
     register,
@@ -54,56 +38,6 @@ const Login = () => {
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
-
-  const onSubmit = async (data: LoginFormValues) => {
-    setIsPending(true);
-
-    try {
-      const response = await signIn.email({
-        email: data.email,
-        password: data.password,
-      });
-      if (response?.error) {
-        console.log("working");
-        toast.error("Invalid credentials. Try again.");
-        posthog.captureException(
-          new Error(response.error.message || "Login failed"),
-        );
-      } else {
-        toast.success("Successfully logged in!");
-        posthog.identify(data.email, { email: data.email });
-        posthog.capture("user_logged_in", { method: "email" });
-        router.push("/");
-      }
-    } catch (err: any) {
-      toast.error("Invalid credentials. Try again.");
-      posthog.captureException(err);
-    } finally {
-      setIsPending(false);
-    }
-  };
-
-  const handleSocialLogin = async (provider: "google" | "github") => {
-    setSocialLoading(provider);
-    posthog.capture("social_login_clicked", { provider, page: "login" });
-
-    try {
-      const { error } = await signIn.social({
-        provider,
-        callbackURL: "/",
-      });
-
-      if (error) {
-        toast.error(`Failed to connect with ${provider}. Please try again.`);
-        posthog.captureException(new Error(`Social login failed: ${provider}`));
-        setSocialLoading(null);
-      }
-    } catch (err: any) {
-      toast.error(`Failed to connect with ${provider}. Please try again.`);
-      posthog.captureException(err);
-      setSocialLoading(null);
-    }
-  };
 
   return (
     <motion.div
@@ -135,7 +69,7 @@ const Login = () => {
       >
         <button
           type="button"
-          onClick={() => handleSocialLogin("google")}
+          onClick={() => continueWithSocial("google")}
           disabled={socialLoading !== null}
           className="w-full flex justify-center items-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-300 p-3 font-semibold disabled:opacity-70 disabled:cursor-not-allowed"
         >
@@ -155,7 +89,7 @@ const Login = () => {
 
         <button
           type="button"
-          onClick={() => handleSocialLogin("github")}
+          onClick={() => continueWithSocial("github")}
           disabled={socialLoading !== null}
           className="w-full flex justify-center items-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-300 p-3 font-semibold disabled:opacity-70 disabled:cursor-not-allowed"
         >
@@ -182,7 +116,7 @@ const Login = () => {
       </motion.div>
 
       <form
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(loginWithEmail)}
         className="flex flex-col gap-4"
         noValidate
       >
@@ -236,7 +170,7 @@ const Login = () => {
             type="button"
             disabled={isPending || socialLoading !== null}
             onClick={() =>
-              onSubmit({
+              loginWithEmail({
                 email: "guest@example.com",
                 password: "guestpassword123",
               })

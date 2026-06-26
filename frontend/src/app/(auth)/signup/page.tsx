@@ -1,24 +1,12 @@
 "use client";
 
-import * as z from "zod";
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Github, UserPlus } from "lucide-react";
 import { motion } from "framer-motion";
-import { toast } from "react-toastify";
-import { signIn, signUp } from "@/app/lib/auth-client";
-import posthog from "posthog-js";
-
-const registerSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  email: z.email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
-
-type RegisterFormValues = z.infer<typeof registerSchema>;
+import { useAuthActions } from "@/app/hooks/mutations/useAuthActions";
+import { RegisterFormValues, registerSchema } from "../../../../types/auth";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -40,11 +28,7 @@ const itemVariants = {
 };
 
 const CreateAccount = () => {
-  const router = useRouter();
-  const [isPending, setIsPending] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<
-    "google" | "github" | null
-  >(null);
+  const { isPending, socialLoading, signUpWithEmail, continueWithSocial } = useAuthActions();
 
   const {
     register,
@@ -54,61 +38,6 @@ const CreateAccount = () => {
     resolver: zodResolver(registerSchema),
     defaultValues: { username: "", email: "", password: "" },
   });
-
-  const onSubmit = async (data: RegisterFormValues) => {
-    setIsPending(true);
-
-    try {
-      const response = await signUp.email({
-        email: data.email,
-        password: data.password,
-        name: data.username,
-      });
-
-      if (response?.error) {
-        const errorMsg = response.error.message || "Failed! Please try again.";
-        toast.error(errorMsg);
-        posthog.captureException(new Error(errorMsg));
-      } else {
-        posthog.identify(data.email, {
-          email: data.email,
-          name: data.username,
-        });
-        posthog.capture("user_signed_up", { method: "email" });
-        toast.success("Account created successfully!");
-        router.push("/");
-      }
-    } catch (err: any) {
-      toast.error("Failed to create account. Please try again.");
-      posthog.captureException(err);
-    } finally {
-      setIsPending(false);
-    }
-  };
-
-  const handleSocialLogin = async (provider: "google" | "github") => {
-    setSocialLoading(provider);
-    posthog.capture("social_login_clicked", { provider, page: "signup" });
-
-    try {
-      const { error } = await signIn.social({
-        provider,
-        callbackURL: "/",
-      });
-
-      if (error) {
-        toast.error(`Failed to connect with ${provider}. Please try again.`);
-        posthog.captureException(
-          new Error(`Social signup failed: ${provider}`),
-        );
-        setSocialLoading(null);
-      }
-    } catch (err: any) {
-      toast.error(`Failed to connect with ${provider}. Please try again.`);
-      posthog.captureException(err);
-      setSocialLoading(null);
-    }
-  };
 
   return (
     <motion.div
@@ -139,7 +68,7 @@ const CreateAccount = () => {
       >
         <button
           type="button"
-          onClick={() => handleSocialLogin("google")}
+          onClick={() => continueWithSocial("google")}
           disabled={socialLoading !== null}
           className="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-300 p-3 font-semibold shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
         >
@@ -159,7 +88,7 @@ const CreateAccount = () => {
 
         <button
           type="button"
-          onClick={() => handleSocialLogin("github")}
+          onClick={() => continueWithSocial("github")}
           disabled={socialLoading !== null}
           className="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-300 p-3 font-semibold shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
         >
@@ -186,7 +115,7 @@ const CreateAccount = () => {
       </motion.div>
 
       <form
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(signUpWithEmail)}
         className="flex flex-col gap-4"
         noValidate
       >

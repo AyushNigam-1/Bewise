@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { Slide, toast } from "react-toastify";
-import { toggleBookmarkInsight, toggleBookmarkBook } from "@/app/services/bookService";
+import { toggleBookmarkInsight, toggleBookmarkBook } from "@/app/services/bookmarkServices";
 import { useUserStore } from "@/app/stores/useUserStores";
 import posthog from "posthog-js";
 

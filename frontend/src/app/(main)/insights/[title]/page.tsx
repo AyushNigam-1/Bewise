@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { getBookContent } from "@/app/services/bookService";
-import ShareModal from "../../../components/modals/ShareModal";
-import Slider from "../../../components/layout/Slider";
+import { getBookContent } from "@/app/services/insightService";
+import ShareModal from "@/app/components/modals/ShareModal";
+import Slider from "@/app/components/layout/Slider";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { useBookmarkInsight } from "@/app/hooks/mutations/useBookmark";
 import { InsightCard } from "@/app/components/cards/InsightsCard";
@@ -27,6 +27,7 @@ export default function Page() {
   const [mode, setMode] = useState("List");
   const [shareModal, setShareModal] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
+
   const user = useUserStore((state: any) => state.user);
   const { mutate: bookmarkInsight } = useBookmarkInsight();
 
@@ -44,10 +45,8 @@ export default function Page() {
     enabled: !!params?.title,
   });
 
-  const categories =
-    responseData?.data?.keys ?? responseData?.keys ?? EMPTY_CATEGORIES;
-  const steps =
-    responseData?.data?.values ?? responseData?.values ?? EMPTY_STEPS;
+  const categories = responseData?.keys ?? EMPTY_CATEGORIES;
+  const steps = responseData?.values ?? EMPTY_STEPS;
 
   useEffect(() => {
     if (steps.length && categories.length) {
@@ -172,7 +171,7 @@ export default function Page() {
                 ) : (
                   <motion.div
                     key="empty-state" // 🌟 FIX: Added key here so React knows it's a new element
-                    initial={{ opacity: 0, y: 20 }} // 🌟 Swapped scale for smooth y-axis slide
+                    initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
                     transition={{ duration: 0.3, ease: "easeOut" }}

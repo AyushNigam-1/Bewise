@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { findBooksByCategories } from "@/app/services/bookService";
 import { useUserStore } from "@/app/stores/useUserStores";
-import { Categories, User } from "@/app/types";
+import { Book, Categories, User } from "@/app/types";
 import Header from "@/app/components/layout/Header";
 import { Loader2, SearchX } from "lucide-react";
 import BookCard from "@/app/components/cards/BookCards";
@@ -19,24 +19,21 @@ const ExplorePage = () => {
     [],
   );
   const [selectedCategory, setSelectedCategory] = useState<Categories[]>([]);
-  const [filteredBooks, setFilteredBooks] = useState<any[]>([]);
+  const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
   const [shareModal, setShareModal] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const user = useUserStore((state: any) => state.user as User | null);
 
   const { data: responseData, isLoading } = useQuery({
-    queryKey: ["books-by-category", selectedCategory],
+    queryKey: ["books-by-category", selectedCategory.map((cat) => cat.name)],
     queryFn: () =>
       findBooksByCategories(
-        selectedCategory.length ? selectedCategory.map((cat) => cat.name) : [],
+        selectedCategory.length ? selectedCategory.map((cat) => cat.name) : []
       ),
   });
 
-  const books = responseData?.data?.books ?? responseData?.books ?? EMPTY_BOOKS;
-  const categories =
-    responseData?.data?.categories ??
-    responseData?.categories ??
-    EMPTY_CATEGORIES;
+  const books = responseData?.books ?? EMPTY_BOOKS;
+  const categories = responseData?.categories ?? EMPTY_CATEGORIES;
 
   useEffect(() => {
     setFilteredBooks(books);

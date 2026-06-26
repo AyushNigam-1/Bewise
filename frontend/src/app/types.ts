@@ -150,3 +150,13 @@ export type SearchBarProps = {
 }
 
 export type SliderProps = { steps: any[], title: string }
+
+export interface BookContentResponse {
+    keys: Categories[];
+    values: StepData[]; // 🚨 Wired to your StepData interface
+}
+
+export interface FindBooksResponse {
+    books: Book[];
+    categories: Categories[];
+}

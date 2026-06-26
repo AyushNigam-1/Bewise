@@ -1,29 +1,16 @@
 import { api } from "../lib/api";
-import { Recommendation } from "../types";
 
-export interface Insight {
-    id: number;
-    title: string;
-    content: string;
-    category: string;
-}
-
-export const getMe = async () => {
-    const res = await api.get(`/me`);
-    return res.data;
-};
-
-export const toggleFavouriteBook = async (bookId: number) => {
+export const toggleBookmarkBook = async (bookId: number) => {
     try {
         const res = await api.post(`/bookmark/book/${bookId}`);
-        return res.data.favourite_books;
+        return res.data;
     } catch (error) {
         console.error('Error toggling favourite book:', error);
         throw error;
     }
 };
 
-export const toggleFavouriteInsight = async (insightId: number) => {
+export const toggleBookmarkInsight = async (insightId: number) => {
     try {
         const response = await api.post(`/bookmark/insight/${insightId}`);
         return response.data;
@@ -32,16 +19,7 @@ export const toggleFavouriteInsight = async (insightId: number) => {
     }
 };
 
-export const fetchSessionRecommendations = async (stepId: string) => {
-    try {
-        const { data } = await api.post<{ recommendations: Recommendation[] }>(`/insights/session-recommend`, {
-            insight_id: Number(stepId),
-        });
-        return data.recommendations || [];
-    } catch (e) {
-        console.error("Recommendation failed", e);
-    }
-};
+
 
 export const getBookmarkedBooks = async () => {
     try {

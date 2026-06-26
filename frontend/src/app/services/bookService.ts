@@ -1,4 +1,5 @@
 import { api } from "../lib/api";
+import { BookInfo, FindBooksResponse } from "../types";
 
 export const getAllBooks = async () => {
     try {
@@ -8,34 +9,6 @@ export const getAllBooks = async () => {
         throw error;
     }
 };
-
-export const findBooksByCategories = async (categories: string[]) => {
-    try {
-        const response = await api.post(`/books/find-by-categories`, categories);
-        return response.data;
-    } catch (error: any) {
-        console.error(error);
-        throw error;
-    }
-};
-
-export const getBookContent = async (title: string, category: string[]) => {
-    try {
-        const response = await api.post(`/book/${title}/content`, category);
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
-};
-
-export async function getStepDetails(stepId: string) {
-    try {
-        const response = await api.get(`/insights/${stepId}`);
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
-}
 
 export const createBook = async (bookData: {
     Title: string;
@@ -69,29 +42,24 @@ export const processBook = async (file: File, bookDetails: Record<string, string
     }
 };
 
-export const getBookInfoByTitle = async (title: string) => {
+export const findBooksByCategories = async (categories: string[]): Promise<FindBooksResponse> => {
     try {
-        const response = await api.get(`/book/${title}/info`);
+        const response = await api.post<FindBooksResponse>(`/books/find-by-categories`, categories);
         return response.data;
-    } catch (error) {
-        throw error;
+    } catch (error: any) {
+        throw new Error(
+            error.response?.data?.detail || "Failed to find books by categories"
+        );
     }
 };
 
-export const toggleBookmarkBook = async (book_id: number) => {
+export const getBookInfoByTitle = async (title: string): Promise<BookInfo> => {
     try {
-        const res = await api.post(`/bookmark/book/${book_id}`);
-        return res.data;
-    } catch (err: any) {
-        throw new Error(err.response?.data?.detail || "Failed to toggle book bookmark");
-    }
-};
-
-export const toggleBookmarkInsight = async (insight_id: number) => {
-    try {
-        const res = await api.post(`/bookmark/insight/${insight_id}`);
-        return res.data;
-    } catch (err: any) {
-        throw new Error(err.response?.data?.detail || "Failed to toggle insight bookmark");
+        const response = await api.get<BookInfo>(`/book/${title}/info`);
+        return response.data;
+    } catch (error: any) {
+        throw new Error(
+            error.response?.data?.detail || `Failed to fetch info for book: ${title}`
+        );
     }
 };

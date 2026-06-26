@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, BookOpen, SearchX } from "lucide-react";
-import { getBookmarkedBooks } from "@/app/services/userService";
+import { getBookmarkedBooks } from "@/app/services/bookmarkServices";
 import { useUserStore } from "@/app/stores/useUserStores";
 import { User, Categories, BookData, Book } from "@/app/types";
 import { motion } from "framer-motion";

@@ -9,9 +9,9 @@ import { Bookmark, Share2, Volume2, Square, Loader2, BrainCircuit } from "lucide
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import posthog from "posthog-js";
-import { getStepDetails } from "@/app/services/bookService";
+import { getStepDetails } from "@/app/services/insightService";
 import { useUserStore } from "@/app/stores/useUserStores";
-import { fetchSessionRecommendations } from "@/app/services/userService";
+import { fetchSessionRecommendations } from "@/app/services/recommendationService";
 import { useBookmarkInsight } from "@/app/hooks/mutations/useBookmark";
 import ShareModal from "@/app/components/modals/ShareModal";
 import QuizModal from "@/app/components/modals/QuizModal";
@@ -161,13 +161,13 @@ export default function Page() {
         },
         {
             id: "bookmark",
-            title: user?.favourite_insights?.includes(stepDetails?.step_id) ? "Remove bookmark" : "Bookmark insight",
-            onClick: () => bookmarkInsight(stepDetails?.step_id),
+            title: user?.favourite_insights?.includes(stepDetails?.step_id!) ? "Remove bookmark" : "Bookmark insight",
+            onClick: () => bookmarkInsight(stepDetails?.step_id!),
             disabled: false,
             icon: (
                 <Bookmark
                     size={20}
-                    className={user?.favourite_insights?.includes(stepDetails?.step_id) ? "fill-current" : ""}
+                    className={user?.favourite_insights?.includes(stepDetails?.step_id!) ? "fill-current" : ""}
                 />
             ),
         },

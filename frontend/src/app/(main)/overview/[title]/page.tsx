@@ -45,11 +45,12 @@ const Overview = () => {
   const user = useUserStore((state) => state.user);
   const { mutate: bookmarkBook } = useBookmarkBook();
 
-  const { data: book, isLoading } = useQuery<BookInfo>({
-    queryKey: ["book-info", params.title],
-    queryFn: () => getBookInfoByTitle(params.title as string),
-    enabled: !!params.title,
+  const { data: book, isLoading } = useQuery({
+    queryKey: ["book-info", params?.title],
+    queryFn: () => getBookInfoByTitle(params!.title as string),
+    enabled: !!params?.title,
   });
+
   console.log(book);
   useEffect(() => {
     if (book) {
