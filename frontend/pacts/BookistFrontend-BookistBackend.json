@@ -147,6 +147,67 @@
       }
     },
     {
+      "description": "a request for session recommendations",
+      "providerStates": [
+        {
+          "name": "a request for session recommendations"
+        }
+      ],
+      "request": {
+        "body": {
+          "insight_id": 42
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/insights/session-recommend"
+      },
+      "response": {
+        "body": {
+          "recommendations": [
+            {
+              "category": "productivity",
+              "title": "A related insight"
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.recommendations": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.recommendations[*].category": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.recommendations[*].title": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
       "description": "a request for step details",
       "providerStates": [
         {
@@ -439,6 +500,51 @@
               ]
             }
           }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "a request to generate voice audio",
+      "providerStates": [
+        {
+          "name": "a request to generate voice audio"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello world",
+          "voice": "troy"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.text": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.voice": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "method": "POST",
+        "path": "/generate-voice"
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "audio/wav"
         },
         "status": 200
       }
@@ -832,6 +938,7 @@
       },
       "response": {
         "body": {
+          "bookmarked": true,
           "favourite_books": [
             1
           ]
@@ -841,12 +948,28 @@
         },
         "matchingRules": {
           "body": {
+            "$.bookmarked": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
             "$.favourite_books": {
               "combine": "AND",
               "matchers": [
                 {
                   "match": "type",
                   "min": 1
+                }
+              ]
+            },
+            "$.favourite_books[*]": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
                 }
               ]
             }
@@ -868,7 +991,7 @@
       },
       "response": {
         "body": {
-          "bookmarked": true,
+          "bookmarked": false,
           "favourite_insights": [
             42
           ]
@@ -892,6 +1015,14 @@
                 {
                   "match": "type",
                   "min": 1
+                }
+              ]
+            },
+            "$.favourite_insights[*]": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
                 }
               ]
             }

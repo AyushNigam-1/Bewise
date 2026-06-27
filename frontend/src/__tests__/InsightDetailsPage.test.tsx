@@ -5,19 +5,11 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import InsightDetailsPage from '@/app/(main)/insight/[title]/[category]/[stepId]/page'; // Adjust path if needed
-import { getStepDetails } from '@/app/services/bookService';
-import { fetchSessionRecommendations } from '@/app/services/userService';
+import { getStepDetails } from '@/app/services/insightService';
+import { fetchSessionRecommendations } from '@/app/services/recommendationService';
 import { generateVoice } from '@/app/services/aiService';
 
-// 1. STUB JSDOM MISSING APIS
-// window.HTMLElement.prototype.scrollIntoView = vi.fn();
-// global.ResizeObserver = class ResizeObserver {
-//     observe() { }
-//     unobserve() { }
-//     disconnect() { }
-// };
 
-// 2. Hoist Mocks for Browser APIs and Data
 const { clipboardWriteMock, audioPlayMock, bookmarkMutateMock, mockUser, mockInsight } = vi.hoisted(() => ({
     clipboardWriteMock: vi.fn(),
     audioPlayMock: vi.fn(),
@@ -37,18 +29,26 @@ const { clipboardWriteMock, audioPlayMock, bookmarkMutateMock, mockUser, mockIns
 }));
 
 // 3. Mock Dependencies
-vi.mock('@/app/services/bookService', () => ({ getStepDetails: vi.fn() }));
-vi.mock('@/app/services/userService', () => ({ fetchSessionRecommendations: vi.fn() }));
+vi.mock('@/app/services/insightService', () => ({ getStepDetails: vi.fn() }));
+vi.mock('@/app/services/recommendationService', () => ({ fetchSessionRecommendations: vi.fn() }));
 vi.mock('@/app/services/aiService', () => ({ generateVoice: vi.fn() }));
 vi.mock('@/app/stores/useUserStores', () => ({ useUserStore: (sel: any) => sel({ user: mockUser }) }));
 vi.mock('@/app/hooks/mutations/useBookmark', () => ({ useBookmarkInsight: () => ({ mutate: bookmarkMutateMock }) }));
 vi.mock('next/navigation', () => ({ useParams: () => ({ title: 'Think Straight', stepId: 'step-123' }) }));
-vi.mock('posthog-js', () => ({ default: { capture: vi.fn() } }));
 
-vi.mock('framer-motion', () => ({
-    motion: { div: ({ children, ...props }: any) => <div {...props}>{children}</div> },
-    AnimatePresence: ({ children }: any) => <>{children}</>
-}));
+vi.mock('framer-motion', () => {
+    const React = require('react');
+    return {
+        motion: new Proxy({}, {
+            get: (_, element) => {
+                return ({ layout, layoutId, initial, animate, exit, transition, whileHover, whileTap, ...props }: any) => {
+                    return React.createElement(element as string, props);
+                };
+            }
+        }),
+        AnimatePresence: ({ children }: any) => <>{children}</>
+    };
+});
 
 // Apply the bulletproof clipboard fix for the Share Modal
 vi.mock('@/app/components/modals/ShareModal', () => ({

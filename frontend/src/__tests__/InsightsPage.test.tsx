@@ -5,8 +5,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import InsightsPage from '@/app/(main)/insights/[title]/page';
-import { getBookContent } from '@/app/services/bookService';
-import { useBookmarkInsight } from '@/app/hooks/mutations/useBookmark';
+import { getBookContent } from '@/app/services/insightService';
 
 // 1. Hoist Mocks
 const { clipboardWriteMock, mockData, bookmarkMutateMock, mockUser } = vi.hoisted(() => {
@@ -29,13 +28,15 @@ const { clipboardWriteMock, mockData, bookmarkMutateMock, mockUser } = vi.hoiste
 });
 
 // 2. Mock Dependencies
-vi.mock('@/app/services/bookService', () => ({ getBookContent: vi.fn() }));
+vi.mock('@/app/services/insightService', () => ({ getBookContent: vi.fn() }));
 vi.mock('@/app/stores/useUserStores', () => ({ useUserStore: (sel: any) => sel({ user: mockUser }) }));
 vi.mock('@/app/hooks/mutations/useBookmark', () => ({ useBookmarkInsight: () => ({ mutate: bookmarkMutateMock }) }));
 vi.mock('next/navigation', () => ({ useParams: () => ({ title: 'Think Straight' }) }));
 
 vi.mock('framer-motion', () => ({
-    motion: { div: ({ children, ...props }: any) => <div {...props}>{children}</div> },
+    motion: {
+        div: ({ layout, layoutId, children, ...props }: any) => <div {...props}>{children}</div>
+    },
     AnimatePresence: ({ children }: any) => <>{children}</>
 }));
 

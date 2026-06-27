@@ -2,19 +2,18 @@ import { MatchersV3 } from "@pact-foundation/pact";
 import { describe, it, expect } from "vitest";
 import { api } from "@/app/lib/api";
 import {
-    toggleFavouriteBook,
-    toggleFavouriteInsight,
-    fetchSessionRecommendations,
     getBookmarkedBooks,
-    getBookmarkedInsights
-} from "@/app/services/userService";
+    getBookmarkedInsights,
+    toggleBookmarkBook,
+    toggleBookmarkInsight,
+} from "@/app/services/bookmarkServices";
 import { provider } from "./setup.pact";
 
-const { eachLike, integer, string, boolean } = MatchersV3;
+const { boolean, integer, eachLike, string } = MatchersV3;
 
-describe("User & Bookmarks API Frontend Contract", () => {
+describe("Bookmarks API Contract Tests", () => {
 
-    it("generates the contract for toggling a favourite book", async () => {
+    it("toggles a book bookmark", async () => {
         provider
             .given("a request to toggle a book bookmark")
             .uponReceiving("a request to toggle a book bookmark")
@@ -23,63 +22,38 @@ describe("User & Bookmarks API Frontend Contract", () => {
                 status: 200,
                 headers: { "Content-Type": "application/json" },
                 body: {
-                    favourite_books: eachLike(1)
+                    bookmarked: boolean(true),
+                    favourite_books: eachLike(integer(1)),
                 },
             });
 
         await provider.executeTest(async (mockServer) => {
             api.defaults.baseURL = mockServer.url;
-            const res = await toggleFavouriteBook(1);
-            expect(res).toBeInstanceOf(Array);
+            const res = await toggleBookmarkBook(1);
+            expect(typeof res.bookmarked).toBe("boolean");
         });
     });
 
-    it("generates the contract for toggling a favourite insight", async () => {
-        provider.given("a request to toggle an insight bookmark")
+    it("toggles an insight bookmark", async () => {
+        provider
+            .given("a request to toggle an insight bookmark")
             .uponReceiving("a request to toggle an insight bookmark")
             .withRequest({ method: "POST", path: "/bookmark/insight/42" })
             .willRespondWith({
                 status: 200,
                 headers: { "Content-Type": "application/json" },
                 body: {
-                    bookmarked: boolean(true),
-                    favourite_insights: eachLike(42)
+                    bookmarked: boolean(false),
+                    favourite_insights: eachLike(integer(42)),
                 },
             });
 
         await provider.executeTest(async (mockServer) => {
             api.defaults.baseURL = mockServer.url;
-            const res = await toggleFavouriteInsight(42);
-            expect(res).toBeDefined();
+            const res = await toggleBookmarkInsight(42);
+            expect(typeof res.bookmarked).toBe("boolean");
         });
     });
-
-    it("generates the contract for fetching session recommendations", async () => {
-        provider.given("a request for session recommendations")
-            .uponReceiving("a request for session recommendations")
-            .withRequest({
-                method: "POST",
-                path: "/insights/session-recommend",
-                body: { insight_id: 42 }
-            })
-            .willRespondWith({
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-                body: {
-                    recommendations: eachLike({
-                        title: string("A related insight"),
-                        category: string("productivity")
-                    })
-                },
-            });
-
-        await provider.executeTest(async (mockServer) => {
-            api.defaults.baseURL = mockServer.url;
-            const res = await fetchSessionRecommendations("42");
-            expect(res).toBeInstanceOf(Array);
-        });
-    });
-
     it("generates the contract for getting bookmarked books", async () => {
         provider.given("a request to get all bookmarked books").uponReceiving("a request to get all bookmarked books")
             .withRequest({ method: "GET", path: "/bookmarks/books" })

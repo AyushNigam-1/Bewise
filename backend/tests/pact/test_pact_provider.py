@@ -31,7 +31,6 @@ def run_fastapi_server_with_db():
             env=my_env
         )
         
-        # FIX 2: Give it a full 60 seconds (120 retries) to load the AI models
         max_retries = 120
         for _ in range(max_retries):
             try:
@@ -60,11 +59,10 @@ def test_pact_provider_compliance():
     verifier = (
         Verifier("BookistBackend", host="127.0.0.1")
         .broker_source(
-    url=os.environ["PACT_BROKER_BASE_URL"],
-    username=os.environ["PACT_BROKER_USERNAME"],
-    password=os.environ["PACT_BROKER_PASSWORD"],
-)
-        # 🚨 BRING THIS BACK: Tells Pact to trigger dynamic DB seeding
+            url=os.environ["PACT_BROKER_BASE_URL"],
+            username=os.environ["PACT_BROKER_USERNAME"],
+            password=os.environ["PACT_BROKER_PASSWORD"],
+        )
         .state_handler("http://127.0.0.1:8000/_pact/setup", body=True)
         .add_transport(protocol="http", port=8000)
     )

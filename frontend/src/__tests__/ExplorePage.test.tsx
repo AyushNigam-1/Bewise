@@ -3,8 +3,7 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-import ExplorePage from '@/app/(main)/explore/page';   // Adjust path if needed
+import ExplorePage from '@/app/(main)/explore/page';
 import { findBooksByCategories } from '@/app/services/bookService';
 
 // 1. Hoist Mocks

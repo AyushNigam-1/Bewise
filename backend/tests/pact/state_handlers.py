@@ -38,24 +38,19 @@ def seed_default_state(session):
 
 def seed_bookmarked_state(session):
     """Seeds the database with a user who already has bookmarks."""
-    seed_default_state(session) # Load the base data
+    seed_default_state(session)
     
-    # Update the user we just added to have bookmarks
     user = session.query(User).filter(User.id == "pact_test_user_123").first()
     if user:
         user.favourite_books = [1]
         user.favourite_insights = [42]
         session.commit()
 
-# ---------------------------------------------------------
-# THE REGISTRY: Maps exact Pact state strings to functions
-# ---------------------------------------------------------
+
 STATE_REGISTRY = {
-    # Auth / Bookmark specific states
     "a request to get all bookmarked books": seed_bookmarked_state,
     "a request to get all bookmarked insights": seed_bookmarked_state,
     "a request for session recommendations": seed_default_state,
-    # Standard states (Books & AI)
     "a request to find books by categories": seed_default_state,
     "a request for book content": seed_default_state,
     "a request for book info": seed_default_state,

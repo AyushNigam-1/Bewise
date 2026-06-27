@@ -5,8 +5,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import BookmarksPage from '@/app/(main)/bookmarks/page';
-import { getBookmarkedInsights } from '@/app/services/userService';
-import { useBookmarkInsight } from '@/app/hooks/mutations/useBookmark';
+import { getBookmarkedInsights } from '@/app/services/bookmarkServices';
 
 const {
     bookmarkMutateMock,
@@ -54,7 +53,7 @@ vi.mock('@/app/stores/useUserStores', () => ({
     useUserStore: (selector: any) => selector({ user: mockUser }),
 }));
 
-vi.mock('@/app/services/userService', () => ({
+vi.mock('@/app/services/bookmarkServices', () => ({
     getBookmarkedInsights: vi.fn(),
 }));
 

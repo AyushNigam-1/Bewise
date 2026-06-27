@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [react()],
         test: {
+            globals: true,
             environment: "jsdom",
             setupFiles: ["./vitest.setup.ts"],
             env,

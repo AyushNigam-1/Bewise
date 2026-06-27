@@ -2,24 +2,17 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
 import ChatbotModal from '@/app/components/modals/ChatbotModal';
 import { invokeChatbot, generateVoice } from '@/app/services/aiService';
 
-// 2. Hoist Mocks for Browser APIs
 const { clipboardWriteMock, audioPlayMock } = vi.hoisted(() => ({
     clipboardWriteMock: vi.fn(),
     audioPlayMock: vi.fn(),
 }));
 
-// 3. Mock Dependencies
 vi.mock('@/app/services/aiService', () => ({
     invokeChatbot: vi.fn(),
     generateVoice: vi.fn(),
-}));
-
-vi.mock('posthog-js', () => ({
-    default: { capture: vi.fn() }
 }));
 
 vi.mock('framer-motion', () => ({

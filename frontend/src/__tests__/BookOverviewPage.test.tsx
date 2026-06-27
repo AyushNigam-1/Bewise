@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import OverviewPage from '@/app/(main)/overview/[title]/page';
 import { getBookInfoByTitle } from '@/app/services/bookService';
-import { useBookmarkBook } from '@/app/hooks/mutations/useBookmark';
 
 // 1. Hoist our mocks so Vitest resolves them before importing the component
 const { clipboardWriteMock, mockBook, bookmarkMutateMock, mockUser } = vi.hoisted(() => {
@@ -49,11 +48,6 @@ vi.mock('@/app/hooks/mutations/useBookmark', () => ({
 
 vi.mock('next/navigation', () => ({
     useParams: () => ({ title: 'Think Straight' }),
-}));
-
-// We mock PostHog to prevent it from trying to send real analytics during tests
-vi.mock('posthog-js', () => ({
-    default: { capture: vi.fn() }
 }));
 
 // Mock framer-motion to render children directly without animations
