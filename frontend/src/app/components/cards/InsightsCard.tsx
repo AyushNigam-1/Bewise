@@ -50,10 +50,7 @@ export const InsightCard = ({
       <div className="flex gap-4 items-center justify-between w-full mt-auto dark:border-gray-700">
         <button
           data-testid="insight-bookmark-btn"
-          onClick={() => {
-            console.log(step.step_id);
-            onBookmark?.(step.step_id);
-          }}
+          onClick={() => onBookmark?.(step.step_id)}
           type="button"
           className="text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none rounded-full p-2.5 w-min font-semibold transition-colors shadow-sm"
         >

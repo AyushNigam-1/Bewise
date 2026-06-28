@@ -1,9 +1,7 @@
 import { MatchersV3 } from "@pact-foundation/pact";
 import { describe, it, expect } from "vitest";
 import { api } from "@/app/lib/api";
-import {
-    fetchSessionRecommendations,
-} from "@/app/services/recommendationService";
+import { fetchSessionRecommendations } from "@/app/services/recommendationService";
 import { provider } from "./setup.pact";
 
 const { eachLike, string } = MatchersV3;

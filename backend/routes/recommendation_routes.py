@@ -1,23 +1,27 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from controllers.recommendation_controller import recommend, session_recommend
+from routes.utils import get_current_user_id
 from core.telemetry import TelemetryRoute
+from controllers.recommendation_controller import RecommendationService, get_recommendation_service
 
 router = APIRouter(route_class=TelemetryRoute)
 
 class SessionRecommendRequest(BaseModel):
     insight_id: int
 
-
-def get_user_id(request: Request) -> str:
-    return request.state.user["id"]
-
-
+# --- Clean DI Routes ---
 @router.get("/recommend")
-def recommend_route(request: Request):
-    return recommend(get_user_id(request))
+def recommend_route(
+    user_id: str = Depends(get_current_user_id),
+    service: RecommendationService = Depends(get_recommendation_service)
+):
+    return service.recommend(user_id)
 
 
 @router.post("/insights/session-recommend")
-def session_recommend_route(payload: SessionRecommendRequest, request: Request):
-    return session_recommend(get_user_id(request), payload.insight_id)
+def session_recommend_route(
+    payload: SessionRecommendRequest,
+    user_id: str = Depends(get_current_user_id),
+    service: RecommendationService = Depends(get_recommendation_service)
+):
+    return service.session_recommend(user_id, payload.insight_id)

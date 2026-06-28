@@ -12,7 +12,7 @@ from routes.bookmark_routes import router as bookmark_router
 from routes.insight_routes import router as insight_router
 from routes.books_routes import router as books_router
 from routes.chatbot_routes import rag_ai_router
-from routes.quiz_routes import quiz_ai_router
+from routes.quiz_routes import router as quiz_ai_router
 from routes.recommendation_routes import router as recommendation_router
 from routes.voice_routes import router as voice_router
 

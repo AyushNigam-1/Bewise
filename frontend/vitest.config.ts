@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [react()],
         test: {
+            slowTestThreshold: 15000,
             globals: true,
             environment: "jsdom",
             setupFiles: ["./vitest.setup.ts"],

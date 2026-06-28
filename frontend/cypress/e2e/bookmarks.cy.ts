@@ -29,7 +29,7 @@ describe("Navbar Navigation & Bookmarks Journey", () => {
     }).as("getInsights");
 
     // Start at the home page for a true navigation test
-    cy.visit("/");
+    cy.visit("/explore");
     cy.wait("@loggedInSession");
   });
 

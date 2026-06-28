@@ -21,7 +21,7 @@ export const useAuthActions = () => {
                 toast.error("Invalid credentials. Try again.");
             } else {
                 toast.success("Successfully logged in!");
-                router.push("/");
+                router.push("/explore");
             }
         } catch (err: any) {
             toast.error("Invalid credentials. Try again.");
@@ -44,7 +44,7 @@ export const useAuthActions = () => {
                 toast.error(response.error.message || "Failed! Please try again.");
             } else {
                 toast.success("Account created successfully!");
-                router.push("/");
+                router.push("/explore");
             }
         } catch (err: any) {
             toast.error("Failed to create account. Please try again.");

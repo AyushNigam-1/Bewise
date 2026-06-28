@@ -24,7 +24,7 @@ describe("AI Chatbot E2E Journeys", () => {
       body: { output: { answer: "Atomic Habits is about small changes.", insights: {} } },
     }).as("chatRequest");
 
-    cy.visit("/");
+    cy.visit("/explore");
     cy.wait("@loggedInSession");
     cy.wait("@homeBooks");
     cy.getByTestId("chatbot-button").click();

@@ -29,13 +29,9 @@ export const generateVoice = async (text: string) => {
 };
 
 export const generateQuizFromText = async (textData: string): Promise<QuizQuestion[]> => {
-    const response = await api.post("/ai/quiz/invoke",
-        {
-            input: {
-                source_text: textData.substring(0, 3000),
-            },
-        }
-    );
+    const response = await api.post("/ai/quiz/invoke", {
+        source_text: textData.substring(0, 3000),
+    });
 
     if (!response.data) throw new Error("Failed to generate quiz");
     return response.data.output.quiz;

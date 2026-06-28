@@ -51,7 +51,6 @@ const Overview = () => {
     enabled: !!params?.title,
   });
 
-  console.log(book);
   useEffect(() => {
     if (book) {
       posthog.capture("book_overview_viewed", {

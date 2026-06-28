@@ -6,6 +6,7 @@ from datetime import datetime
 from core.database import engine
 from core.models import User, AuthSession
 import os
+
 PROTECTED_PREFIXES = [
     "/bookmark",
     "/recommend",

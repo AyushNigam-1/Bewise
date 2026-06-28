@@ -3,7 +3,6 @@ import { describe, it, expect } from "vitest";
 import { api } from "@/app/lib/api";
 import { getStepDetails, getBookContent } from "@/app/services/insightService";
 import { provider } from "./setup.pact";
-import { getBookmarkedBooks, getBookmarkedInsights } from "@/app/services/bookmarkServices";
 
 const { integer, string, eachLike } = MatchersV3;
 

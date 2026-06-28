@@ -33,7 +33,6 @@ export const getBookmarkedBooks = async () => {
 export const getBookmarkedInsights = async () => {
     try {
         const response = await api.get(`/bookmarks/insights`);
-        console.log(response)
         return response.data;
     } catch (error: any) {
         throw new Error(error.response?.data?.detail || "Failed to fetch bookmarked insights");

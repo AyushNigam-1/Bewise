@@ -30,16 +30,12 @@ patch('controllers.chatbot_controller.rag_graph.invoke', return_value={
     }
 }).start()
 
-# ---------------------------------------------------------
-# 🚨 2. NOW IMPORT FASTAPI
-# ---------------------------------------------------------
 from app import app
 import routes.books_routes
 import services.vector
 import core.redis
 import controllers.recommendation_controller
 
-# Standard Lambda Mocks
 routes.books_routes.create_book = lambda book_data: {"message": "Book and associated steps created successfully"}
 services.vector.embed_and_upsert_insight = lambda *args, **kwargs: 1
 core.redis.redis_client.get = lambda key: None
@@ -50,9 +46,6 @@ controllers.recommendation_controller.session_recommend = lambda user_id, insigh
     ]
 }
 
-# ---------------------------------------------------------
-# 🚨 3. THE DYNAMIC WEBHOOK (Powered by the Registry)
-# ---------------------------------------------------------
 @app.post("/_pact/setup")
 async def setup_state(request: dict):
     state = request.get("state")

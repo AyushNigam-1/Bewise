@@ -46,7 +46,7 @@ describe("Explore Page Category Filtering Journey", () => {
     }).as("booksRequest");
 
     // 3. Visit the explore page
-    cy.visit("/"); // Adjust route if your actual URL is different
+    cy.visit("/explore"); // Adjust route if your actual URL is different
   });
 
   it("should trigger a network refetch and filter books when a category pill is clicked", () => {

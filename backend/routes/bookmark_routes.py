@@ -1,12 +1,8 @@
-from fastapi import APIRouter, Request, HTTPException
 from enum import Enum
+from routes.utils import get_current_user_id
 from core.telemetry import TelemetryRoute
-from controllers.bookmark_controller import (
-    toggle_bookmark_book,
-    toggle_bookmark_insight,
-    get_bookmarked_books_with_categories,
-    get_bookmarked_insights_with_categories,
-)
+from fastapi import APIRouter, HTTPException, Depends
+from controllers.bookmark_controller import BookmarkService, get_bookmark_service
 
 router = APIRouter(route_class=TelemetryRoute)
 
@@ -15,28 +11,34 @@ class BookmarkType(str, Enum):
     insights = "insights"
 
 
-def get_user_id(request: Request) -> str:
-    return request.state.user["id"]
-
-
 @router.post("/bookmark/book/{book_id}")
-def toggle_bookmark_book_route(book_id: int, request: Request):
-    return toggle_bookmark_book(get_user_id(request), book_id)
+def toggle_bookmark_book_route(
+    book_id: int, 
+    user_id: str = Depends(get_current_user_id),
+    service: BookmarkService = Depends(get_bookmark_service)
+):
+    return service.toggle_bookmark_book(user_id, book_id)
 
 
 @router.post("/bookmark/insight/{insight_id}")
-def toggle_bookmark_insight_route(insight_id: int, request: Request):
-    return toggle_bookmark_insight(get_user_id(request), insight_id)
+def toggle_bookmark_insight_route(
+    insight_id: int, 
+    user_id: str = Depends(get_current_user_id),
+    service: BookmarkService = Depends(get_bookmark_service)
+):
+    return service.toggle_bookmark_insight(user_id, insight_id)
 
 
 @router.get("/bookmarks/{item_type}")
-def get_bookmarks_route(item_type: BookmarkType, request: Request):
-    user_id = get_user_id(request)
-
+def get_bookmarks_route(
+    item_type: BookmarkType, 
+    user_id: str = Depends(get_current_user_id),
+    service: BookmarkService = Depends(get_bookmark_service)
+):
     if item_type == BookmarkType.books:
-        return get_bookmarked_books_with_categories(user_id)
+        return service.get_bookmarked_books_with_categories(user_id)
 
     if item_type == BookmarkType.insights:
-        return get_bookmarked_insights_with_categories(user_id)
+        return service.get_bookmarked_insights_with_categories(user_id)
 
     raise HTTPException(status_code=400, detail="Invalid bookmark type")
