@@ -4,22 +4,19 @@ import pytest
 @pytest.mark.integration
 @pytest.mark.rag
 @pytest.mark.slow
-def test_rag_langserve_happy_path(client):
+def test_rag_api_happy_path(client):
     """
-    Tests the LangServe /invoke endpoint with a valid query.
-    LangServe wraps inputs in an 'input' dictionary.
+    Tests the standard /invoke endpoint with a valid query.
+    No more LangServe wrappers—just clean, flat JSON.
     """
-    # 1. Arrange: LangServe requires the data inside an "input" key
+    # 1. Arrange: Send a flat payload matching the RAGRequest Pydantic model
     payload = {
-        "input": {
-            "message": "What is the hybrid architecture?",
-            "session_id": "test-session-123",
-            "books_ids": [],
-            "insights_ids": [],
-        }
+        "message": "What is the hybrid architecture?",
+        "books_ids": [],
+        "insights_ids": [],
     }
 
-    # 2. Act: Hit the auto-generated LangServe /invoke route
+    # 2. Act: Hit our custom DI route
     response = client.post("/ai/rag/invoke", json=payload)
 
     # 3. Assert: Verify the server processed it
@@ -27,13 +24,12 @@ def test_rag_langserve_happy_path(client):
         f"Expected 200, got {response.status_code}: {response.text}"
     )
 
-    # LangServe wraps the final output in an "output" dictionary
     data = response.json()
-    assert "output" in data, "LangServe response missing 'output' wrapper!"
+    # We kept the "output" wrapper in the route so the frontend wouldn't break
+    assert "output" in data, "Response missing 'output' wrapper!"
 
     final_response = data["output"]
 
-    # Verify your custom response structure from chatbot_handler.py
     assert "answer" in final_response, "Missing 'answer' in final_response"
     assert "insights" in final_response, "Missing 'insights' in final_response"
     assert len(final_response["answer"]) > 0
@@ -47,8 +43,9 @@ def test_rag_conversational_fallback(client):
     Tests Rule #4 of your system prompt:
     Casual greetings should return a friendly response without insights.
     """
+    # Flat payload, no session_id required (handled by auth middleware)
     payload = {
-        "input": {"message": "how are you?", "session_id": "test-session-greeting"}
+        "message": "how are you?"
     }
 
     response = client.post("/ai/rag/invoke", json=payload)
@@ -69,15 +66,17 @@ def test_rag_conversational_fallback(client):
 
 @pytest.mark.integration
 @pytest.mark.rag
-def test_rag_langserve_validation_error(client):
+def test_rag_api_validation_error(client):
     """
-    Tests the Sad Path. If we don't provide the 'input' wrapper,
-    LangServe should reject it as a bad request.
+    Tests the Sad Path. If we omit the required 'message' field,
+    FastAPI and Pydantic should instantly reject it.
     """
-    # Arrange: Sending raw data instead of putting it inside "input"
-    bad_payload = {"message": "This will fail"}
+    # Arrange: Sending a payload missing the required 'message' field
+    bad_payload = {
+        "books_ids": [123] 
+    }
 
     response = client.post("/ai/rag/invoke", json=bad_payload)
 
-    # Assert: LangServe/FastAPI should return a 422 Validation Error
+    # Assert: FastAPI should catch this before it ever hits our service logic
     assert response.status_code in [422, 429], "Expected Validation Error (422) or Rate Limit (429)"

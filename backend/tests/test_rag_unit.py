@@ -1,124 +1,119 @@
 import pytest
-from unittest.mock import MagicMock, patch
-from controllers.chatbot_controller import RAGResponse
+from unittest.mock import MagicMock
+from controllers.chatbot_controller import RAGService, RAGResponse
+
+
+# --- 1. Construct the DI Service for Testing ---
+@pytest.fixture
+def mock_llm():
+    """Creates a fake LLM client that supports the .with_structured_output() chain."""
+    llm = MagicMock()
+    mock_structured = MagicMock()
+    llm.with_structured_output.return_value = mock_structured
+    return llm
 
 
 @pytest.fixture
-def mock_dependencies():
-    """
-    Advanced PyTest Fixture to patch out all external network bound services.
-    Bypasses Pinecone vector search, Groq LLM generations, and the new DB Repositories.
-    """
-    # 1. Mock the Vector Database and the NEW Repository functions!
-    with (
-        patch("controllers.chatbot_controller.search_insights") as mock_vector,
-        patch("controllers.chatbot_controller.llm") as mock_llm,
-        patch("controllers.chatbot_controller.get_book_names_by_ids") as mock_get_books,
-        patch("controllers.chatbot_controller.get_explicit_insights") as mock_get_insights,
-    ):
-        # Set up what the fake Pinecone vector search returns instantly
-        mock_vector.return_value = [
-            {
-                "insight_id": 42,
-                "book": "Clean Code",
-                "category": "Architecture",
-                "title": "Keep functions small",
-                "description": "Functions should do one thing and do it well.",
-                "source": "vector",
-            }
-        ]
+def mock_book_repo():
+    return MagicMock()
 
-        # Set up a fake structured output generator for the Groq LLM
-        mock_structured_llm = MagicMock()
-        mock_structured_llm.invoke.return_value = RAGResponse(
-            answer="According to Clean Code, functions must be small and modular.",
-            ids=[42],
-        )
-        mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        # Default repo returns
-        mock_get_books.return_value = []
-        mock_get_insights.return_value = []
+@pytest.fixture
+def mock_insight_repo():
+    return MagicMock()
 
-        yield {
-            "vector": mock_vector,
-            "llm_invoke": mock_structured_llm.invoke,
-            "get_books": mock_get_books,
-            "get_insights": mock_get_insights,
-        }
 
+@pytest.fixture
+def mock_vector_search():
+    return MagicMock()
+
+
+@pytest.fixture
+def service(mock_llm, mock_book_repo, mock_insight_repo, mock_vector_search):
+    """Injects all fake dependencies into our RAG Service."""
+    return RAGService(
+        llm_client=mock_llm,
+        book_repo=mock_book_repo,
+        insight_repo=mock_insight_repo,
+        vector_search_func=mock_vector_search
+    )
+
+
+# --- 2. The Tests ---
 
 @pytest.mark.unit
 @pytest.mark.rag
-def test_unit_rag_flow_success(client, mock_dependencies):
+def test_unit_rag_flow_success(service, mock_vector_search, mock_llm):
     """
     Tests that your application routes inputs to the retrieve node,
     maps context block components correctly, and processes structured responses.
     """
-    payload = {
-        "input": {
-            "message": "Tell me about function size",
-            "session_id": "mock-session-001",
+    # 1. Arrange: Fake Vector Search Result
+    mock_vector_search.return_value = [
+        {
+            "insight_id": 42,
+            "book": "Clean Code",
+            "category": "Architecture",
+            "title": "Keep functions small",
+            "description": "Functions should do one thing and do it well.",
+            "source": "vector",
         }
-    }
+    ]
 
-    # Act: Invoke the LangServe route
-    response = client.post("/ai/rag/invoke", json=payload)
+    # Fake LLM Structured Output
+    mock_llm.with_structured_output.return_value.invoke.return_value = RAGResponse(
+        answer="According to Clean Code, functions must be small and modular.",
+        ids=[42],
+    )
 
-    # Assert
-    assert response.status_code == 200
-    data = response.json()["output"]
+    payload = {"message": "Tell me about function size"}
 
-    assert data["answer"] == "According to Clean Code, functions must be small and modular."
-    assert "Clean Code" in data["insights"]
-    assert data["insights"]["Clean Code"][0]["id"] == 42
+    # 2. Act: Invoke the service directly
+    result = service.rag_entrypoint(payload, user_id="mock-session-001")
 
-    mock_dependencies["vector"].assert_called_once()
-    mock_dependencies["llm_invoke"].assert_called_once()
+    # 3. Assert
+    assert result["answer"] == "According to Clean Code, functions must be small and modular."
+    assert "Clean Code" in result["insights"]
+    assert result["insights"]["Clean Code"][0]["id"] == 42
+
+    mock_vector_search.assert_called_once()
+    mock_llm.with_structured_output.return_value.invoke.assert_called_once()
 
 
 @pytest.mark.unit
 @pytest.mark.rag
-def test_unit_rag_llm_failure_handling(client, mock_dependencies):
+def test_unit_rag_llm_failure_handling(service, mock_llm):
     """
     Tests your explicit error handling resiliency code.
-    If the Groq LLM throws a random timeout or connectivity crash,
-    does your code activate the conversational fallback gracefully?
+    If the Groq LLM throws a crash, does it activate the conversational fallback?
     """
-    mock_dependencies["llm_invoke"].side_effect = Exception("Groq API rate limit")
+    # Force the LLM to crash
+    mock_llm.with_structured_output.return_value.invoke.side_effect = Exception("Groq API rate limit")
 
-    payload = {"input": {"message": "What up bot", "session_id": "mock-session-crash"}}
+    payload = {"message": "What up bot"}
 
-    # Act
-    response = client.post("/ai/rag/invoke", json=payload)
+    result = service.rag_entrypoint(payload, user_id="mock-session-crash")
 
-    # Assert
-    assert response.status_code == 200
-    data = response.json()["output"]
-
-    assert "I am Wiser, your reading assistant!" in data["answer"]
-    assert len(data["insights"]) == 0
+    assert "I am Wiser, your reading assistant!" in result["answer"]
+    assert len(result["insights"]) == 0
 
 
 @pytest.mark.unit
 @pytest.mark.rag
-def test_unit_rag_fatal_entrypoint_crash(client, mock_dependencies):
+def test_unit_rag_fatal_entrypoint_crash(service):
     """
     Tests forcing a fatal exception in the graph invocation.
-    Because NodeTracker re-raises the exact original exception, we test for it safely.
     """
-    with patch("controllers.chatbot_controller.rag_graph.invoke") as mock_graph:
-        mock_graph.side_effect = Exception("FATAL SYSTEM FAILURE")
+    # We can mock the internally compiled graph directly on the service instance
+    service.rag_graph = MagicMock()
+    service.rag_graph.invoke.side_effect = Exception("FATAL SYSTEM FAILURE")
 
-        payload = {
-            "input": {"message": "This should explode", "session_id": "test"}
-        }
+    payload = {"message": "This should explode"}
 
-        with pytest.raises(Exception) as exc_info:
-            client.post("/ai/rag/invoke", json=payload)
+    with pytest.raises(Exception) as exc_info:
+        service.rag_entrypoint(payload, user_id="test")
 
-        # The NodeTracker beautifully preserves the exact error message
-        assert str(exc_info.value) == "FATAL SYSTEM FAILURE"
+    assert str(exc_info.value) == "FATAL SYSTEM FAILURE"
 
 
 @pytest.mark.unit
@@ -132,14 +127,13 @@ def test_unit_rag_fatal_entrypoint_crash(client, mock_dependencies):
     ],
 )
 def test_unit_rag_explicit_db_fetch_variants(
-    client, mock_dependencies, insights_ids, books_ids
+    service, mock_book_repo, mock_insight_repo, insights_ids, books_ids
 ):
     """
-    Tests that explicit insight/book queries hit the new Repositories.
+    Tests that explicit insight/book queries hit the Repositories.
     """
-    # 1. Arrange: Setup the fake repository responses
-    mock_dependencies["get_books"].return_value = ["Atomic Habits"]
-    mock_dependencies["get_insights"].return_value = [
+    mock_book_repo.get_book_names_by_ids.return_value = ["Atomic Habits"]
+    mock_insight_repo.get_explicit_insights.return_value = [
         {
             "insight_id": 99,
             "book": "Atomic Habits",
@@ -151,66 +145,54 @@ def test_unit_rag_explicit_db_fetch_variants(
         }
     ]
 
-    payload = {"input": {"message": "Tell me about habits", "session_id": "test"}}
+    payload = {"message": "Tell me about habits"}
     if insights_ids is not None:
-        payload["input"]["insights_ids"] = insights_ids
+        payload["insights_ids"] = insights_ids
     if books_ids is not None:
-        payload["input"]["books_ids"] = books_ids
+        payload["books_ids"] = books_ids
 
-    # 2. Act
-    response = client.post("/ai/rag/invoke", json=payload)
+    # The service will not throw an error, we just care that it called the repos
+    service.rag_entrypoint(payload, user_id="test")
 
-    # 3. Assert
-    assert response.status_code == 200
-    # Prove the repositories were called
-    mock_dependencies["get_books"].assert_called()
-    mock_dependencies["get_insights"].assert_called()
+    mock_book_repo.get_book_names_by_ids.assert_called()
+    mock_insight_repo.get_explicit_insights.assert_called()
 
 
 @pytest.mark.unit
 @pytest.mark.rag
-def test_unit_rag_db_fetch_crash(client, mock_dependencies):
+def test_unit_rag_db_fetch_crash(service, mock_book_repo, mock_vector_search):
     """
-    Tests the exception block inside retrieve_node.
     If the repository database code is offline, it should gracefully 
     continue to vector search instead of killing the request.
     """
-    # Force the repository to crash
-    mock_dependencies["get_books"].side_effect = Exception("SQL Server Offline")
+    # Force the DB repository to crash
+    mock_book_repo.get_book_names_by_ids.side_effect = Exception("SQL Server Offline")
 
-    payload = {
-        "input": {"message": "Tell me about habits", "insights_ids": [99]}
-    }
+    payload = {"message": "Tell me about habits", "insights_ids": [99]}
 
-    response = client.post("/ai/rag/invoke", json=payload)
-
-    # It should still return 200 because vector search acts as a fallback
-    assert response.status_code == 200
+    # Act
+    service.rag_entrypoint(payload, user_id="test")
     
-    # Prove the fallback worked by ensuring vector search was still called
-    mock_dependencies["vector"].assert_called_once()
+    # Assert the fallback worked by ensuring vector search was still executed
+    mock_vector_search.assert_called_once()
 
 
 @pytest.mark.unit
 @pytest.mark.rag
-def test_unit_rag_no_insights_found(client, mock_dependencies):
+def test_unit_rag_no_insights_found(service, mock_llm):
     """
     Tests the 'empty response' guard logic.
     If the LLM determines the provided context does not answer the question,
     it returns empty lists, triggering a specific fallback message.
     """
-    # 1. Arrange: The LLM politely returns nothing
-    mock_dependencies["llm_invoke"].return_value = RAGResponse(answer="", ids=[])
+    # The LLM politely returns empty arrays
+    mock_llm.with_structured_output.return_value.invoke.return_value = RAGResponse(
+        answer="", ids=[]
+    )
 
-    payload = {
-        "input": {"message": "What is airspeed?", "session_id": "test-empty"}
-    }
+    payload = {"message": "What is airspeed?"}
 
-    # 2. Act
-    response = client.post("/ai/rag/invoke", json=payload)
+    result = service.rag_entrypoint(payload, user_id="test-empty")
 
-    # 3. Assert
-    assert response.status_code == 200
-    data = response.json()["output"]
-    assert data["answer"] == "No relevant insight found to answer your question."
-    assert len(data["insights"]) == 0
+    assert result["answer"] == "No relevant insight found to answer your question."
+    assert len(result["insights"]) == 0

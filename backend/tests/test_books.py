@@ -1,30 +1,51 @@
 import json
-from unittest.mock import MagicMock, patch
-import controllers.book_controller as books
+from unittest.mock import MagicMock
+
+import fakeredis
 import pytest
 from fastapi import HTTPException
+
+from controllers.book_controller import BookService
 from tests.factories import BookFactory
 
 
 @pytest.fixture
-def module_deps(patch_controller):
-    return patch_controller(books)
+def service_deps():
+    redis = fakeredis.FakeRedis(decode_responses=True)
+    repo = MagicMock()
+    embed_callback = MagicMock()
+    processor_class = MagicMock()
+    load_json_func = MagicMock(
+        return_value={
+            "python": {"icon": "🐍", "description": "Python desc"},
+            "ai": {"icon": "🤖", "description": "AI desc"},
+        }
+    )
+
+    service = BookService(
+        redis_client=redis,
+        book_repo=repo,
+        embed_callback=embed_callback,
+        processor_class=processor_class,
+        load_json_func=load_json_func,
+    )
+
+    return redis, repo, embed_callback, processor_class, load_json_func, service
 
 
 @pytest.mark.unit
-def test_get_all_books_uses_cache(module_deps):
-    redis, _, _ = module_deps
+def test_get_all_books_uses_cache(service_deps):
+    redis, _, _, _, _, service = service_deps
     redis.set("books:all", json.dumps([{"id": 1, "title": "Cached Book"}]))
 
-    result = books.get_all_books(user_id="u1")
+    result = service.get_all_books(user_id="u1")
 
     assert result == [{"id": 1, "title": "Cached Book"}]
 
 
 @pytest.mark.unit
-@patch("controllers.book_controller.BookRepository")
-def test_get_all_books_reads_db_and_caches(mock_repo, module_deps):
-    redis, _, _ = module_deps
+def test_get_all_books_reads_db_and_caches(service_deps):
+    redis, repo, _, _, _, service = service_deps
 
     book = BookFactory.build(
         id=1,
@@ -36,9 +57,9 @@ def test_get_all_books_reads_db_and_caches(mock_repo, module_deps):
         content={},
     )
 
-    mock_repo.get_all_books.return_value = [book]
+    repo.get_all_books.return_value = [book]
 
-    result = books.get_all_books(user_id="u1")
+    result = service.get_all_books(user_id="u1")
 
     assert result == [
         {
@@ -50,17 +71,17 @@ def test_get_all_books_reads_db_and_caches(mock_repo, module_deps):
             "category": ["python", "ai"],
         }
     ]
-    assert redis.exists("books:all")
+    assert redis.exists("books:all") == 1
 
 
 @pytest.mark.unit
-def test_find_books_by_categories_cache_hit(module_deps):
-    redis, _, _ = module_deps
+def test_find_books_by_categories_cache_hit(service_deps):
+    redis, _, _, _, _, service = service_deps
 
     cached = {"books": [{"id": 1}], "categories": []}
     redis.set("books_with_cats:python", json.dumps(cached))
 
-    result = books.find_books_by_categories(["python"])
+    result = service.find_books_by_categories(["python"], user_id="u1")
 
     assert result == cached
 
@@ -75,18 +96,14 @@ def test_find_books_by_categories_cache_hit(module_deps):
         (["rust"], [], "books_with_cats:rust"),
     ],
 )
-@patch("controllers.book_controller.BookRepository")
 def test_find_books_by_categories_matrix(
-    mock_repo,
-    monkeypatch,
-    module_deps,
+    service_deps,
     search_categories,
     expected_book_ids,
     expected_cache_key,
 ):
-    redis, _, _ = module_deps
+    redis, repo, _, _, _, service = service_deps
 
-    # 1. Arrange: Setup our factory DB data
     book1 = BookFactory.build(
         id=1,
         title="Book A",
@@ -100,50 +117,39 @@ def test_find_books_by_categories_matrix(
         content={"python": {"steps": [3]}},
     )
 
-    # Dynamic mock logic based on the test parameters
     if not search_categories:
-        mock_repo.get_books_by_categories.return_value = [book1, book2]
+        repo.get_books_by_categories.return_value = [book1, book2]
     elif "rust" in search_categories:
-        mock_repo.get_books_by_categories.return_value = []
+        repo.get_books_by_categories.return_value = []
     else:
-        mock_repo.get_books_by_categories.return_value = [book1, book2]
+        repo.get_books_by_categories.return_value = [book1, book2]
 
-    # Mock the category helper
-    monkeypatch.setattr(
-        books,
-        "load_json_file",
-        lambda *args, **kwargs: {
-            "python": {"icon": "🐍", "description": "Python desc"},
-            "ai": {"icon": "🤖", "description": "AI desc"},
-        },
-    )
+    result = service.find_books_by_categories(search_categories, user_id="u1")
 
-    # 2. Act
-    result = books.find_books_by_categories(search_categories, user_id="u1")
-
-    # 3. Assert
     assert [b["id"] for b in result["books"]] == expected_book_ids
-    assert redis.exists(expected_cache_key)
+    assert redis.exists(expected_cache_key) == 1
+
+    if expected_book_ids:
+        assert {c["name"] for c in result["categories"]} == {"python", "ai"}
+    else:
+        assert result == {"books": [], "categories": []}
 
 
 @pytest.mark.unit
-@patch("controllers.book_controller.BookRepository")
-def test_get_book_info_returns_404_for_missing_book(mock_repo, module_deps):
-    _, _, _ = module_deps
-
-    mock_repo.get_book_by_title.return_value = None
+def test_get_book_info_returns_404_for_missing_book(service_deps):
+    _, repo, _, _, _, service = service_deps
+    repo.get_book_by_title.return_value = None
 
     with pytest.raises(HTTPException) as exc:
-        books.get_book_info("Missing Book", user_id="u1")
+        service.get_book_info("Missing Book", user_id="u1")
 
     assert exc.value.status_code == 404
     assert exc.value.detail == "Book not found"
 
 
 @pytest.mark.unit
-@patch("controllers.book_controller.BookRepository")
-def test_get_book_info_reads_db_and_counts(mock_repo, module_deps):
-    redis, _, _ = module_deps
+def test_get_book_info_reads_db_and_counts(service_deps):
+    redis, repo, _, _, _, service = service_deps
 
     book = BookFactory.build(
         id=1,
@@ -155,24 +161,23 @@ def test_get_book_info_reads_db_and_counts(mock_repo, module_deps):
         },
     )
 
-    mock_repo.get_book_by_title.return_value = book
+    repo.get_book_by_title.return_value = book
 
-    result = books.get_book_info("Book A", user_id="u1")
+    result = service.get_book_info("Book A", user_id="u1")
 
     assert result["title"] == "Book A"
     assert result["sub_categories_count"] == 2
     assert result["total_insights"] == 3
     assert result["categories"] == "python, ai"
-    assert redis.exists("book:info:Book A")
+    assert redis.exists("book:info:Book A") == 1
 
 
 @pytest.mark.unit
-@patch("controllers.book_controller.BookRepository")
-def test_create_book_embeds_and_invalidates_cache(mock_repo, module_deps):
-    redis, _, _ = module_deps
+def test_create_book_embeds_and_invalidates_cache(service_deps):
+    redis, repo, embed_callback, _, _, service = service_deps
     redis.set("books:all", "cached")
 
-    mock_repo.create_book_transaction.return_value = 2
+    repo.create_book_transaction.return_value = 2
 
     book_data = {
         "Title": "New Book",
@@ -206,27 +211,28 @@ def test_create_book_embeds_and_invalidates_cache(mock_repo, module_deps):
         },
     }
 
-    result = books.create_book(book_data, user_id="system")
+    result = service.create_book(book_data, user_id="system")
 
     assert result == {"message": "Book and associated steps created successfully"}
-    mock_repo.create_book_transaction.assert_called_once()
+    repo.create_book_transaction.assert_called_once_with(
+        book_data=book_data,
+        embed_callback=embed_callback,
+    )
     assert redis.exists("books:all") == 0
 
 
 @pytest.mark.unit
-def test_process_book_calls_processor_and_create_book(monkeypatch, module_deps):
-    _, _, _ = module_deps
+def test_process_book_calls_processor_and_create_book(service_deps):
+    _, _, _, processor_class, _, service = service_deps
 
     processor_instance_mock = MagicMock()
     processor_instance_mock.process.return_value = {"Title": "Processed Book"}
+    processor_class.return_value = processor_instance_mock
 
-    processor_class_mock = MagicMock(return_value=processor_instance_mock)
     create_mock = MagicMock(return_value={"message": "ok"})
+    service.create_book = create_mock
 
-    monkeypatch.setattr(books, "BookistProcessor", processor_class_mock)
-    monkeypatch.setattr(books, "create_book", create_mock)
-
-    result = books.process_book(
+    result = service.process_book(
         pdf_path="file.pdf",
         book_title="Title",
         author="Author",
@@ -237,27 +243,35 @@ def test_process_book_calls_processor_and_create_book(monkeypatch, module_deps):
     )
 
     assert result == {"message": "ok"}
-    processor_class_mock.assert_called_once()
+    processor_class.assert_called_once_with(
+        "file.pdf",
+        "Title",
+        "Author",
+        "Desc",
+        "cover.png",
+        ["python"],
+    )
     processor_instance_mock.process.assert_called_once()
     create_mock.assert_called_once_with({"Title": "Processed Book"}, user_id="u1")
 
 
 @pytest.mark.unit
-def test_process_book_failure(monkeypatch, module_deps):
-    _, _, _ = module_deps
-    processor = MagicMock()
-    processor.process.side_effect = Exception("PDF failed")
+def test_process_book_failure(service_deps):
+    _, _, _, processor_class, _, service = service_deps
 
-    monkeypatch.setattr(books, "BookistProcessor", MagicMock(return_value=processor))
+    processor_instance_mock = MagicMock()
+    processor_instance_mock.process.side_effect = Exception("PDF failed")
+    processor_class.return_value = processor_instance_mock
 
     with pytest.raises(Exception) as exc:
-        books.process_book(
+        service.process_book(
             pdf_path="bad.pdf",
             book_title="Book",
             author="Author",
             description="Desc",
             cover_url="cover",
             category_list=["python"],
+            user_id="u1",
         )
 
     assert "PDF failed" in str(exc.value)
